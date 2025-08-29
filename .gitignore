@@ -23,3 +23,35 @@
 hs_err_pid*
 replay_pid*
 /bin/
+
+
+# --------------------------------------
+# Below are custom rules for our vCampus Project
+# --------------------------------------
+
+# Ignore the entire database directory and its contents
+/database/
+
+# Ignore all Access database files anywhere in the project
+*.accdb
+*.mdb
+
+# Eclipse specific ignore rules (CRITICAL)
+.classpath
+.project
+.settings/
+.metadata/
+bin/
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Our lib folder contains downloaded JARs, should NOT be versioned if using Maven/Gradle.
+# But since we are not, we ARE versioning them. So do NOT ignore /lib/.
+# !/lib/
+
+# Output JARs from our project
+/dist/
+/output/
+*.jar
