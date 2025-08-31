@@ -29,12 +29,12 @@ replay_pid*
 # Below are custom rules for our vCampus Project
 # --------------------------------------
 
-# Ignore the entire database directory and its contents
-/database/
-
-# Ignore all Access database files anywhere in the project
-*.accdb
-*.mdb
+## Ignore the entire database directory and its contents
+#/database/
+#
+## Ignore all Access database files anywhere in the project
+#*.accdb
+#*.mdb
 
 # Eclipse specific ignore rules (CRITICAL)
 .classpath
@@ -55,3 +55,4 @@ Thumbs.db
 /dist/
 /output/
 *.jar
+/target/

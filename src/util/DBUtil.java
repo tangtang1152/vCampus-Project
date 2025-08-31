@@ -1,51 +1,59 @@
-package util;
+package util; // 请确保这是你的实际包名
 
+import java.io.File;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 
 public class DBUtil {
     
-    // UCanAccess 的 JDBC 连接字符串模板
-    // 格式：jdbc:ucanaccess://<path_to_access_file>
-    // !! 请将以下路径替换为你本地数据库文件的绝对路径 !!
-    // 注意：使用正斜杠 `/` 或双反斜杠 `\\`
-    // 例如： "D:/Projects/vCampus/database/vCampus.accdb"
-    // 或者： "D:\\Projects\\vCampus\\database\\vCampus.accdb"
-    private static final String DB_PATH = "D:\\Java\\vCampus-Project\\database\\vCampus.accdb"; // <-- 修改这行！
-    private static final String CONNECTION_STRING = "jdbc:ucanaccess://" + DB_PATH;
+    // 数据库文件相对于项目根目录的路径
+    private static final String DB_RELATIVE_PATH = "database/vCampus.accdb";
+    private static String connectionString;
 
-    // 静态块：在类加载时自动执行，用于加载数据库驱动
+    // 静态初始化块，在类加载时执行一次
     static {
         try {
-            // 告诉Java：“请去lib文件夹里找到并加载UCanAccess的驱动类”
+            // 1. 动态获取项目在当前电脑上的绝对路径
+            String projectRootPath = System.getProperty("user.dir");
+            // 2. 拼接出数据库文件的绝对路径
+            String dbAbsolutePath = projectRootPath + File.separator + DB_RELATIVE_PATH;
+            
+            // 3. 打印最终路径，这是调试的关键！
+            System.out.println("尝试从以下路径连接数据库: " + dbAbsolutePath);
+            
+            // 4. 检查数据库文件是否存在
+            File dbFile = new File(dbAbsolutePath);
+            if (!dbFile.exists()) {
+                System.err.println("错误: 数据库文件不存在！请检查路径。");
+                System.err.println("请在项目根目录下创建 'database' 文件夹，并放入 'vCampus.accdb' 文件。");
+            } else {
+                System.out.println("数据库文件存在，准备连接...");
+            }
+            
+            // 5. 构造UCanAccess的连接字符串
+            connectionString = "jdbc:ucanaccess://" + dbAbsolutePath;
+
+            // 6. 显式加载驱动（确保驱动已就绪）
             Class.forName("net.ucanaccess.jdbc.UcanaccessDriver");
             System.out.println("UCanAccess驱动加载成功。");
+            
         } catch (ClassNotFoundException e) {
-            // 如果找不到驱动，多半是JAR包没导入Build Path
-            System.err.println("致命错误：UCanAccess驱动未找到！");
-            System.err.println("请检查lib文件夹中的jar包是否已添加到Build Path。");
-            e.printStackTrace(); // 打印详细的错误信息，这是调试的黄金法则
+            System.err.println("致命错误: UCanAccess驱动未找到！");
+            System.err.println("请检查pom.xml中的Maven依赖配置是否正确。");
+            e.printStackTrace();
         }
     }
 
     /**
      * 获取一个到Access数据库的连接
-     * @return Connection 对象，如果获取失败则返回null
+     * @return Connection 对象
+     * @throws SQLException 如果连接失败则抛出异常
      */
-    public static Connection getConnection() {
-        Connection conn = null;
-        try {
-            // DriverManager会根据上面加载的驱动，尝试建立连接
-            conn = DriverManager.getConnection(CONNECTION_STRING);
-            System.out.println("恭喜！数据库连接成功！");
-        } catch (SQLException e) {
-            System.err.println("数据库连接失败！请检查：");
-            System.err.println("1. 数据库文件路径是否正确？当前路径: " + DB_PATH);
-            System.err.println("2. 数据库文件是否存在？");
-            System.err.println("3. 数据库文件是否被其他程序（如Access本身）独占打开？");
-            e.printStackTrace(); // 打印详细的错误栈，它会告诉你问题出在哪一行
-        }
+    public static Connection getConnection() throws SQLException {
+        System.out.println("正在尝试建立数据库连接...");
+        Connection conn = DriverManager.getConnection(connectionString);
+        System.out.println("数据库连接成功！");
         return conn;
     }
 
@@ -59,24 +67,36 @@ public class DBUtil {
                 conn.close();
                 System.out.println("数据库连接已关闭。");
             } catch (SQLException e) {
-                System.err.println("关闭数据库连接时发生错误！");
+                System.err.println("关闭数据库连接时发生错误:");
                 e.printStackTrace();
             }
         }
     }
-
-    // 测试主方法
+    
+    /**
+     * 内置测试方法 - 直接运行这个类来测试连接
+     */
     public static void main(String[] args) {
-        System.out.println("开始测试数据库连接...");
-        System.out.println("连接字符串: " + CONNECTION_STRING);
+        System.out.println("========== 开始测试 DBUtil ==========");
         
-        // 测试流程：获取连接 -> 进行各种数据库操作 -> 关闭连接
-        Connection testConn = getConnection(); // 获取连接
-        
-        // 这里将来会进行：查询、插入、删除等操作...
-        // if (testConn != null) { ... }
-        
-        closeConnection(testConn); // 关闭连接
-        System.out.println("测试结束。");
+        Connection testConn = null;
+        try {
+            // 尝试获取连接
+            testConn = getConnection();
+            // 如果走到这里，说明连接成功
+            System.out.println("✅ DBUtil 测试成功！连接已建立。");
+            
+        } catch (SQLException e) {
+            System.err.println("❌ DBUtil 测试失败！连接错误。");
+            System.err.println("错误信息: " + e.getMessage());
+            e.printStackTrace();
+            
+        } finally {
+            // 确保连接被关闭
+            if (testConn != null) {
+                closeConnection(testConn);
+            }
+        }
+        System.out.println("========== 测试结束 ==========");
     }
 }
