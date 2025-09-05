@@ -49,7 +49,8 @@ Thumbs.db
 
 # Our lib folder contains downloaded JARs, should NOT be versioned if using Maven/Gradle.
 # But since we are not, we ARE versioning them. So do NOT ignore /lib/.
-# !/lib/
+# BUTBUT we are maven project.We ignore /lib/
+/lib/
 
 # Output JARs from our project
 /dist/
