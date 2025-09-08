@@ -5,6 +5,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 
+
 public class DBUtil {
     
     // 数据库文件相对于项目根目录的路径
@@ -56,7 +57,8 @@ public class DBUtil {
         System.out.println("数据库连接成功！");
         return conn;
     }
-
+    
+   
     /**
      * 关闭数据库连接，释放资源
      * @param conn 要关闭的连接
@@ -84,7 +86,8 @@ public class DBUtil {
             // 尝试获取连接
             testConn = getConnection();
             // 如果走到这里，说明连接成功
-            System.out.println("✅ DBUtil 测试成功！连接已建立。");
+            System.out.println("✅ DBUtil 测试成功！连接已建立。");    
+                
             
         } catch (SQLException e) {
             System.err.println("❌ DBUtil 测试失败！连接错误。");

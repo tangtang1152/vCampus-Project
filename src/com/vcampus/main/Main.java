@@ -8,6 +8,7 @@ public class Main {
         System.out.println("Project setup is successful!");
         // 验证JDK版本
         System.out.println("Java Version: " + System.getProperty("java.version"));
+        
 	}
 
 }
