@@ -1,4 +1,4 @@
-package util; // 请确保这是你的实际包名
+package com.vCampus.util; // 请确保这是你的实际包名
 
 import java.io.File;
 import java.sql.Connection;
@@ -8,7 +8,7 @@ import java.sql.SQLException;
 public class DBUtil {
     
     // 数据库文件相对于项目根目录的路径
-    private static final String DB_RELATIVE_PATH = "database/vCampus.accdb";
+    private static final String DB_RELATIVE_PATH = "src\\main\\resources\\database\\vCampus.accdb";
     private static String connectionString;
 
     // 静态初始化块，在类加载时执行一次

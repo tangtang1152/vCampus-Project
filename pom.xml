@@ -9,14 +9,12 @@
   <version>0.0.1-SNAPSHOT</version>
   <name>Virtual Campus System</name>
 
-  <!-- 新增：属性配置 -->
   <properties>
     <maven.compiler.source>21</maven.compiler.source>
     <maven.compiler.target>21</maven.compiler.target>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>
 
-  <!-- 新增：最重要的部分 - 依赖项 -->
   <dependencies>
     <!-- UCanAccess 核心依赖 -->
     <dependency>
@@ -43,13 +41,21 @@
   </dependencies>
 
   <build>
-    <sourceDirectory>src</sourceDirectory>
+    <!-- 移除错误的 sourceDirectory 配置 -->
     <plugins>
       <plugin>
         <artifactId>maven-compiler-plugin</artifactId>
         <version>3.13.0</version>
         <configuration>
-          <release>21</release>
+          <release>21</release> <!-- 这个可以保留，与properties中的配置一致 -->
+        </configuration>
+      </plugin>
+      <!-- 如果需要处理资源文件，可以添加资源插件 -->
+      <plugin>
+        <artifactId>maven-resources-plugin</artifactId>
+        <version>3.3.1</version>
+        <configuration>
+          <encoding>UTF-8</encoding>
         </configuration>
       </plugin>
     </plugins>

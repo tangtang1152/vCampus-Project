@@ -1,4 +1,4 @@
-package com.vcampus.main;
+package com.vCampus.app;
 
 public class Main {
 
