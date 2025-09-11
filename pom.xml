@@ -2,7 +2,7 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" 
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 
-         https://maven.apache.org/xsd/maven-4.0.0.xsd">
+         http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <groupId>edu.seu.campus</groupId>
   <artifactId>vCampus</artifactId>
@@ -13,9 +13,29 @@
     <maven.compiler.source>21</maven.compiler.source>
     <maven.compiler.target>21</maven.compiler.target>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <!-- 添加 JavaFX 版本属性 -->
+    <javafx.version>21.0.2</javafx.version>
   </properties>
 
   <dependencies>
+    <!-- JavaFX 依赖 -->
+    <dependency>
+      <groupId>org.openjfx</groupId>
+      <artifactId>javafx-controls</artifactId>
+      <version>${javafx.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.openjfx</groupId>
+      <artifactId>javafx-fxml</artifactId>
+      <version>${javafx.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.openjfx</groupId>
+      <artifactId>javafx-graphics</artifactId>
+      <version>${javafx.version}</version>
+    </dependency>
+    
+    
     <!-- UCanAccess 核心依赖 -->
     <dependency>
         <groupId>net.sf.ucanaccess</groupId>
@@ -50,7 +70,20 @@
           <release>21</release> <!-- 这个可以保留，与properties中的配置一致 -->
         </configuration>
       </plugin>
+      
       <!-- 如果需要处理资源文件，可以添加资源插件 -->
+      <!-- JavaFX Maven 插件 -->
+      <plugin>
+        <groupId>org.openjfx</groupId>
+        <artifactId>javafx-maven-plugin</artifactId>
+        <version>0.0.8</version>
+        <configuration>
+          <!-- 指定主类（请根据您的实际主类修改） -->
+          <mainClass>com.vCampus.app.MainApp</mainClass>
+        </configuration>
+      </plugin>
+      
+      <!-- 资源处理插件 -->
       <plugin>
         <artifactId>maven-resources-plugin</artifactId>
         <version>3.3.1</version>
