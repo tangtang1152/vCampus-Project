@@ -4,12 +4,14 @@ import java.io.File;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.util.Properties;
 
 public class DBUtil {
     
     // 数据库文件相对于项目根目录的路径
     private static final String DB_RELATIVE_PATH = "src\\main\\resources\\database\\vCampus.accdb";
     private static String connectionString;
+    private static Properties connectionProperties;
 
     // 静态初始化块，在类加载时执行一次
     static {
@@ -26,7 +28,7 @@ public class DBUtil {
             File dbFile = new File(dbAbsolutePath);
             if (!dbFile.exists()) {
                 System.err.println("错误: 数据库文件不存在！请检查路径。");
-                System.err.println("请在项目根目录下创建 'database' 文件夹，并放入 'vCampus.accdb' 文件。");
+                System.err.println("请在src\\main\\resources下创建 'database' 文件夹，并放入 'vCampus.accdb' 文件。");
             } else {
                 System.out.println("数据库文件存在，准备连接...");
             }
@@ -34,7 +36,13 @@ public class DBUtil {
             // 5. 构造UCanAccess的连接字符串
             connectionString = "jdbc:ucanaccess://" + dbAbsolutePath;
 
-            // 6. 显式加载驱动（确保驱动已就绪）
+            // 6. 配置连接属性来消除警告
+            connectionProperties = new Properties();
+            connectionProperties.put("ignoreFunctions", "true"); // 忽略函数注册警告
+            connectionProperties.put("showSchema", "true");
+            connectionProperties.put("memory", "false"); // 不使用内存模式
+
+            // 7. 显式加载驱动（确保驱动已就绪）
             Class.forName("net.ucanaccess.jdbc.UcanaccessDriver");
             System.out.println("UCanAccess驱动加载成功。");
             
@@ -52,7 +60,7 @@ public class DBUtil {
      */
     public static Connection getConnection() throws SQLException {
         System.out.println("正在尝试建立数据库连接...");
-        Connection conn = DriverManager.getConnection(connectionString);
+        Connection conn = DriverManager.getConnection(connectionString, connectionProperties);
         System.out.println("数据库连接成功！");
         return conn;
     }

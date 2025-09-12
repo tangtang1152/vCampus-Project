@@ -69,6 +69,11 @@ public class StudentTest {
         Student student = new Student(0, "wangwu", "password789", "student",
                                      1003, "王五", "网络工程3班");
         
+//        Student student = new Student(0, "非常非常非常非常非常非常非常非常非常非常非常非常非常非常非常非常非常非常非常非常非常非常非常非常非常非常非常非常长的用户名", 
+//                "password789", "student",
+//                1003, "非常非常非常非常非常非常非常非常非常非常非常非常非常非常非常非常非常非常非常非常非常非常非常非常非常非常非常非常长的学生姓名", 
+//                "非常非常非常非常非常非常非常非常非常非常非常非常非常非常非常非常非常非常非常非常非常非常非常非常非常非常非常非常长的班级名称");
+        
         // 注册学生账户
         boolean result = StudentService.registerStudent(student);
         

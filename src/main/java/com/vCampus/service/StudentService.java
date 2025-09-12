@@ -55,6 +55,12 @@ public class StudentService {
      */
     public static boolean registerStudent(Student student) {
         try {
+        	
+            // 验证学生数据
+            if (!ValidationService.validateStudent(student)) {
+                return false;
+            }
+            
             // 首先创建用户账户
             boolean userCreated = UserDao.createUser(student);
             if (!userCreated) {

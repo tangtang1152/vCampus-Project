@@ -43,6 +43,12 @@ public class UserService {
      */
     public static boolean register(User user) {
         try {
+        	
+            // 首先验证数据长度
+            if (!ValidationService.validateUser(user)) {
+                return false;
+            }
+            
             // 检查用户名是否已存在
             User existingUser = UserDao.findByUsername(user.getUsername());
             if (existingUser != null) {

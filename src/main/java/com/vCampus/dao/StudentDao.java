@@ -1,6 +1,8 @@
 package com.vCampus.dao;
 
 import com.vCampus.entity.Student;
+import com.vCampus.service.ValidationService;
+import com.vCampus.util.DBConstants;
 import com.vCampus.util.DBUtil;
 import java.sql.*;
 
@@ -87,7 +89,15 @@ public class StudentDao {
      * @throws SQLException 如果数据库操作发生错误
      */
     public static boolean createStudent(Student student) throws SQLException {
-        String sql = "INSERT INTO tbl_student (studentId, userId, studentName, className) VALUES (?, ?, ?, ?)";
+        
+        // 确保数据长度不超过数据库限制
+        String truncatedStudentName = ValidationService.truncateString(student.getStudentName(), DBConstants.STUDENT_NAME_MAX_LENGTH);
+        String truncatedClassName = ValidationService.truncateString(student.getClassName(), DBConstants.CLASS_NAME_MAX_LENGTH);
+   
+        student.setStudentName(truncatedStudentName);
+        student.setClassName(truncatedClassName);
+    	
+    	String sql = "INSERT INTO tbl_student (studentId, userId, studentName, className) VALUES (?, ?, ?, ?)";
         try (Connection conn = DBUtil.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             

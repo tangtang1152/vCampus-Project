@@ -1,6 +1,8 @@
 package com.vCampus.dao;
 
 import com.vCampus.entity.User;
+import com.vCampus.service.ValidationService;
+import com.vCampus.util.DBConstants;
 import com.vCampus.util.DBUtil;
 import java.sql.*;
 
@@ -112,7 +114,16 @@ public class UserDao {
      * @throws SQLException 如果数据库操作发生错误
      */
     public static boolean createUser(User user) throws SQLException {
-        // SQL插入语句
+        // 确保数据长度不超过数据库限制
+        String truncatedUsername = ValidationService.truncateString(user.getUsername(), DBConstants.USERNAME_MAX_LENGTH);
+        String truncatedPassword = ValidationService.truncateString(user.getPassword(), DBConstants.PASSWORD_MAX_LENGTH);
+        String truncatedRole = ValidationService.truncateString(user.getRole(), DBConstants.ROLE_MAX_LENGTH);
+        
+        user.setUsername(truncatedUsername);
+        user.setPassword(truncatedPassword);
+        user.setRole(truncatedRole);
+    	
+    	// SQL插入语句
         String sql = "INSERT INTO tbl_user (username, password, role) VALUES (?, ?, ?)";
         
         // 使用try-with-resources确保资源正确关闭
