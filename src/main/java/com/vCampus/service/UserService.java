@@ -1,65 +1,130 @@
-package com.vCampus.service; // 声明包名
+package com.vCampus.service;
 
-// 导入DAO层和Entity层
-import com.vCampus.dao.UserDao;    // 导入DAO，用于访问数据库
-import com.vCampus.entity.Student; // 导入实体，作为数据传输载体
-import java.sql.SQLException;      // 导入异常类
+import com.vCampus.dao.UserDao;
+import com.vCampus.entity.User;
+import java.sql.SQLException;
 
 /**
- * 用户服务 (Service) 类
- * 职责：处理用户相关的核心业务逻辑。它是UI层和DAO层之间的桥梁。
- * 注意：这一层包含“做什么”的逻辑，但不关心“怎么做”（怎么做是DAO的事）。
+ * 用户服务类
+ * 提供对用户数据的业务逻辑操作
+ * 作为控制器和数据访问对象之间的中间层
  */
 public class UserService {
-
+    
     /**
-     * 用户登录业务逻辑
+     * 用户登录验证
+     * 
      * @param username 用户名
      * @param password 密码
-     * @return true 如果登录成功；false 如果用户名或密码错误。
-     * 
-     * 设计思路：
-     * 1. 调用DAO层的方法进行纯粹的数据库验证。
-     * 2. 在此处捕获DAO抛出的SQLException，并将其转换为更简单的布尔值或自定义业务异常。
-     * 3. UI层不需要知道底层是数据库错误还是密码错误，它只需要知道“成功”或“失败”。
-     * 4. 这里是未来可以添加更多逻辑的地方，比如：记录登录日志、检查账户是否被锁定等。
+     * @return 验证成功返回用户对象，否则返回null
      */
-    public static boolean login(String username, String password) {
+    public static User login(String username, String password) {
         try {
-            // 纯粹的委托：调用DAO完成验证，并返回结果
-            return UserDao.validateUser(username, password);
+            // 验证用户凭据
+            boolean isValid = UserDao.validateUser(username, password);
+            if (isValid) {
+                // 如果验证成功，返回用户信息
+                return UserDao.findByUsername(username);
+            }
         } catch (SQLException e) {
-            // 记录异常（在实际项目中应使用日志框架如Log4j）
+            // 记录异常信息
+            System.err.println("用户登录验证时发生错误: " + e.getMessage());
             e.printStackTrace();
-            // 将数据库异常转换为业务逻辑的失败结果
-            return false;
         }
-    }
-
-    /**
-     * 用户注册业务逻辑
-     * @param student 包含注册信息的Student对象
-     * @return true 如果注册成功；false 如果注册失败（如学号已存在）。
-     * 
-     * 设计思路：
-     * 1. 在调用DAO插入数据之前，这里可以添加业务规则校验。
-     * 2. 例如：检查学号格式、密码强度、用户名是否已存在等。
-     * 3. 目前直接调用DAO，后续可以扩展。
-     */
-    public static boolean register(Student student) {
-        // 未来可以在这里添加业务校验逻辑
-        // if (!isStudentIdValid(student.getId())) { ... }
         
+        return null;
+    }
+    
+    /**
+     * 用户注册
+     * 
+     * @param user 要注册的用户对象
+     * @return 注册成功返回true，否则返回false
+     */
+    public static boolean register(User user) {
         try {
-            // 调用DAO执行实际的插入操作
-            return UserDao.insertUser(student);
+            // 检查用户名是否已存在
+            User existingUser = UserDao.findByUsername(user.getUsername());
+            if (existingUser != null) {
+                System.out.println("用户名已存在: " + user.getUsername());
+                return false;
+            }
+            
+            // 创建新用户
+            return UserDao.createUser(user);
         } catch (SQLException e) {
+            // 记录异常信息
+            System.err.println("用户注册时发生错误: " + e.getMessage());
             e.printStackTrace();
-            // 注册失败，返回false
             return false;
         }
     }
     
-    // 示例：一个业务规则校验方法（未来可实现）
-    // private static boolean isStudentIdValid(int id) { ... }
+    /**
+     * 根据用户ID获取用户信息
+     * 
+     * @param userId 要查询的用户ID
+     * @return 找到的用户对象，如果未找到或发生错误则返回null
+     */
+    public static User getUserById(int userId) {
+        try {
+            return UserDao.findByUserId(userId);
+        } catch (SQLException e) {
+            // 记录异常信息
+            System.err.println("获取用户信息时发生错误: " + e.getMessage());
+            e.printStackTrace();
+            return null;
+        }
+    }
+    
+    /**
+     * 根据用户名获取用户信息
+     * 
+     * @param username 要查询的用户名
+     * @return 找到的用户对象，如果未找到或发生错误则返回null
+     */
+    public static User getUserByUsername(String username) {
+        try {
+            return UserDao.findByUsername(username);
+        } catch (SQLException e) {
+            // 记录异常信息
+            System.err.println("获取用户信息时发生错误: " + e.getMessage());
+            e.printStackTrace();
+            return null;
+        }
+    }
+    
+    /**
+     * 更新用户信息
+     * 
+     * @param user 要更新的用户对象
+     * @return 更新成功返回true，否则返回false
+     */
+    public static boolean updateUser(User user) {
+        try {
+            return UserDao.updateUser(user);
+        } catch (SQLException e) {
+            // 记录异常信息
+            System.err.println("更新用户信息时发生错误: " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
+    }
+    
+    /**
+     * 删除用户
+     * 
+     * @param userId 要删除的用户ID
+     * @return 删除成功返回true，否则返回false
+     */
+    public static boolean deleteUser(int userId) {
+        try {
+            return UserDao.deleteUser(userId);
+        } catch (SQLException e) {
+            // 记录异常信息
+            System.err.println("删除用户时发生错误: " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
+    }
 }
