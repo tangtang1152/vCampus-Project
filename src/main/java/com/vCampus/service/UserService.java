@@ -1,6 +1,7 @@
 package com.vCampus.service;
 
 import com.vCampus.dao.UserDao;
+import com.vCampus.entity.Student;
 import com.vCampus.entity.User;
 import java.sql.SQLException;
 
@@ -40,26 +41,31 @@ public class UserService {
      * 
      * @param user 要注册的用户对象
      * @return 注册成功返回true，否则返回false
+     * 
+     * 更新：应该也可以传入Student对象进行注册
      */
     public static boolean register(User user) {
         try {
-        	
-            // 首先验证数据长度
+            // 如果是Student对象，需要特殊处理
+            if (user instanceof Student) {
+                Student student = (Student) user;
+                System.out.println("注册学生: " + student.getStudentName() + ", 学号: " + student.getStudentId());
+                // 这里添加学生特有的注册逻辑
+            }
+            
+            // 通用的用户验证和注册逻辑
             if (!ValidationService.validateUser(user)) {
                 return false;
             }
             
-            // 检查用户名是否已存在
             User existingUser = UserDao.findByUsername(user.getUsername());
             if (existingUser != null) {
                 System.out.println("用户名已存在: " + user.getUsername());
                 return false;
             }
             
-            // 创建新用户
             return UserDao.createUser(user);
         } catch (SQLException e) {
-            // 记录异常信息
             System.err.println("用户注册时发生错误: " + e.getMessage());
             e.printStackTrace();
             return false;

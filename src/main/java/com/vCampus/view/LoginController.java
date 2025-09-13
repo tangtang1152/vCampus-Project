@@ -58,8 +58,8 @@ public class LoginController extends BaseController {
             return;
         }
         
-        if (username.length() < 3 || username.length() > 20) {
-            showError("用户名长度必须在3-20个字符之间");
+        if (username.length() < 1 || username.length() > 50) {
+            showError("用户名长度必须在1-50个字符之间");
             usernameField.requestFocus();
             return;
         }
