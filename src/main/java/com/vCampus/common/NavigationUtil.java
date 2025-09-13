@@ -4,6 +4,7 @@ import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
+
 import java.io.IOException;
 
 /**
@@ -17,22 +18,19 @@ public class NavigationUtil {
      */
     public static void navigateTo(Stage currentStage, String fxmlPath, String title) {
         try {
-            FXMLLoader loader = new FXMLLoader(
-                NavigationUtil.class.getResource("/fxml/" + fxmlPath));
+            FXMLLoader loader = new FXMLLoader(NavigationUtil.class.getResource("/fxml/" + fxmlPath));
             Parent root = loader.load();
             
-            Stage stage = new Stage();
+            Stage stage = currentStage != null ? currentStage : new Stage();
             stage.setTitle(title);
             stage.setScene(new Scene(root));
-            stage.setResizable(false);
+            stage.setResizable(true);
             
-            // 关闭当前窗口（如果需要）
-            if (currentStage != null) {
-                currentStage.close();
+            if (currentStage == null) {
+                stage.show();
             }
-            
-            stage.show();
         } catch (IOException e) {
+            System.err.println("页面跳转失败: " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -42,8 +40,7 @@ public class NavigationUtil {
      */
     public static void showDialog(String fxmlPath, String title) {
         try {
-            FXMLLoader loader = new FXMLLoader(
-                NavigationUtil.class.getResource("/fxml/" + fxmlPath));
+            FXMLLoader loader = new FXMLLoader(NavigationUtil.class.getResource("/fxml/" + fxmlPath));
             Parent root = loader.load();
             
             Stage stage = new Stage();
@@ -54,6 +51,7 @@ public class NavigationUtil {
             
             stage.showAndWait();
         } catch (IOException e) {
+            System.err.println("对话框显示失败: " + e.getMessage());
             e.printStackTrace();
         }
     }

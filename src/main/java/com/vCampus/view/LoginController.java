@@ -9,6 +9,9 @@ import javafx.scene.control.TextField;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 
+import java.net.URL;
+import java.util.ResourceBundle;
+
 /**
  * 登录界面控制器
  * 处理用户登录逻辑
@@ -21,8 +24,8 @@ public class LoginController extends BaseController {
     /**
      * 初始化方法
      */
-    @FXML
-    public void initialize() {
+    @Override
+    public void initialize(URL location, ResourceBundle resources) {
         // 设置回车键登录
         usernameField.setOnKeyPressed(this::handleKeyPress);
         passwordField.setOnKeyPressed(this::handleKeyPress);

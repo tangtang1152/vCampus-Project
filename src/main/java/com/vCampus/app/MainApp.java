@@ -1,7 +1,12 @@
 package com.vCampus.app;
 
+import java.sql.Connection;
+import java.sql.SQLException;
+
 import com.vCampus.common.ConfigManager;
 import com.vCampus.common.NavigationUtil;
+import com.vCampus.util.DBUtil;
+
 import javafx.application.Application;
 import javafx.scene.image.Image;
 import javafx.stage.Stage;
@@ -103,11 +108,13 @@ public class MainApp extends Application {
      * 应用程序主方法
      */
     public static void main(String[] args) {
-        System.out.println("🚀 启动 vCampus 虚拟校园系统...");
+        // 设置系统编码为 UTF-8
+        System.setProperty("file.encoding", "UTF-8");
+    	System.out.println("🚀 启动 vCampus 虚拟校园系统...");
         System.out.println("📁 数据库路径: " + ConfigManager.getDatabasePath());
         
         // 检查数据库连接
-        checkDatabaseConnection();
+        //checkDatabaseConnection();
         
         // 启动JavaFX应用
         launch(args);
@@ -117,13 +124,22 @@ public class MainApp extends Application {
      * 检查数据库连接
      */
     private static void checkDatabaseConnection() {
+        System.out.println("========== 数据库连接测试 ==========");
         try {
             // 这里可以添加数据库连接测试
-            System.out.println("✅ 数据库连接检查通过");
+            Connection conn = DBUtil.getConnection();
+            if (conn != null && !conn.isClosed()) {
+            	System.out.println("✅ 数据库连接检查通过");
+                System.out.println("数据库URL: " + conn.getMetaData().getURL());
+                conn.close();
+            } else {
+                System.out.println("❌ 数据库连接失败");
+            }
         } catch (Exception e) {
             System.err.println("❌ 数据库连接失败: " + e.getMessage());
             showStartupError("数据库连接失败", "请检查数据库文件是否存在且可访问");
         }
+        System.out.println("========== 测试结束 ==========");
     }
     
     /**

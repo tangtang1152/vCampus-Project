@@ -6,6 +6,9 @@ import javafx.fxml.FXML;
 import javafx.scene.control.Label;
 import javafx.scene.layout.BorderPane;
 
+import java.net.URL;
+import java.util.ResourceBundle;
+
 /**
  * 主界面控制器
  * 应用程序的主框架界面
@@ -22,8 +25,8 @@ public class MainController extends BaseController {
     /**
      * 初始化主界面
      */
-    @FXML
-    public void initialize() {
+    @Override
+    public void initialize(URL location, ResourceBundle resources) {
         // 可以在这里加载用户信息
         welcomeLabel.setText("欢迎使用 vCampus 系统");
         statusLabel.setText("就绪");

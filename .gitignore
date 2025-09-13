@@ -57,3 +57,11 @@ Thumbs.db
 /output/
 *.jar
 /target/
+
+# UCanAccess 临时文件
+src/main/resources/database/Ucanaccess_*/
+src/main/resources/database/*.lck
+src/main/resources/database/*.log
+src/main/resources/database/*.script
+src/main/resources/database/*.properties
+src/main/resources/database/*.data
