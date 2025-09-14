@@ -1,6 +1,8 @@
 package com.vcampus.service;
 
 import com.vcampus.entity.User;
+
+import java.sql.SQLException;
 import java.util.List;
 
 /**
@@ -71,8 +73,9 @@ public interface IUserService {
      * @param userId 用户ID
      * @param newPassword 新密码
      * @return 是否更新成功
+     * @throws SQLException 
      */
-    boolean updatePassword(Integer userId, String newPassword);
+    boolean updateUserPassword(Integer userId, String newPassword) throws SQLException;
     
     /**
      * 更新用户角色

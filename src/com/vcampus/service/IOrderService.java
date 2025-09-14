@@ -75,10 +75,10 @@ public interface IOrderService {
     
     /**
      * 删除订单项
-     * @param id 订单项ID
+     * @param itemId 订单项ID
      * @return 是否删除成功
      */
-    boolean deleteOrderItem(Integer id);
+    boolean deleteOrderItemId(Integer itemId);
     
     /**
      * 检查订单是否存在

@@ -4,6 +4,10 @@ import com.vcampus.dao.IUserDao;
 import com.vcampus.dao.UserDaoImpl;
 import com.vcampus.entity.User;
 
+import util.DBUtil;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.List;
 
@@ -218,38 +222,22 @@ public class UserServiceImpl implements IUserService {
     }
     
     @Override
-    public boolean updatePassword(Integer userId, String newPassword) {
-        try {
-            if (userId == null || userId <= 0) {
-                System.err.println("更新密码失败：用户ID不合法");
-                return false;
-            }
-            
-            if (newPassword == null || newPassword.trim().isEmpty()) {
-                System.err.println("更新密码失败：新密码不能为空");
-                return false;
-            }
-            
-            if (newPassword.length() < 6) {
-                System.err.println("更新密码失败：密码长度不能少于6个字符");
-                return false;
-            }
-            
-            // 检查用户是否存在
-            User existingUser = userDao.getUserById(userId);
-            if (existingUser == null) {
-                System.err.println("更新密码失败：用户ID " + userId + " 不存在");
-                return false;
-            }
-            
-            return userDao.updateUserPassword(userId, newPassword);
-            
-        } catch (SQLException e) {
-            System.err.println("更新密码过程中发生数据库错误: " + e.getMessage());
-            e.printStackTrace();
-            return false;
-        }
+    public boolean updateUserPassword(Integer userId, String newPassword) throws SQLException {
+    String sql = "UPDATE tbl_user SET password = ? WHERE userId = ?";
+    
+    try (Connection conn = DBUtil.getConnection();
+         PreparedStatement ps = conn.prepareStatement(sql)) {
+        
+        // 设置自动提交
+        conn.setAutoCommit(true);
+        
+        ps.setString(1, newPassword);
+        ps.setInt(2, userId);
+        
+        int result = ps.executeUpdate();
+        return result > 0;
     }
+}
     
     @Override
     public boolean updateRole(Integer userId, String newRole) {

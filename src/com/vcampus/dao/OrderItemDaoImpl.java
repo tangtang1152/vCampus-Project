@@ -40,15 +40,15 @@ public class OrderItemDaoImpl implements IOrderItemDao {
     }
 
     @Override
-    public boolean deleteOrderItem(Integer id) throws SQLException {
+    public boolean deleteOrderItemId(Integer itemId) throws SQLException {
         Connection conn = null;
         PreparedStatement ps = null;
         
         try {
             conn = DBUtil.getConnection();
-            String sql = "DELETE FROM tbl_order_item WHERE id = ?";
+            String sql = "DELETE FROM tbl_order_item WHERE itemId = ?";
             ps = conn.prepareStatement(sql);
-            ps.setInt(1, id);
+            ps.setInt(1, itemId);
             
             int result = ps.executeUpdate();
             return result > 0;
@@ -87,17 +87,18 @@ public class OrderItemDaoImpl implements IOrderItemDao {
         }
     }
 
+    
     @Override
-    public OrderItem getOrderItemById(Integer id) throws SQLException {
+    public OrderItem getOrderItemByItemId(Integer itemId) throws SQLException {
         Connection conn = null;
         PreparedStatement ps = null;
         ResultSet rs = null;
         
         try {
             conn = DBUtil.getConnection();
-            String sql = "SELECT * FROM tbl_order_item WHERE id = ?";
+            String sql = "SELECT * FROM tbl_order_item WHERE itemId = ?";
             ps = conn.prepareStatement(sql);
-            ps.setInt(1, id);
+            ps.setInt(1, itemId);
             rs = ps.executeQuery();
             
             if (rs.next()) {
@@ -115,6 +116,7 @@ public class OrderItemDaoImpl implements IOrderItemDao {
             DBUtil.closeConnection(conn);
         }
     }
+   
 
     @Override
     public List<OrderItem> getOrderItemsByOrderId(String orderId) throws SQLException {
@@ -125,7 +127,7 @@ public class OrderItemDaoImpl implements IOrderItemDao {
         
         try {
             conn = DBUtil.getConnection();
-            String sql = "SELECT * FROM tbl_order_item WHERE orderId = ? ORDER BY id";
+            String sql = "SELECT * FROM tbl_order_item WHERE orderId = ? ORDER BY itemId";
             ps = conn.prepareStatement(sql);
             ps.setString(1, orderId);
             rs = ps.executeQuery();
@@ -156,7 +158,7 @@ public class OrderItemDaoImpl implements IOrderItemDao {
         try {
             conn = DBUtil.getConnection();
             st = conn.createStatement();
-            rs = st.executeQuery("SELECT * FROM tbl_order_item ORDER BY orderId, id");
+            rs = st.executeQuery("SELECT * FROM tbl_order_item ORDER BY orderId, itemId");
             
             while (rs.next()) {
                 orderItems.add(mapResultSetToOrderItem(rs));
@@ -182,7 +184,7 @@ public class OrderItemDaoImpl implements IOrderItemDao {
      */
     private OrderItem mapResultSetToOrderItem(ResultSet rs) throws SQLException {
         OrderItem orderItem = new OrderItem();
-        orderItem.setId(rs.getInt("id"));
+        orderItem.setItemId(rs.getInt("itemId"));
         orderItem.setOrderId(rs.getString("orderId"));
         orderItem.setProductId(rs.getString("productId"));
         orderItem.setQuantity(rs.getInt("quantity"));
@@ -196,16 +198,16 @@ public class OrderItemDaoImpl implements IOrderItemDao {
      * @return 是否存在
      * @throws SQLException
      */
-    public boolean orderItemExists(Integer id) throws SQLException {
+    public boolean orderItemExists(Integer itemId) throws SQLException {
         Connection conn = null;
         PreparedStatement ps = null;
         ResultSet rs = null;
         
         try {
             conn = DBUtil.getConnection();
-            String sql = "SELECT COUNT(*) FROM tbl_order_item WHERE id = ?";
+            String sql = "SELECT COUNT(*) FROM tbl_order_item WHERE itemId = ?";
             ps = conn.prepareStatement(sql);
-            ps.setInt(1, id);
+            ps.setInt(1, itemId);
             rs = ps.executeQuery();
             
             if (rs.next()) {
@@ -300,17 +302,17 @@ public class OrderItemDaoImpl implements IOrderItemDao {
      * @return 是否更新成功
      * @throws SQLException
      */
-    public boolean updateOrderItem(Integer id, int quantity, double subtotal) throws SQLException {
+    public boolean updateOrderItem(Integer itemId, int quantity, double subtotal) throws SQLException {
         Connection conn = null;
         PreparedStatement ps = null;
         
         try {
             conn = DBUtil.getConnection();
-            String sql = "UPDATE tbl_order_item SET quantity = ?, subtotal = ? WHERE id = ?";
+            String sql = "UPDATE tbl_order_item SET quantity = ?, subtotal = ? WHERE itemId = ?";
             ps = conn.prepareStatement(sql);
             ps.setInt(1, quantity);
             ps.setDouble(2, subtotal);
-            ps.setInt(3, id);
+            ps.setInt(3, itemId);
             
             int result = ps.executeUpdate();
             return result > 0;
@@ -339,7 +341,7 @@ public class OrderItemDaoImpl implements IOrderItemDao {
         
         try {
             conn = DBUtil.getConnection();
-            String sql = "SELECT * FROM tbl_order_item WHERE productId = ? ORDER BY id";
+            String sql = "SELECT * FROM tbl_order_item WHERE productId = ? ORDER BY itemId";
             ps = conn.prepareStatement(sql);
             ps.setString(1, productId);
             rs = ps.executeQuery();

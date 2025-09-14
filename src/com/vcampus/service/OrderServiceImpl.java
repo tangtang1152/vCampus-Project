@@ -141,6 +141,7 @@ public class OrderServiceImpl implements IOrderService {
         }
     }
     
+    
     @Override
     public Order getOrderById(String orderId) {
         try {
@@ -278,21 +279,21 @@ public class OrderServiceImpl implements IOrderService {
     }
     
     @Override
-    public boolean deleteOrderItem(Integer id) {
+    public boolean deleteOrderItemId(Integer itemId) {
         try {
-            if (id == null || id <= 0) {
+            if (itemId == null || itemId <= 0) {
                 System.err.println("删除订单项失败：ID不合法");
                 return false;
             }
             
             // 检查订单项是否存在
-            OrderItem existingItem = orderItemDao.getOrderItemById(id);
+            OrderItem existingItem = orderItemDao.getOrderItemByItemId(itemId);
             if (existingItem == null) {
-                System.err.println("删除订单项失败：订单项ID " + id + " 不存在");
+                System.err.println("删除订单项失败：订单项ID " + itemId + " 不存在");
                 return false;
             }
             
-            return orderItemDao.deleteOrderItem(id);
+            return orderItemDao.deleteOrderItemId(itemId);
             
         } catch (SQLException e) {
             System.err.println("删除订单项过程中发生数据库错误: " + e.getMessage());

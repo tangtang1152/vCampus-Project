@@ -5,7 +5,7 @@ package com.vcampus.entity;
  * 对应数据库表: tbl_order_item
  */
 public class OrderItem {
-    private Integer id;
+    private Integer itemId;
     private String orderId;
     private String productId;
     private Integer quantity;
@@ -17,9 +17,9 @@ public class OrderItem {
     public OrderItem() {
     }
 
-    public OrderItem(Integer id, String orderId, String productId, 
+    public OrderItem(Integer itemId, String orderId, String productId, 
                     Integer quantity, Double subtotal) {
-        this.id = id;
+        this.itemId = itemId;
         this.orderId = orderId;
         this.productId = productId;
         this.quantity = quantity;
@@ -27,12 +27,12 @@ public class OrderItem {
     }
 
     // Getter and Setter methods
-    public Integer getId() {
-        return id;
+    public Integer getItemId() {
+        return itemId;
     }
 
-    public void setId(Integer id) {
-        this.id = id;
+    public void setItemId(Integer itemId) {
+        this.itemId = itemId;
     }
 
     public String getOrderId() {
@@ -78,7 +78,7 @@ public class OrderItem {
     @Override
     public String toString() {
         return "OrderItem{" +
-                "id=" + id +
+                "itemId=" + itemId +
                 ", orderId='" + orderId + '\'' +
                 ", productId='" + productId + '\'' +
                 ", quantity=" + quantity +
