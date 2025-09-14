@@ -190,10 +190,11 @@ public class LibraryConsoleUI {
     private void renewBook() {
         System.out.println("\n🔄 续借功能");
         
-        // 显示用户当前的借阅记录
+        // 先显示用户当前的借阅记录
         showMyRecords();
         
-        int recordId = getIntInput("请输入要续借的记录ID: ");
+        // 改为获取记录ID而不是图书ID
+        int recordId = getIntInput("请输入要续借的📝记录ID: ");
         int additionalDays = getIntInput("请输入续借天数: ");
         
         String error = controller.validateRenewParameters(recordId, additionalDays);
@@ -204,8 +205,22 @@ public class LibraryConsoleUI {
         
         System.out.println("⏳ 正在处理续借请求...");
         boolean success = controller.renewBook(recordId, additionalDays);
-        System.out.println(success ? "✅ 续借成功！" : "❌ 续借失败");
+        
+        if (success) {
+            System.out.println("✅ 续借成功！");
+            // 显示更新后的信息
+            List<BorrowRecord> records = controller.getUserBorrowRecords(currentUser);
+            for (BorrowRecord record : records) {
+                if (record.getRecordId() == recordId) {
+                    System.out.println("   新的应还日期: " + record.getDueDate());
+                    break;
+                }
+            }
+        } else {
+            System.out.println("❌ 续借失败，请检查记录ID是否正确");
+        }
     }
+
     
     /**
      * 显示我的借阅记录

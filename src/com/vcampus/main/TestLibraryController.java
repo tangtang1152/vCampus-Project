@@ -1,6 +1,8 @@
 package com.vcampus.main;
 
 import com.vcampus.controller.LibraryController;
+import com.vcampus.entity.BorrowRecord;
+import java.util.List;
 
 public class TestLibraryController {
     private static LibraryController controller = new LibraryController();
@@ -14,6 +16,7 @@ public class TestLibraryController {
         testBasicFunctions();
         testValidation();
         testQueryFunctions();
+        testRenewFunction(); 
         
         System.out.println("\n✅ 控制器层测试完成！");
     }
@@ -87,5 +90,48 @@ public class TestLibraryController {
         System.out.println("\n6. 测试数据清理:");
         boolean cleanupResult = controller.cleanupAllTestData();
         System.out.println("清理结果: " + (cleanupResult ? "✅ 成功" : "❌ 失败"));
+    }
+    
+    /**
+     * 测试续借功能
+     */
+    private static void testRenewFunction() {
+        System.out.println("\n=== 测试续借功能 ===");
+
+        // 先借一本书
+        System.out.println("先借阅一本书...");
+        controller.borrowBook(4, "2023003", 7);
+        
+        // 获取记录ID
+        List<BorrowRecord> records = controller.getUserBorrowRecords("2023003");
+        if (records.isEmpty()) {
+            System.out.println("❌ 借阅失败");
+            return;
+        }
+        
+        // 找到未归还的记录
+        BorrowRecord targetRecord = null;
+        for (BorrowRecord record : records) {
+            if (!record.isReturned()) {
+                targetRecord = record;
+                break;
+            }
+        }
+        
+        if (targetRecord == null) {
+            System.out.println("❌ 未找到可续借的记录");
+            return;
+        }
+        
+        int recordId = targetRecord.getRecordId();
+        System.out.println("获取记录ID: " + recordId);
+        
+        // 测试续借
+        System.out.println("测试续借...");
+        boolean success = controller.renewBook(recordId, 14);
+        System.out.println("续借结果: " + (success ? "✅ 成功" : "❌ 失败"));
+        
+        // 清理
+        controller.returnBook("2023003", 4);
     }
 }

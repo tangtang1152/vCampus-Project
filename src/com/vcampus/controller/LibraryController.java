@@ -69,6 +69,38 @@ public class LibraryController {
         return libraryService.getAllOverdueBooks();
     }
     
+    /**
+     * 获取用户当前未归还的借阅记录
+     */
+    public List<BorrowRecord> getUserActiveRecords(String studentId) {
+        List<BorrowRecord> allRecords = libraryService.getBorrowRecordsByStudentId(studentId);
+        List<BorrowRecord> activeRecords = new ArrayList<>();
+        
+        for (BorrowRecord record : allRecords) {
+            if (record.getReturnDate() == null) {
+                activeRecords.add(record);
+            }
+        }
+        
+        return activeRecords;
+    }
+
+    /**
+     * 通过图书ID续借（更方便的接口）
+     */
+    public boolean renewBookByBookId(String studentId, int bookId, int additionalDays) {
+        List<BorrowRecord> activeRecords = getUserActiveRecords(studentId);
+        
+        for (BorrowRecord record : activeRecords) {
+            if (record.getBookId() == bookId) {
+                return renewBook(record.getRecordId(), additionalDays);
+            }
+        }
+        
+        System.out.println("❌ 未找到该图书的借阅记录");
+        return false;
+    }
+    
     // ==================== 状态检查 ====================
     
     /**

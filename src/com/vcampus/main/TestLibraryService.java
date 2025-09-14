@@ -1,10 +1,13 @@
 package com.vcampus.main;
 
 import com.vcampus.service.LibraryService;
+import com.vcampus.entity.BorrowRecord;
+import java.util.List;
+import com.vcampus.dao.BorrowRecordDaoImpl;
 
 public class TestLibraryService {
     private static LibraryService libraryService = new LibraryService();
-
+    private static BorrowRecordDaoImpl borrowRecordDao = new BorrowRecordDaoImpl();
     // 清理模式： "hard" = 硬删除, "soft" = 软删除
     private static final String CLEAN_MODE = "soft";  
 
@@ -140,18 +143,57 @@ public class TestLibraryService {
         System.out.println("\n=== 测试4: 图书续借功能 ===");
 
         System.out.println("先借阅一本书用于测试续借:");
-        libraryService.borrowBook(4, "2023003", 7);
+        boolean borrowResult = libraryService.borrowBook(4, "2023003", 7);
+        if (!borrowResult) {
+            System.out.println("❌ 借阅失败，无法测试续借");
+            return;
+        }
 
-        libraryService.showUserBorrowRecords("2023003");
+        // 获取刚创建的借阅记录
+        System.out.println("获取借阅记录...");
+        List<BorrowRecord> records = libraryService.getBorrowRecordsByStudentId("2023003");
+        
+        if (records.isEmpty()) {
+            System.out.println("❌ 未找到借阅记录");
+            return;
+        }
+        
+        // 找到最新的未归还记录
+        BorrowRecord targetRecord = null;
+        for (BorrowRecord record : records) {
+            if ("borrowing".equals(record.getStatus())) {
+                targetRecord = record;
+                break;
+            }
+        }
+        
+        if (targetRecord == null) {
+            System.out.println("❌ 未找到可续借的记录（可能已归还）");
+            return;
+        }
+        
+        int recordId = targetRecord.getRecordId();
+        System.out.println("📝 获取到借阅记录ID: " + recordId);
+        System.out.println("   图书ID: " + targetRecord.getBookId());
+        System.out.println("   当前应还日期: " + targetRecord.getDueDate());
 
         System.out.println("\n1. 测试正常续借:");
-        boolean renewSuccess = libraryService.renewBook(4, 14);
+        boolean renewSuccess = libraryService.renewBook(recordId, 14);
         System.out.println("续借结果: " + (renewSuccess ? "✅ 成功" : "❌ 失败"));
+        
+        // 显示续借后的信息
+        if (renewSuccess) {
+            BorrowRecord updatedRecord = borrowRecordDao.getBorrowRecordById(recordId);
+            if (updatedRecord != null) {
+                System.out.println("🔄 续借成功！新的应还日期: " + updatedRecord.getDueDate());
+            }
+        }
 
-        libraryService.showUserBorrowRecords("2023003");
-
-        libraryService.returnBook("2023003", 4); // ✅ 修改这里也传入学生ID
+        // 清理：归还图书
+        System.out.println("清理测试数据...");
+        libraryService.returnBook("2023003", 4);
     }
+
 
     /**
      * 测试边界情况
