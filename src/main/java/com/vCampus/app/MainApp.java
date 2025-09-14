@@ -1,10 +1,10 @@
 package com.vCampus.app;
 
+import java.io.IOException;
+import java.io.OutputStream;
 import java.io.PrintStream;
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import com.vCampus.common.ConfigManager;
 import com.vCampus.common.NavigationUtil;
@@ -26,12 +26,7 @@ public class MainApp extends Application {
 	
     @Override
     public void init() throws Exception {
-        // 在启动前配置日志级别
-        Logger.getLogger("org.hsqldb").setLevel(Level.SEVERE);
-        Logger.getLogger("net.ucanaccess").setLevel(Level.SEVERE);
-        Logger.getLogger("javafx").setLevel(Level.WARNING);
-        Logger.getLogger("").setLevel(Level.INFO);
-        
+
         System.out.println("🔧 init() 方法被调用 - JavaFX 初始化开始");
         super.init();
     }
@@ -181,6 +176,30 @@ public class MainApp extends Application {
      * 应用程序主方法
      */
     public static void main(String[] args) {
+    	
+		
+        // 保存原始的System.err
+        PrintStream originalErr = System.err;
+        
+        // 重定向System.err到空输出，完全隐藏所有错误信息
+        System.setErr(new PrintStream(new OutputStream() {
+            @Override
+            public void write(int b) throws IOException {
+                // 完全丢弃所有错误输出
+            }
+            
+            @Override
+            public void write(byte[] b, int off, int len) throws IOException {
+                String message = new String(b, off, len);
+                // 只允许显示我们自己程序的错误，过滤掉所有UCanAccess和HSQLDB的错误
+                if (message.contains("可替换") || message.contains("注册") || 
+                    message.contains("登录") || message.contains("错误")) {
+                    originalErr.write(b, off, len);
+                }
+                // 其他错误全部丢弃
+            }
+        }));
+    	
         // 强制设置系统编码为 UTF-8
         try {
             System.setProperty("file.encoding", "UTF-8");

@@ -37,10 +37,22 @@ public class DBUtil {
             connectionString = "jdbc:ucanaccess://" + dbAbsolutePath;
 
             // 6. 配置连接属性来消除警告
+            
+            //// 1. 设置系统属性（最早执行）
+            System.setProperty("ucanaccess.autocreate", "false");
+            System.setProperty("ucanaccess.functions", "false");
+            
+            //// 2. 设置日志级别
+            java.util.logging.Logger.getLogger("org.hsqldb").setLevel(java.util.logging.Level.SEVERE);
+            java.util.logging.Logger.getLogger("net.ucanaccess").setLevel(java.util.logging.Level.SEVERE);
+            java.util.logging.Logger.getLogger("com.healthmarketscience.jackcess").setLevel(java.util.logging.Level.SEVERE);
+            
+            //// 3. 配置连接属性
             connectionProperties = new Properties();
-            connectionProperties.put("ignoreFunctions", "true"); // 忽略函数注册警告
-            connectionProperties.put("showSchema", "true");
-            connectionProperties.put("memory", "false"); // 不使用内存模式
+            connectionProperties.put("ignoreFunctions", "true");
+            connectionProperties.put("showSchema", "false");
+            connectionProperties.put("sysschema", "false");
+            connectionProperties.put("autocreate", "false");
 
             // 7. 显式加载驱动（确保驱动已就绪）
             Class.forName("net.ucanaccess.jdbc.UcanaccessDriver");

@@ -50,7 +50,8 @@ public class UserService {
             if (user instanceof Student) {
                 Student student = (Student) user;
                 System.out.println("注册学生: " + student.getStudentName() + ", 学号: " + student.getStudentId());
-                // 这里添加学生特有的注册逻辑
+                // 调用学生特有的注册逻辑 - 使用StudentService
+                return StudentService.registerStudent(student);
             }
             
             // 通用的用户验证和注册逻辑
