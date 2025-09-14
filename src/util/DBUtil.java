@@ -4,6 +4,10 @@ import java.io.File;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.sql.PreparedStatement; // 添加这行
+import java.sql.ResultSet;         // 添加这行
+import java.sql.Statement;
+
 
 public class DBUtil {
     
@@ -57,10 +61,61 @@ public class DBUtil {
         return conn;
     }
 
+    
     /**
      * 关闭数据库连接，释放资源
      * @param conn 要关闭的连接
      */
+    
+    
+    public static void closeResources(Connection conn, PreparedStatement pstmt, ResultSet rs) {
+        try {
+            if (rs != null) {
+                rs.close();
+                System.out.println("ResultSet 已关闭。");
+            }
+        } catch (SQLException e) {
+            System.err.println("关闭 ResultSet 时发生错误:");
+            e.printStackTrace();
+        }
+        
+        try {
+            if (pstmt != null) {
+                pstmt.close();
+                System.out.println("PreparedStatement 已关闭。");
+            }
+        } catch (SQLException e) {
+            System.err.println("关闭 PreparedStatement 时发生错误:");
+            e.printStackTrace();
+        }
+        
+        try {
+            if (conn != null) {
+                conn.close();
+                System.out.println("Connection 已关闭。");
+            }
+        } catch (SQLException e) {
+            System.err.println("关闭 Connection 时发生错误:");
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * 关闭 Connection 和 PreparedStatement 资源
+     * @param conn 数据库连接
+     * @param pstmt 预处理语句
+     */
+    public static void closeResources(Connection conn, PreparedStatement pstmt) {
+        closeResources(conn, pstmt, null);
+    }
+
+    /**
+     * 仅关闭 Connection 资源
+     * @param conn 数据库连接
+     */
+    public static void closeResources(Connection conn) {
+        closeResources(conn, null, null);
+    }
     public static void closeConnection(Connection conn) {
         if (conn != null) {
             try {
@@ -71,6 +126,53 @@ public class DBUtil {
                 e.printStackTrace();
             }
         }
+    }
+    
+    /**
+     * 关闭 Connection、Statement 和 ResultSet 资源
+     * @param conn 数据库连接
+     * @param stmt 语句对象
+     * @param rs 结果集
+     */
+    public static void closeResources(Connection conn, Statement stmt, ResultSet rs) {
+        try {
+            if (rs != null) {
+                rs.close();
+                System.out.println("ResultSet 已关闭。");
+            }
+        } catch (SQLException e) {
+            System.err.println("关闭 ResultSet 时发生错误:");
+            e.printStackTrace();
+        }
+        
+        try {
+            if (stmt != null) {
+                stmt.close();
+                System.out.println("Statement 已关闭。");
+            }
+        } catch (SQLException e) {
+            System.err.println("关闭 Statement 时发生错误:");
+            e.printStackTrace();
+        }
+        
+        try {
+            if (conn != null) {
+                conn.close();
+                System.out.println("Connection 已关闭。");
+            }
+        } catch (SQLException e) {
+            System.err.println("关闭 Connection 时发生错误:");
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * 关闭 Connection 和 Statement 资源
+     * @param conn 数据库连接
+     * @param stmt 语句对象
+     */
+    public static void closeResources(Connection conn, Statement stmt) {
+        closeResources(conn, stmt, null);
     }
     
     /**
