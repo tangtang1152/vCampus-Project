@@ -20,6 +20,25 @@ public class UserService {
     private static final IUserDao userDao = new UserDao();
     private static final IStudentDao studentDao = new StudentDao();
 
+    // 定义注册结果枚举
+    public enum RegisterResult {
+        SUCCESS("注册成功"),
+        USERNAME_EXISTS("用户名已存在"),
+        STUDENT_ID_EXISTS("学号已存在"),
+        VALIDATION_FAILED("数据验证失败"),
+        DATABASE_ERROR("数据库错误");
+        
+        private final String message;
+        
+        RegisterResult(String message) {
+            this.message = message;
+        }
+        
+        public String getMessage() {
+            return message;
+        }
+    }
+    
     /**
      * 用户登录验证
      */
@@ -42,7 +61,7 @@ public class UserService {
     /**
      * 用户注册
      */
-    public static boolean register(User user) {
+    public static RegisterResult register(User user) {
         try {
             return TransactionManager.executeInTransaction(conn -> {
                 // 如果是Student对象，需要特殊处理
@@ -52,60 +71,148 @@ public class UserService {
                 
                 // 通用的用户验证和注册逻辑
                 if (!ValidationService.validateUser(user)) {
-                    return false;
+                    return RegisterResult.VALIDATION_FAILED;
                 }
 
                 User existingUser = userDao.findByUsername(user.getUsername(), conn);
                 if (existingUser != null) {
                     System.out.println("用户名已存在: " + user.getUsername());
-                    return false;
+                    return RegisterResult.USERNAME_EXISTS;
                 }
 
-                return userDao.insert(user, conn);
+                boolean success = userDao.insert(user, conn);
+                return success ? RegisterResult.SUCCESS : RegisterResult.DATABASE_ERROR;
             });
         } catch (RuntimeException e) {
             System.err.println("注册失败: " + e.getMessage());
             e.printStackTrace();
-            return false;
+            return RegisterResult.DATABASE_ERROR;
         }
     }
 
     /**
      * 注册学生账户（事务内部使用）
      */
-    private static boolean registerStudent(Student student, Connection conn) throws SQLException {
-        System.out.println("注册学生: " + student.getStudentName() + ", 学号: " + student.getStudentId());
+    private static RegisterResult registerStudent(Student student, Connection conn) {
+        try {
+            System.out.println("=== 开始注册学生 ===");
+            System.out.println("学号: " + student.getStudentId());
+            System.out.println("用户名: " + student.getUsername());
+            System.out.println("姓名: " + student.getStudentName());
 
-        // 验证学生数据
-        if (!ValidationService.validateStudent(student)) {
-            return false;
+            // 验证学生数据
+            if (!ValidationService.validateStudent(student)) {
+                System.out.println("数据验证失败");
+                return RegisterResult.VALIDATION_FAILED;
+            }
+            System.out.println("数据验证通过");
+            
+            // 检查用户名是否已存在
+            System.out.println("检查用户名是否存在: " + student.getUsername());
+            User existingUser = userDao.findByUsername(student.getUsername(), conn);
+            if (existingUser != null) {
+                System.out.println("用户名已存在: " + student.getUsername());
+                return RegisterResult.USERNAME_EXISTS;
+            }
+            System.out.println("用户名不存在，可以注册");
+            
+            // 检查学号是否已存在
+            System.out.println("检查学号是否存在: " + student.getStudentId());
+            Student existingStudent = studentDao.findByStudentId(student.getStudentId(), conn);
+            if (existingStudent != null) {
+                System.out.println("学号已存在: " + student.getStudentId());
+                return RegisterResult.STUDENT_ID_EXISTS;
+            }
+            System.out.println("学号不存在，可以注册");
+
+            // 首先创建用户账户
+            System.out.println("开始创建用户账户...");
+            boolean userCreated = userDao.insert(student, conn);
+            if (!userCreated) {
+                System.out.println("创建用户账户失败");
+                return RegisterResult.DATABASE_ERROR;
+            }
+            System.out.println("用户账户创建成功，用户ID: " + student.getUserId());
+
+            // 然后创建学生信息
+            System.out.println("开始创建学生信息...");
+            boolean studentCreated = studentDao.insert(student, conn);
+            if (studentCreated) {
+                System.out.println("学生信息创建成功");
+                return RegisterResult.SUCCESS;
+            } else {
+                System.out.println("学生信息创建失败");
+                return RegisterResult.DATABASE_ERROR;
+            }
+            
+        } catch (SQLException e) {
+            System.err.println("注册学生时数据库错误: " + e.getMessage());
+            System.err.println("SQL状态: " + e.getSQLState());
+            System.err.println("错误代码: " + e.getErrorCode());
+            
+            // 关键修改：识别特定的唯一性约束违反错误
+            if (isUniqueConstraintViolation(e)) {
+                return identifyConstraintType(e, student);
+            }
+            
+            e.printStackTrace();
+            return RegisterResult.DATABASE_ERROR;
+        } catch (Exception e) {
+            System.err.println("注册学生时发生未知错误: " + e.getMessage());
+            e.printStackTrace();
+            return RegisterResult.DATABASE_ERROR;
         }
-
-        // 检查学号是否已存在
-        Student existingStudent = studentDao.findByStudentId(student.getStudentId(), conn);
-        if (existingStudent != null) {
-            System.out.println("学号已存在: " + student.getStudentId());
-            return false;
-        }
-
-        // 检查用户名是否已存在
-        User existingUser = userDao.findByUsername(student.getUsername(), conn);
-        if (existingUser != null) {
-            System.out.println("用户名已存在: " + student.getUsername());
-            return false;
-        }
-
-        // 首先创建用户账户
-        boolean userCreated = userDao.insert(student, conn);
-        if (!userCreated) {
-            System.out.println("创建用户账户失败");
-            return false;
-        }
-
-        // 然后创建学生信息
-        return studentDao.insert(student, conn);
+    }
+    
+    /**
+     * 判断是否为唯一性约束违反错误
+     */
+    private static boolean isUniqueConstraintViolation(SQLException e) {
+        // UCanAccess/JDBC 错误代码和状态码判断
+        String sqlState = e.getSQLState();
+        int errorCode = e.getErrorCode();
+        String message = e.getMessage();
+        
+        // 常见的唯一性约束错误标识
+        return "23000".equals(sqlState) || // 完整性约束违反
+               errorCode == 15000 || // UCanAccess 特定错误代码
+               (message != null && (
+                   message.contains("violates uniqueness constraint") ||
+                   message.contains("unique constraint") ||
+                   message.contains("PrimaryKey") ||
+                   message.contains("duplicate key")
+               ));
     }
 
+    /**
+     * 识别具体的约束类型
+     */
+    private static RegisterResult identifyConstraintType(SQLException e, Student student) {
+        String message = e.getMessage();
+        
+        System.out.println("识别约束类型，错误信息: " + message);
+        
+        if (message != null) {
+            // 检查是否是学号冲突
+            if (message.contains("tbl_student") && 
+                (message.contains("PrimaryKey") || message.contains("student_id"))) {
+                System.out.println("识别为学号唯一性约束违反: " + student.getStudentId());
+                return RegisterResult.STUDENT_ID_EXISTS;
+            }
+            
+            // 检查是否是用户名冲突
+            if (message.contains("tbl_user") && 
+                (message.contains("username") || message.contains("USERNAME"))) {
+                System.out.println("识别为用户名校一性约束违反: " + student.getUsername());
+                return RegisterResult.USERNAME_EXISTS;
+            }
+        }
+        
+        // 如果无法识别具体类型，返回通用的数据库错误
+        System.out.println("无法识别的唯一性约束类型");
+        return RegisterResult.DATABASE_ERROR;
+    }
+    
     /**
      * 根据用户ID获取用户信息
      */

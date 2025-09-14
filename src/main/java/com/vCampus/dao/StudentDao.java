@@ -53,6 +53,9 @@ public class StudentDao implements IStudentDao {
 
             int affectedRows = pstmt.executeUpdate();
             return affectedRows > 0;
+        }catch (SQLException e) {
+            System.err.println("插入学生记录失败: " + e.getMessage());
+            throw e; // 关键：重新抛出异常，让服务层处理
         }
     }
 
@@ -83,17 +86,28 @@ public class StudentDao implements IStudentDao {
 
     @Override
     public Student findByStudentId(String studentId, Connection conn) throws SQLException {
+        System.out.println("执行findByStudentId查询，学号: " + studentId);
+        
         String sql = "SELECT s.*, u.username, u.password, u.role FROM tbl_student s JOIN tbl_user u ON s.userId = u.userId WHERE s.studentId = ?";
         
         try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setString(1, studentId);
+            System.out.println("执行SQL查询: " + pstmt.toString());
+            
             try (ResultSet rs = pstmt.executeQuery()) {
                 if (rs.next()) {
-                    return createStudentFromResultSet(rs);
+                    Student student = createStudentFromResultSet(rs);
+                    System.out.println("找到学生记录: " + student);
+                    return student;
+                } else {
+                    System.out.println("未找到学号为 " + studentId + " 的学生记录");
+                    return null;
                 }
             }
+        } catch (SQLException e) {
+            System.err.println("查询学生信息时发生SQL异常: " + e.getMessage());
+            throw e;
         }
-        return null;
     }
 
     @Override
