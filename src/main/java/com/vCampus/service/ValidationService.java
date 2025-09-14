@@ -76,7 +76,7 @@ public class ValidationService {
         }
         
         // 验证学号范围
-        if (student.getStudentId() <= 0) {
+        if (Integer.parseInt(student.getStudentId()) <= 0) {
             System.out.println("错误: 学号必须大于0");
             return false;
         }

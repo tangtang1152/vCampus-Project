@@ -89,16 +89,8 @@ public class RegisterController {
                 student.setRole(roleEnglish); // 使用英文角色
                 student.setStudentName(studentNameField.getText().trim());
                 student.setClassName(classNameField.getText().trim());
-                
-                // 解析学号（注意：studentId是int类型）
-                try {
-                    int studentId = Integer.parseInt(studentIdField.getText().trim());
-                    student.setStudentId(studentId);
-                } catch (NumberFormatException e) {
-                    showError("学号必须是数字");
-                    return;
-                }
-                
+                student.setStudentId(studentIdField.getText().trim());
+
                 System.out.println("注册学生信息: " + student.toString());
                 
                 // 调用注册服务

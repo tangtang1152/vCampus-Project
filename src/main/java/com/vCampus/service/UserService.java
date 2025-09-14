@@ -109,7 +109,7 @@ public class UserService {
     /**
      * 根据用户ID获取用户信息
      */
-    public static User getUserById(int userId) {
+    public static User getUserById(Integer userId) {
         try {
             return TransactionManager.executeInTransaction(conn -> 
                 userDao.findById(userId, conn)
@@ -154,7 +154,7 @@ public class UserService {
     /**
      * 删除用户
      */
-    public static boolean deleteUser(int userId) {
+    public static boolean deleteUser(Integer userId) {
         try {
             return TransactionManager.executeInTransaction(conn -> 
                 userDao.delete(userId, conn)

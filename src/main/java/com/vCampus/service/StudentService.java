@@ -19,7 +19,7 @@ public class StudentService {
     /**
      * 根据学号获取学生信息
      */
-    public static Student getStudentById(int studentId) {
+    public static Student getStudentById(String studentId) {
         try {
             return TransactionManager.executeInTransaction(conn -> 
                 studentDao.findByStudentId(studentId, conn)
@@ -34,7 +34,7 @@ public class StudentService {
     /**
      * 根据用户ID获取学生信息
      */
-    public static Student getStudentByUserId(int userId) {
+    public static Student getStudentByUserId(Integer userId) {
         try {
             return TransactionManager.executeInTransaction(conn -> 
                 studentDao.findByUserId(userId, conn)
@@ -72,7 +72,7 @@ public class StudentService {
     /**
      * 删除学生账户
      */
-    public static boolean deleteStudent(int studentId) {
+    public static boolean deleteStudent(String studentId) {
         try {
             return TransactionManager.executeInTransaction(conn -> {
                 // 首先获取学生信息
@@ -103,8 +103,9 @@ public class StudentService {
      * 验证学生信息是否完整有效
      */
     public static boolean validateStudent(Student student) {
+    	
         // 检查学号是否有效
-        if (student.getStudentId() <= 0) {
+        if (Integer.parseInt(student.getStudentId()) <= 0) {
             System.out.println("学号无效: " + student.getStudentId());
             return false;
         }

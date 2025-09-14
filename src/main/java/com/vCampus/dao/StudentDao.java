@@ -15,7 +15,7 @@ import java.util.List;
 public class StudentDao implements IStudentDao {
 
     @Override
-    public Student findById(int studentId, Connection conn) throws SQLException {
+    public Student findById(String studentId, Connection conn) throws SQLException {
         return findByStudentId(studentId, conn);
     }
 
@@ -46,7 +46,7 @@ public class StudentDao implements IStudentDao {
         String sql = "INSERT INTO tbl_student (studentId, userId, studentName, className) VALUES (?, ?, ?, ?)";
         
         try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setInt(1, student.getStudentId());
+            pstmt.setString(1, student.getStudentId());
             pstmt.setInt(2, student.getUserId());
             pstmt.setString(3, student.getStudentName());
             pstmt.setString(4, student.getClassName());
@@ -63,7 +63,7 @@ public class StudentDao implements IStudentDao {
         try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setString(1, student.getStudentName());
             pstmt.setString(2, student.getClassName());
-            pstmt.setInt(3, student.getStudentId());
+            pstmt.setString(3, student.getStudentId());
 
             int affectedRows = pstmt.executeUpdate();
             return affectedRows > 0;
@@ -71,22 +71,22 @@ public class StudentDao implements IStudentDao {
     }
 
     @Override
-    public boolean delete(int studentId, Connection conn) throws SQLException {
+    public boolean delete(String studentId, Connection conn) throws SQLException {
         String sql = "DELETE FROM tbl_student WHERE studentId = ?";
         
         try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setInt(1, studentId);
+            pstmt.setString(1, studentId);
             int affectedRows = pstmt.executeUpdate();
             return affectedRows > 0;
         }
     }
 
     @Override
-    public Student findByStudentId(int studentId, Connection conn) throws SQLException {
+    public Student findByStudentId(String studentId, Connection conn) throws SQLException {
         String sql = "SELECT s.*, u.username, u.password, u.role FROM tbl_student s JOIN tbl_user u ON s.userId = u.userId WHERE s.studentId = ?";
         
         try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setInt(1, studentId);
+            pstmt.setString(1, studentId);
             try (ResultSet rs = pstmt.executeQuery()) {
                 if (rs.next()) {
                     return createStudentFromResultSet(rs);
@@ -97,7 +97,7 @@ public class StudentDao implements IStudentDao {
     }
 
     @Override
-    public Student findByUserId(int userId, Connection conn) throws SQLException {
+    public Student findByUserId(Integer userId, Connection conn) throws SQLException {
         String sql = "SELECT s.*, u.username, u.password, u.role FROM tbl_student s JOIN tbl_user u ON s.userId = u.userId WHERE s.userId = ?";
         
         try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -117,7 +117,7 @@ public class StudentDao implements IStudentDao {
         student.setUsername(rs.getString("username"));
         student.setPassword(rs.getString("password"));
         student.setRole(rs.getString("role"));
-        student.setStudentId(rs.getInt("studentId"));
+        student.setStudentId(rs.getString("studentId"));
         student.setStudentName(rs.getString("studentName"));
         student.setClassName(rs.getString("className"));
         return student;

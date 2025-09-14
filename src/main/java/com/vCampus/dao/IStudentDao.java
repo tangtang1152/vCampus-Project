@@ -7,7 +7,7 @@ import java.sql.SQLException;
 /**
  * 学生数据访问对象接口
  */
-public interface IStudentDao extends IBaseDao<Student> {
-    Student findByStudentId(int studentId, Connection conn) throws SQLException;
-    Student findByUserId(int userId, Connection conn) throws SQLException;
+public interface IStudentDao extends IBaseDao<Student,String> {
+    Student findByStudentId(String studentId, Connection conn) throws SQLException;
+    Student findByUserId(Integer userId, Connection conn) throws SQLException;
 }

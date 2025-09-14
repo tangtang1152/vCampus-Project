@@ -5,7 +5,7 @@ package com.vCampus.entity;
  * 包含登录认证相关的基本信息
  */
 public class User {
-    private int userId;
+    private Integer userId;
     private String username;
     private String password;
     private String role;
@@ -13,7 +13,7 @@ public class User {
     // 构造函数
     public User() {}
     
-    public User(int userId, String username, String password, String role) {
+    public User(Integer userId, String username, String password, String role) {
         this.userId = userId;
         this.username = username;
         this.password = password;
@@ -25,7 +25,7 @@ public class User {
         return userId;
     }
     
-    public void setUserId(int userId) {
+    public void setUserId(Integer userId) {
         this.userId = userId;
     }
     

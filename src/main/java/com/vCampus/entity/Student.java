@@ -15,7 +15,7 @@ public class Student extends User {
      * 学号 - 学生的唯一标识符
      * 通常由学校分配，用于唯一识别每个学生
      */
-    private int studentId;
+    private String studentId;
     
     private String studentName;
     
@@ -33,7 +33,7 @@ public class Student extends User {
      */
     public Student() {
         super(); // 调用父类的默认构造函数
-        this.studentId = 0;
+        this.studentId = "";
         this.studentName = "";
         this.className = "";
     }
@@ -51,7 +51,7 @@ public class Student extends User {
      * @param className 班级名称，学生所属的班级
      */
     public Student(int userId, String username, String password, String role,
-                  int studentId, String studentName, String className) {
+                  String studentId, String studentName, String className) {
         super(userId, username, password, role); // 调用父类的构造函数
         this.studentId = studentId;
         this.studentName = studentName;
@@ -61,7 +61,7 @@ public class Student extends User {
     // ==================== Getter 方法 ====================
     
 
-    public int getStudentId() {
+    public String getStudentId() {
         return studentId;
     }
     
@@ -76,7 +76,7 @@ public class Student extends User {
     // ==================== Setter 方法 ====================
     
 
-    public void setStudentId(int studentId) {
+    public void setStudentId(String studentId) {
         this.studentId = studentId;
     }
     
@@ -132,6 +132,6 @@ public class Student extends User {
      */
     @Override
     public int hashCode() {
-        return studentId;
+        return studentId.hashCode();
     }
 }

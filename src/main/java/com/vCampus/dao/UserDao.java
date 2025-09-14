@@ -15,7 +15,7 @@ import java.util.List;
 public class UserDao implements IUserDao {
 
     @Override
-    public User findById(int userId, Connection conn) throws SQLException {
+    public User findById(Integer userId, Connection conn) throws SQLException {
         return findByUserId(userId, conn);
     }
 
@@ -82,7 +82,7 @@ public class UserDao implements IUserDao {
     }
 
     @Override
-    public boolean delete(int userId, Connection conn) throws SQLException {
+    public boolean delete(Integer userId, Connection conn) throws SQLException {
         String sql = "DELETE FROM tbl_user WHERE userId = ?";
         
         try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -123,7 +123,7 @@ public class UserDao implements IUserDao {
         return false;
     }
 
-    public User findByUserId(int userId, Connection conn) throws SQLException {
+    public User findByUserId(Integer userId, Connection conn) throws SQLException {
         String sql = "SELECT * FROM tbl_user WHERE userId = ?";
         
         try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
