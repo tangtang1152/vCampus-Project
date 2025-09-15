@@ -6,83 +6,141 @@
 <?import javafx.collections.FXCollections?>
 
 <GridPane xmlns:fx="http://javafx.com/fxml"
-          fx:controller="com.vCampus.view.RegisterController"
-          hgap="15" vgap="15"
-          style="-fx-padding: 25; -fx-background-color: #ffffff; -fx-border-color: #e0e0e0; -fx-border-width: 1; -fx-border-radius: 5;"
-          prefWidth="450" prefHeight="600">
-    
+    fx:controller="com.vCampus.view.RegisterController"
+    hgap="15" vgap="15"
+    style="-fx-padding: 25; -fx-background-color: #ffffff; -fx-border-color: #e0e0e0; -fx-border-width: 1; -fx-border-radius: 5;"
+    prefWidth="500" prefHeight="700">
+
     <padding><Insets top="25" right="25" bottom="25" left="25"/></padding>
-    
+
     <!-- 标题 -->
     <Label text="用户注册" GridPane.columnIndex="0" GridPane.rowIndex="0"
-           GridPane.columnSpan="2" 
-           style="-fx-font-size: 20; -fx-font-weight: bold; -fx-text-fill: #2c3e50; -fx-alignment: center;"/>
-    
+        GridPane.columnSpan="2"
+        style="-fx-font-size: 20; -fx-font-weight: bold; -fx-text-fill: #2c3e50; -fx-alignment: center;"/>
+
     <!-- 用户角色 -->
     <Label text="用户角色:" GridPane.columnIndex="0" GridPane.rowIndex="1"
-           style="-fx-font-weight: bold;"/>
+        style="-fx-font-weight: bold;"/>
     <ComboBox fx:id="roleComboBox" GridPane.columnIndex="1" GridPane.rowIndex="1"
-              style="-fx-pref-width: 200;" onAction="#onRoleChanged"/>
-    
+        style="-fx-pref-width: 200;" onAction="#onRoleChanged"/>
+
     <!-- 用户名 -->
     <Label text="用户名:" GridPane.columnIndex="0" GridPane.rowIndex="2"
-           style="-fx-font-weight: bold;"/>
+        style="-fx-font-weight: bold;"/>
     <TextField fx:id="usernameField" GridPane.columnIndex="1" GridPane.rowIndex="2"
-               promptText="请输入用户名" style="-fx-pref-width: 200;"/>
-    
+        promptText="请输入用户名" style="-fx-pref-width: 200;"/>
+
     <!-- 密码 -->
     <Label text="密码:" GridPane.columnIndex="0" GridPane.rowIndex="3"
-           style="-fx-font-weight: bold;"/>
+        style="-fx-font-weight: bold;"/>
     <PasswordField fx:id="passwordField" GridPane.columnIndex="1" GridPane.rowIndex="3"
-                   promptText="请输入密码" style="-fx-pref-width: 200;"/>
-    
+        promptText="请输入密码" style="-fx-pref-width: 200;"/>
+
     <!-- 确认密码 -->
     <Label text="确认密码:" GridPane.columnIndex="0" GridPane.rowIndex="4"
-           style="-fx-font-weight: bold;"/>
+        style="-fx-font-weight: bold;"/>
     <PasswordField fx:id="confirmPasswordField" GridPane.columnIndex="1" GridPane.rowIndex="4"
-                   promptText="请再次输入密码" style="-fx-pref-width: 200;"/>
-    
+        promptText="请再次输入密码" style="-fx-pref-width: 200;"/>
+
     <!-- 学生专属字段 -->
     <VBox fx:id="studentFields" GridPane.columnIndex="0" GridPane.rowIndex="5"
-          GridPane.columnSpan="2" spacing="10" visible="true">
-        
+        GridPane.columnSpan="2" spacing="10" visible="false" managed="false">
         <Label text="学生信息" style="-fx-font-weight: bold; -fx-text-fill: #3498db;"/>
         
         <!-- 学生姓名 -->
         <HBox spacing="10" alignment="CENTER_LEFT">
             <Label text="学生姓名:" style="-fx-min-width: 80; -fx-font-weight: bold;"/>
-            <TextField fx:id="studentNameField" promptText="请输入真实姓名" 
-                       style="-fx-pref-width: 200;"/>
+            <TextField fx:id="studentNameField" promptText="请输入真实姓名"
+                style="-fx-pref-width: 200;"/>
         </HBox>
         
         <!-- 班级 -->
         <HBox spacing="10" alignment="CENTER_LEFT">
             <Label text="班级:" style="-fx-min-width: 80; -fx-font-weight: bold;"/>
-            <TextField fx:id="classNameField" promptText="请输入班级" 
-                       style="-fx-pref-width: 200;"/>
+            <TextField fx:id="classNameField" promptText="请输入班级"
+                style="-fx-pref-width: 200;"/>
         </HBox>
         
         <!-- 学号 -->
         <HBox spacing="10" alignment="CENTER_LEFT">
             <Label text="学号:" style="-fx-min-width: 80; -fx-font-weight: bold;"/>
-            <TextField fx:id="studentIdField" promptText="请输入学号" 
-                       style="-fx-pref-width: 200;"/>
+            <TextField fx:id="studentIdField" promptText="请输入学号"
+                style="-fx-pref-width: 200;"/>
+        </HBox>
+    </VBox>
+
+    <!-- 教师专属字段 -->
+    <VBox fx:id="teacherFields" GridPane.columnIndex="0" GridPane.rowIndex="5"
+        GridPane.columnSpan="2" spacing="10" visible="false" managed="false">
+        <Label text="教师信息" style="-fx-font-weight: bold; -fx-text-fill: #e67e22;"/>
+        
+        <!-- 教师编号 -->
+        <HBox spacing="10" alignment="CENTER_LEFT">
+            <Label text="教师编号:" style="-fx-min-width: 80; -fx-font-weight: bold;"/>
+            <TextField fx:id="teacherIdField" promptText="请输入教师编号"
+                style="-fx-pref-width: 200;"/>
         </HBox>
         
+        <!-- 教师姓名 -->
+        <HBox spacing="10" alignment="CENTER_LEFT">
+            <Label text="教师姓名:" style="-fx-min-width: 80; -fx-font-weight: bold;"/>
+            <TextField fx:id="teacherNameField" promptText="请输入教师姓名"
+                style="-fx-pref-width: 200;"/>
+        </HBox>
+        
+        <!-- 性别 -->
+        <HBox spacing="10" alignment="CENTER_LEFT">
+            <Label text="性别:" style="-fx-min-width: 80; -fx-font-weight: bold;"/>
+            <ComboBox fx:id="teacherSexComboBox" style="-fx-pref-width: 200;"/>
+        </HBox>
+        
+        <!-- 职称 -->
+        <HBox spacing="10" alignment="CENTER_LEFT">
+            <Label text="职称:" style="-fx-min-width: 80; -fx-font-weight: bold;"/>
+            <TextField fx:id="technicalField" promptText="请输入职称"
+                style="-fx-pref-width: 200;"/>
+        </HBox>
+        
+        <!-- 部门ID -->
+        <HBox spacing="10" alignment="CENTER_LEFT">
+            <Label text="部门ID:" style="-fx-min-width: 80; -fx-font-weight: bold;"/>
+            <TextField fx:id="departmentIdField" promptText="请输入部门ID"
+                style="-fx-pref-width: 200;"/>
+        </HBox>
     </VBox>
-    
+
+    <!-- 管理员专属字段 -->
+    <VBox fx:id="adminFields" GridPane.columnIndex="0" GridPane.rowIndex="5"
+        GridPane.columnSpan="2" spacing="10" visible="false" managed="false">
+        <Label text="管理员信息" style="-fx-font-weight: bold; -fx-text-fill: #e74c3c;"/>
+        
+        <!-- 管理员工号 -->
+        <HBox spacing="10" alignment="CENTER_LEFT">
+            <Label text="管理员工号:" style="-fx-min-width: 80; -fx-font-weight: bold;"/>
+            <TextField fx:id="adminIdField" promptText="请输入管理员工号"
+                style="-fx-pref-width: 200;"/>
+        </HBox>
+        
+        <!-- 管理员姓名 -->
+        <HBox spacing="10" alignment="CENTER_LEFT">
+            <Label text="管理员姓名:" style="-fx-min-width: 80; -fx-font-weight: bold;"/>
+            <TextField fx:id="adminNameField" promptText="请输入管理员姓名"
+                style="-fx-pref-width: 200;"/>
+        </HBox>
+    </VBox>
+
     <!-- 错误信息显示 -->
     <Label fx:id="errorLabel" GridPane.columnIndex="0" GridPane.rowIndex="6"
-           GridPane.columnSpan="2" style="-fx-text-fill: #e74c3c; -fx-wrap-text: true;"
-           visible="false"/>
-    
+        GridPane.columnSpan="2" style="-fx-text-fill: #e74c3c; -fx-wrap-text: true;"
+        visible="false"/>
+
     <!-- 按钮区域 -->
     <HBox spacing="15" GridPane.columnIndex="0" GridPane.rowIndex="7"
-          GridPane.columnSpan="2" style="-fx-alignment: center;">
-        <Button text="注册" onAction="#onRegister" 
-                style="-fx-min-width: 100; -fx-background-color: #3498db; -fx-text-fill: white; -fx-font-weight: bold;"/>
-        <Button text="取消" onAction="#onCancel" 
-                style="-fx-min-width: 100; -fx-background-color: #95a5a6; -fx-text-fill: white;"/>
+        GridPane.columnSpan="2" style="-fx-alignment: center;">
+        <Button text="注册" onAction="#onRegister"
+            style="-fx-min-width: 100; -fx-background-color: #3498db; -fx-text-fill: white; -fx-font-weight: bold;"/>
+        <Button text="取消" onAction="#onCancel"
+            style="-fx-min-width: 100; -fx-background-color: #95a5a6; -fx-text-fill: white;"/>
     </HBox>
-    
+
 </GridPane>

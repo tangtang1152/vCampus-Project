@@ -92,9 +92,18 @@ public class LoginController extends BaseController {
      */
     @FXML
     private void onRegister() {
-        NavigationUtil.showDialog("register-view.fxml", "用户注册");
+        System.out.println("🎯 注册按钮被点击");
+        
+        try {
+            System.out.println("🔍 尝试显示注册对话框...");
+            NavigationUtil.showDialog("register-view.fxml", "用户注册");
+            System.out.println("✅ 注册对话框调用完成");
+        } catch (Exception e) {
+            System.err.println("❌ 打开注册对话框失败: " + e.getMessage());
+            e.printStackTrace();
+            showError("无法打开注册界面: " + e.getMessage());
+        }
     }
-    
     /**
      * 忘记密码点击事件
      */
