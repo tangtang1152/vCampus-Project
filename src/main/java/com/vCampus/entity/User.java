@@ -1,17 +1,23 @@
 package com.vCampus.entity;
 
 /**
- * 用户基类，是所有用户的父类
- * 包含登录认证相关的基本信息
+ * 用户基类
+ * 包含所有用户的共同属性
  */
 public class User {
-    private int userId;
-    private String username;
-    private String password;
-    private String role;
+    private int userId;        // 用户ID
+    private String username;   // 用户名
+    private String password;   // 密码
+    private String role;       // 角色
     
-    // 构造函数
-    public User() {}
+    // ==================== 构造函数 ====================
+    
+    public User() {
+        this.userId = 0;
+        this.username = "";
+        this.password = "";
+        this.role = "";
+    }
     
     public User(int userId, String username, String password, String role) {
         this.userId = userId;
@@ -20,7 +26,8 @@ public class User {
         this.role = role;
     }
     
-    // Getter 和 Setter 方法
+    // ==================== Getter 和 Setter 方法 ====================
+    
     public int getUserId() {
         return userId;
     }
@@ -53,12 +60,29 @@ public class User {
         this.role = role;
     }
     
+    // ==================== 辅助方法 ====================
+    
     @Override
     public String toString() {
         return "User{" +
                 "userId=" + userId +
                 ", username='" + username + '\'' +
+                ", password='" + password + '\'' +
                 ", role='" + role + '\'' +
                 '}';
+    }
+    
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        
+        User user = (User) o;
+        return userId == user.userId;
+    }
+    
+    @Override
+    public int hashCode() {
+        return userId;
     }
 }

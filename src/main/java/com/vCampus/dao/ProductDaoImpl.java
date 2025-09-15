@@ -1,6 +1,6 @@
 package com.vCampus.dao;
 
-import com.vCampus.entity.User;
+import com.vCampus.entity.Product;
 import com.vCampus.util.DBUtil;
 
 import java.sql.*;
@@ -8,22 +8,25 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 用户数据访问对象实现类
+ * 商品数据访问对象实现类
  */
-public class UserDao implements IUserDao {
+public class ProductDaoImpl implements IProductDao {
 
     @Override
-    public boolean addUser(User user) throws SQLException {
+    public boolean addProduct(Product product) throws SQLException {
         Connection conn = null;
         PreparedStatement ps = null;
         
         try {
             conn = DBUtil.getConnection();
-            String sql = "INSERT INTO tbl_user (username, password, role) VALUES (?, ?, ?)";
+            String sql = "INSERT INTO tbl_product (productId, productName, price, stock, category, description) VALUES (?, ?, ?, ?, ?, ?)";
             ps = conn.prepareStatement(sql);
-            ps.setString(1, user.getUsername());
-            ps.setString(2, user.getPassword());
-            ps.setString(3, user.getRole());
+            ps.setString(1, product.getProductId());
+            ps.setString(2, product.getProductName());
+            ps.setDouble(3, product.getPrice());
+            ps.setInt(4, product.getStock());
+            ps.setString(5, product.getCategory());
+            ps.setString(6, product.getDescription());
             
             int result = ps.executeUpdate();
             return result > 0;
@@ -39,15 +42,15 @@ public class UserDao implements IUserDao {
     }
 
     @Override
-    public boolean deleteUser(Integer userId) throws SQLException {
+    public boolean deleteProduct(String productId) throws SQLException {
         Connection conn = null;
         PreparedStatement ps = null;
         
         try {
             conn = DBUtil.getConnection();
-            String sql = "DELETE FROM tbl_user WHERE userId = ?";
+            String sql = "DELETE FROM tbl_product WHERE productId = ?";
             ps = conn.prepareStatement(sql);
-            ps.setInt(1, userId);
+            ps.setString(1, productId);
             
             int result = ps.executeUpdate();
             return result > 0;
@@ -63,18 +66,20 @@ public class UserDao implements IUserDao {
     }
 
     @Override
-    public boolean updateUser(User user) throws SQLException {
+    public boolean updateProduct(Product product) throws SQLException {
         Connection conn = null;
         PreparedStatement ps = null;
         
         try {
             conn = DBUtil.getConnection();
-            String sql = "UPDATE tbl_user SET username = ?, password = ?, role = ? WHERE userId = ?";
+            String sql = "UPDATE tbl_product SET productName = ?, price = ?, stock = ?, category = ?, description = ? WHERE productId = ?";
             ps = conn.prepareStatement(sql);
-            ps.setString(1, user.getUsername());
-            ps.setString(2, user.getPassword());
-            ps.setString(3, user.getRole());
-            ps.setInt(4, user.getUserId());
+            ps.setString(1, product.getProductName());
+            ps.setDouble(2, product.getPrice());
+            ps.setInt(3, product.getStock());
+            ps.setString(4, product.getCategory());
+            ps.setString(5, product.getDescription());
+            ps.setString(6, product.getProductId());
             
             int result = ps.executeUpdate();
             return result > 0;
@@ -90,20 +95,20 @@ public class UserDao implements IUserDao {
     }
 
     @Override
-    public User getUserById(Integer userId) throws SQLException {
+    public Product getProductById(String productId) throws SQLException {
         Connection conn = null;
         PreparedStatement ps = null;
         ResultSet rs = null;
         
         try {
             conn = DBUtil.getConnection();
-            String sql = "SELECT * FROM tbl_user WHERE userId = ?";
+            String sql = "SELECT * FROM tbl_product WHERE productId = ?";
             ps = conn.prepareStatement(sql);
-            ps.setInt(1, userId);
+            ps.setString(1, productId);
             rs = ps.executeQuery();
             
             if (rs.next()) {
-                return mapResultSetToUser(rs);
+                return mapResultSetToProduct(rs);
             }
             return null;
             
@@ -119,50 +124,21 @@ public class UserDao implements IUserDao {
     }
 
     @Override
-    public User getUserByUsername(String username) throws SQLException {
-        Connection conn = null;
-        PreparedStatement ps = null;
-        ResultSet rs = null;
-        
-        try {
-            conn = DBUtil.getConnection();
-            String sql = "SELECT * FROM tbl_user WHERE username = ?";
-            ps = conn.prepareStatement(sql);
-            ps.setString(1, username);
-            rs = ps.executeQuery();
-            
-            if (rs.next()) {
-                return mapResultSetToUser(rs);
-            }
-            return null;
-            
-        } finally {
-            try {
-                if (rs != null) rs.close();
-                if (ps != null) ps.close();
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
-            DBUtil.closeConnection(conn);
-        }
-    }
-
-    @Override
-    public List<User> getAllUsers() throws SQLException {
+    public List<Product> getAllProducts() throws SQLException {
         Connection conn = null;
         Statement st = null;
         ResultSet rs = null;
-        List<User> users = new ArrayList<>();
+        List<Product> products = new ArrayList<>();
         
         try {
             conn = DBUtil.getConnection();
             st = conn.createStatement();
-            rs = st.executeQuery("SELECT * FROM tbl_user ORDER BY userId");
+            rs = st.executeQuery("SELECT * FROM tbl_product ORDER BY productId");
             
             while (rs.next()) {
-                users.add(mapResultSetToUser(rs));
+                products.add(mapResultSetToProduct(rs));
             }
-            return users;
+            return products;
             
         } finally {
             try {
@@ -176,23 +152,23 @@ public class UserDao implements IUserDao {
     }
 
     @Override
-    public User validateUser(String username, String password) throws SQLException {
+    public List<Product> getProductsByCategory(String category) throws SQLException {
         Connection conn = null;
         PreparedStatement ps = null;
         ResultSet rs = null;
+        List<Product> products = new ArrayList<>();
         
         try {
             conn = DBUtil.getConnection();
-            String sql = "SELECT * FROM tbl_user WHERE username = ? AND password = ?";
+            String sql = "SELECT * FROM tbl_product WHERE category = ? ORDER BY productId";
             ps = conn.prepareStatement(sql);
-            ps.setString(1, username);
-            ps.setString(2, password);
+            ps.setString(1, category);
             rs = ps.executeQuery();
             
-            if (rs.next()) {
-                return mapResultSetToUser(rs);
+            while (rs.next()) {
+                products.add(mapResultSetToProduct(rs));
             }
-            return null;
+            return products;
             
         } finally {
             try {
@@ -205,37 +181,64 @@ public class UserDao implements IUserDao {
         }
     }
 
+    @Override
+    public boolean updateProductStock(String productId, int quantity) throws SQLException {
+        Connection conn = null;
+        PreparedStatement ps = null;
+        
+        try {
+            conn = DBUtil.getConnection();
+            String sql = "UPDATE tbl_product SET stock = stock + ? WHERE productId = ?";
+            ps = conn.prepareStatement(sql);
+            ps.setInt(1, quantity);
+            ps.setString(2, productId);
+            
+            int result = ps.executeUpdate();
+            return result > 0;
+            
+        } finally {
+            try {
+                if (ps != null) ps.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+            DBUtil.closeConnection(conn);
+        }
+    }
+
     /**
-     * 将ResultSet映射到User对象的辅助方法
+     * 将ResultSet映射到Product对象的辅助方法
      * @param rs ResultSet对象
-     * @return User对象
+     * @return Product对象
      * @throws SQLException
      */
-    private User mapResultSetToUser(ResultSet rs) throws SQLException {
-        User user = new User();
-        user.setUserId(rs.getInt("userId"));
-        user.setUsername(rs.getString("username"));
-        user.setPassword(rs.getString("password"));
-        user.setRole(rs.getString("role"));
-        return user;
+    private Product mapResultSetToProduct(ResultSet rs) throws SQLException {
+        Product product = new Product();
+        product.setProductId(rs.getString("productId"));
+        product.setProductName(rs.getString("productName"));
+        product.setPrice(rs.getDouble("price"));
+        product.setStock(rs.getInt("stock"));
+        product.setCategory(rs.getString("category"));
+        product.setDescription(rs.getString("description"));
+        return product;
     }
 
     /**
-     * 检查用户名是否存在
-     * @param username 用户名
+     * 检查商品是否存在
+     * @param productId 商品ID
      * @return 是否存在
      * @throws SQLException
      */
-    public boolean usernameExists(String username) throws SQLException {
+    public boolean productExists(String productId) throws SQLException {
         Connection conn = null;
         PreparedStatement ps = null;
         ResultSet rs = null;
         
         try {
             conn = DBUtil.getConnection();
-            String sql = "SELECT COUNT(*) FROM tbl_user WHERE username = ?";
+            String sql = "SELECT COUNT(*) FROM tbl_product WHERE productId = ?";
             ps = conn.prepareStatement(sql);
-            ps.setString(1, username);
+            ps.setString(1, productId);
             rs = ps.executeQuery();
             
             if (rs.next()) {
@@ -255,62 +258,28 @@ public class UserDao implements IUserDao {
     }
 
     /**
-     * 检查用户ID是否存在
-     * @param userId 用户ID
-     * @return 是否存在
+     * 根据商品名称搜索商品
+     * @param productName 商品名称（支持模糊搜索）
+     * @return 商品列表
      * @throws SQLException
      */
-    public boolean userIdExists(Integer userId) throws SQLException {
+    public List<Product> searchProductsByName(String productName) throws SQLException {
         Connection conn = null;
         PreparedStatement ps = null;
         ResultSet rs = null;
+        List<Product> products = new ArrayList<>();
         
         try {
             conn = DBUtil.getConnection();
-            String sql = "SELECT COUNT(*) FROM tbl_user WHERE userId = ?";
+            String sql = "SELECT * FROM tbl_product WHERE productName LIKE ? ORDER BY productId";
             ps = conn.prepareStatement(sql);
-            ps.setInt(1, userId);
-            rs = ps.executeQuery();
-            
-            if (rs.next()) {
-                return rs.getInt(1) > 0;
-            }
-            return false;
-            
-        } finally {
-            try {
-                if (rs != null) rs.close();
-                if (ps != null) ps.close();
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
-            DBUtil.closeConnection(conn);
-        }
-    }
-
-    /**
-     * 根据角色获取用户列表
-     * @param role 角色（student/teacher/admin）
-     * @return 用户列表
-     * @throws SQLException
-     */
-    public List<User> getUsersByRole(String role) throws SQLException {
-        Connection conn = null;
-        PreparedStatement ps = null;
-        ResultSet rs = null;
-        List<User> users = new ArrayList<>();
-        
-        try {
-            conn = DBUtil.getConnection();
-            String sql = "SELECT * FROM tbl_user WHERE role = ? ORDER BY userId";
-            ps = conn.prepareStatement(sql);
-            ps.setString(1, role);
+            ps.setString(1, "%" + productName + "%");
             rs = ps.executeQuery();
             
             while (rs.next()) {
-                users.add(mapResultSetToUser(rs));
+                products.add(mapResultSetToProduct(rs));
             }
-            return users;
+            return products;
             
         } finally {
             try {
@@ -324,22 +293,89 @@ public class UserDao implements IUserDao {
     }
 
     /**
-     * 更新用户密码
-     * @param userId 用户ID
-     * @param newPassword 新密码
+     * 获取所有商品分类
+     * @return 分类列表
+     * @throws SQLException
+     */
+    public List<String> getAllCategories() throws SQLException {
+        Connection conn = null;
+        Statement st = null;
+        ResultSet rs = null;
+        List<String> categories = new ArrayList<>();
+        
+        try {
+            conn = DBUtil.getConnection();
+            st = conn.createStatement();
+            rs = st.executeQuery("SELECT DISTINCT category FROM tbl_product ORDER BY category");
+            
+            while (rs.next()) {
+                categories.add(rs.getString("category"));
+            }
+            return categories;
+            
+        } finally {
+            try {
+                if (rs != null) rs.close();
+                if (st != null) st.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+            DBUtil.closeConnection(conn);
+        }
+    }
+
+    /**
+     * 获取库存不足的商品
+     * @param minStock 最小库存阈值
+     * @return 商品列表
+     * @throws SQLException
+     */
+    public List<Product> getProductsWithLowStock(int minStock) throws SQLException {
+        Connection conn = null;
+        PreparedStatement ps = null;
+        ResultSet rs = null;
+        List<Product> products = new ArrayList<>();
+        
+        try {
+            conn = DBUtil.getConnection();
+            String sql = "SELECT * FROM tbl_product WHERE stock < ? ORDER BY stock";
+            ps = conn.prepareStatement(sql);
+            ps.setInt(1, minStock);
+            rs = ps.executeQuery();
+            
+            while (rs.next()) {
+                products.add(mapResultSetToProduct(rs));
+            }
+            return products;
+            
+        } finally {
+            try {
+                if (rs != null) rs.close();
+                if (ps != null) ps.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+            DBUtil.closeConnection(conn);
+        }
+    }
+
+    /**
+     * 设置商品库存（直接设置，不是增减）
+     * @param productId 商品ID
+     * @param newStock 新库存数量
      * @return 是否更新成功
      * @throws SQLException
      */
-    public boolean updateUserPassword(Integer userId, String newPassword) throws SQLException {
+    public boolean setProductStock(String productId, int newStock) throws SQLException {
         Connection conn = null;
         PreparedStatement ps = null;
         
         try {
             conn = DBUtil.getConnection();
-            String sql = "UPDATE tbl_user SET password = ? WHERE userId = ?";
+            String sql = "UPDATE tbl_product SET stock = ? WHERE productId = ?";
             ps = conn.prepareStatement(sql);
-            ps.setString(1, newPassword);
-            ps.setInt(2, userId);
+            ps.setInt(1, newStock);
+            ps.setString(2, productId);
             
             int result = ps.executeUpdate();
             return result > 0;
@@ -355,42 +391,11 @@ public class UserDao implements IUserDao {
     }
 
     /**
-     * 更新用户角色
-     * @param userId 用户ID
-     * @param newRole 新角色
-     * @return 是否更新成功
+     * 获取商品总数
+     * @return 商品总数
      * @throws SQLException
      */
-    public boolean updateUserRole(Integer userId, String newRole) throws SQLException {
-        Connection conn = null;
-        PreparedStatement ps = null;
-        
-        try {
-            conn = DBUtil.getConnection();
-            String sql = "UPDATE tbl_user SET role = ? WHERE userId = ?";
-            ps = conn.prepareStatement(sql);
-            ps.setString(1, newRole);
-            ps.setInt(2, userId);
-            
-            int result = ps.executeUpdate();
-            return result > 0;
-            
-        } finally {
-            try {
-                if (ps != null) ps.close();
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
-            DBUtil.closeConnection(conn);
-        }
-    }
-
-    /**
-     * 获取用户总数
-     * @return 用户总数
-     * @throws SQLException
-     */
-    public int getTotalUserCount() throws SQLException {
+    public int getTotalProductCount() throws SQLException {
         Connection conn = null;
         Statement st = null;
         ResultSet rs = null;
@@ -398,7 +403,7 @@ public class UserDao implements IUserDao {
         try {
             conn = DBUtil.getConnection();
             st = conn.createStatement();
-            rs = st.executeQuery("SELECT COUNT(*) FROM tbl_user");
+            rs = st.executeQuery("SELECT COUNT(*) FROM tbl_product");
             
             if (rs.next()) {
                 return rs.getInt(1);
@@ -417,21 +422,21 @@ public class UserDao implements IUserDao {
     }
 
     /**
-     * 根据角色获取用户数量
-     * @param role 角色
-     * @return 用户数量
+     * 获取某个分类的商品数量
+     * @param category 分类名称
+     * @return 商品数量
      * @throws SQLException
      */
-    public int getUserCountByRole(String role) throws SQLException {
+    public int getProductCountByCategory(String category) throws SQLException {
         Connection conn = null;
         PreparedStatement ps = null;
         ResultSet rs = null;
         
         try {
             conn = DBUtil.getConnection();
-            String sql = "SELECT COUNT(*) FROM tbl_user WHERE role = ?";
+            String sql = "SELECT COUNT(*) FROM tbl_product WHERE category = ?";
             ps = conn.prepareStatement(sql);
-            ps.setString(1, role);
+            ps.setString(1, category);
             rs = ps.executeQuery();
             
             if (rs.next()) {
@@ -449,40 +454,4 @@ public class UserDao implements IUserDao {
             DBUtil.closeConnection(conn);
         }
     }
-
-    /**
-     * 搜索用户（根据用户名模糊搜索）
-     * @param keyword 关键词
-     * @return 用户列表
-     * @throws SQLException
-     */
-    public List<User> searchUsers(String keyword) throws SQLException {
-        Connection conn = null;
-        PreparedStatement ps = null;
-        ResultSet rs = null;
-        List<User> users = new ArrayList<>();
-        
-        try {
-            conn = DBUtil.getConnection();
-            String sql = "SELECT * FROM tbl_user WHERE username LIKE ? ORDER BY userId";
-            ps = conn.prepareStatement(sql);
-            ps.setString(1, "%" + keyword + "%");
-            rs = ps.executeQuery();
-            
-            while (rs.next()) {
-                users.add(mapResultSetToUser(rs));
-            }
-            return users;
-            
-        } finally {
-            try {
-                if (rs != null) rs.close();
-                if (ps != null) ps.close();
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
-            DBUtil.closeConnection(conn);
-        }
-    }
-  
 }

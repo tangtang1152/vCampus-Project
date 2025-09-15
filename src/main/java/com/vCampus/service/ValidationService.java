@@ -1,6 +1,8 @@
 package com.vCampus.service;
 
+import com.vCampus.entity.Admin;
 import com.vCampus.entity.Student;
+import com.vCampus.entity.Teacher;
 import com.vCampus.entity.User;
 import com.vCampus.util.DBConstants;
 
@@ -76,11 +78,83 @@ public class ValidationService {
         }
         
         // 验证学号范围
-        if (student.getStudentId() <= 0) {
+        if (Integer.parseInt(student.getStudentId()) <= 0) {
             System.out.println("错误: 学号必须大于0");
             return false;
         }
         
+        return true;
+    }
+    
+    /**
+     * 验证教师数据长度
+     */
+    public static boolean validateTeacher(Teacher teacher) {
+        if (teacher == null) {
+            return false;
+        }
+
+        // 验证教师姓名长度 (1-50字符)
+        if (teacher.getTeacherName() == null || teacher.getTeacherName().trim().isEmpty()) {
+            System.out.println("错误: 教师姓名为空");
+            return false;
+        }
+        if (teacher.getTeacherName().length() > DBConstants.TEACHER_NAME_MAX_LENGTH) {
+            System.out.println("错误: 教师姓名超过50字符限制");
+            return false;
+        }
+
+        // 验证职称长度 (1-20字符)
+        if (teacher.getTechnical() == null || teacher.getTechnical().trim().isEmpty()) {
+            System.out.println("错误: 职称为空");
+            return false;
+        }
+        if (teacher.getTechnical().length() > DBConstants.TECHNICAL_MAX_LENGTH) {
+            System.out.println("错误: 职称超过20字符限制");
+            return false;
+        }
+
+        // 验证部门ID长度 (1-20字符)
+        if (teacher.getDepartmentId() == null || teacher.getDepartmentId().trim().isEmpty()) {
+            System.out.println("错误: 部门ID为空");
+            return false;
+        }
+        if (teacher.getDepartmentId().length() > DBConstants.DEPARTMENT_ID_MAX_LENGTH) {
+            System.out.println("错误: 部门ID超过20字符限制");
+            return false;
+        }
+
+        // 验证性别 (男/女)
+        if (teacher.getSex() == null || teacher.getSex().trim().isEmpty()) {
+            System.out.println("错误: 性别为空");
+            return false;
+        }
+        if (!teacher.getSex().equals("男") && !teacher.getSex().equals("女")) {
+            System.out.println("错误: 性别必须为'男'或'女'");
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * 验证管理员数据长度
+     */
+    public static boolean validateAdmin(Admin admin) {
+        if (admin == null) {
+            return false;
+        }
+
+        // 验证管理员姓名长度 (1-50字符)
+        if (admin.getAdminName() == null || admin.getAdminName().trim().isEmpty()) {
+            System.out.println("错误: 管理员姓名为空");
+            return false;
+        }
+        if (admin.getAdminName().length() > DBConstants.ADMIN_NAME_MAX_LENGTH) {
+            System.out.println("错误: 管理员姓名超过50字符限制");
+            return false;
+        }
+
         return true;
     }
     
