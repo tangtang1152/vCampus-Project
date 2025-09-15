@@ -147,19 +147,6 @@ public class UserService {
                 System.out.println("教师信息创建失败");
                 return RegisterResult.DATABASE_ERROR;
             }
-
-        } catch (SQLException e) {
-            System.err.println("注册教师时数据库错误: " + e.getMessage());
-            System.err.println("SQL状态: " + e.getSQLState());
-            System.err.println("错误代码: " + e.getErrorCode());
-            
-            // 处理唯一性约束违反错误
-            if (isUniqueConstraintViolation(e)) {
-                return identifyTeacherConstraintType(e, teacher);
-            }
-            
-            e.printStackTrace();
-            return RegisterResult.DATABASE_ERROR;
         } catch (Exception e) {
             System.err.println("注册教师时发生未知错误: " + e.getMessage());
             e.printStackTrace();
@@ -221,19 +208,6 @@ public class UserService {
                 System.out.println("管理员信息创建失败");
                 return RegisterResult.DATABASE_ERROR;
             }
-
-        } catch (SQLException e) {
-            System.err.println("注册管理员时数据库错误: " + e.getMessage());
-            System.err.println("SQL状态: " + e.getSQLState());
-            System.err.println("错误代码: " + e.getErrorCode());
-            
-            // 处理唯一性约束违反错误
-            if (isUniqueConstraintViolation(e)) {
-                return identifyAdminConstraintType(e, admin);
-            }
-            
-            e.printStackTrace();
-            return RegisterResult.DATABASE_ERROR;
         } catch (Exception e) {
             System.err.println("注册管理员时发生未知错误: " + e.getMessage());
             e.printStackTrace();
@@ -296,19 +270,6 @@ public class UserService {
                 System.out.println("学生信息创建失败");
                 return RegisterResult.DATABASE_ERROR;
             }
-            
-        } catch (SQLException e) {
-            System.err.println("注册学生时数据库错误: " + e.getMessage());
-            System.err.println("SQL状态: " + e.getSQLState());
-            System.err.println("错误代码: " + e.getErrorCode());
-            
-            // 关键修改：识别特定的唯一性约束违反错误
-            if (isUniqueConstraintViolation(e)) {
-                return identifyStudentConstraintType(e, student);
-            }
-            
-            e.printStackTrace();
-            return RegisterResult.DATABASE_ERROR;
         } catch (Exception e) {
             System.err.println("注册学生时发生未知错误: " + e.getMessage());
             e.printStackTrace();
@@ -316,110 +277,7 @@ public class UserService {
         }
     }
     
-    /**
-     * 判断是否为唯一性约束违反错误
-     */
-    private static boolean isUniqueConstraintViolation(SQLException e) {
-        // UCanAccess/JDBC 错误代码和状态码判断
-        String sqlState = e.getSQLState();
-        int errorCode = e.getErrorCode();
-        String message = e.getMessage();
-        
-        // 常见的唯一性约束错误标识
-        return "23000".equals(sqlState) || // 完整性约束违反
-               errorCode == 15000 || // UCanAccess 特定错误代码
-               (message != null && (
-                   message.contains("violates uniqueness constraint") ||
-                   message.contains("unique constraint") ||
-                   message.contains("PrimaryKey") ||
-                   message.contains("duplicate key")
-               ));
-    }
 
-    /**
-     * 识别具体的约束类型
-     */
-    private static RegisterResult identifyStudentConstraintType(SQLException e, Student student) {
-        String message = e.getMessage();
-        
-        System.out.println("识别约束类型，错误信息: " + message);
-        
-        if (message != null) {
-            // 检查是否是学号冲突
-            if (message.contains("tbl_student") && 
-                (message.contains("PrimaryKey") || message.contains("student_id"))) {
-                System.out.println("识别为学号唯一性约束违反: " + student.getStudentId());
-                return RegisterResult.STUDENT_ID_EXISTS;
-            }
-            
-            // 检查是否是用户名冲突
-            if (message.contains("tbl_user") && 
-                (message.contains("username") || message.contains("USERNAME"))) {
-                System.out.println("识别为用户名校一性约束违反: " + student.getUsername());
-                return RegisterResult.USERNAME_EXISTS;
-            }
-        }
-        
-        // 如果无法识别具体类型，返回通用的数据库错误
-        System.out.println("无法识别的唯一性约束类型");
-        return RegisterResult.DATABASE_ERROR;
-    }
-    
-    /**
-     * 识别管理员相关的约束类型
-     */
-    private static RegisterResult identifyAdminConstraintType(SQLException e, Admin admin) {
-        String message = e.getMessage();
-        System.out.println("识别管理员约束类型，错误信息: " + message);
-        
-        if (message != null) {
-            // 检查是否是管理员工号冲突
-            if (message.contains("tbl_admin") && 
-                (message.contains("PrimaryKey") || message.contains("admin_id"))) {
-                System.out.println("识别为管理员工号唯一性约束违反: " + admin.getAdminId());
-                return RegisterResult.ADMIN_ID_EXISTS;
-            }
-            
-            // 检查是否是用户名冲突
-            if (message.contains("tbl_user") && 
-                (message.contains("username") || message.contains("USERNAME"))) {
-                System.out.println("识别为用户名唯一性约束违反: " + admin.getUsername());
-                return RegisterResult.USERNAME_EXISTS;
-            }
-        }
-        
-        System.out.println("无法识别的唯一性约束类型");
-        return RegisterResult.DATABASE_ERROR;
-    }
-    
-    /**
-     * 识别教师相关的约束类型
-     */
-    private static RegisterResult identifyTeacherConstraintType(SQLException e, Teacher teacher) {
-        String message = e.getMessage();
-        System.out.println("识别教师约束类型，错误信息: " + message);
-        
-        if (message != null) {
-            // 检查是否是教师编号冲突
-            if (message.contains("tbl_teacher") && 
-                (message.contains("PrimaryKey") || message.contains("teacher_id"))) {
-                System.out.println("识别为教师编号唯一性约束违反: " + teacher.getTeacherId());
-                return RegisterResult.TEACHER_ID_EXISTS;
-            }
-            
-            // 检查是否是用户名冲突
-            if (message.contains("tbl_user") && 
-                (message.contains("username") || message.contains("USERNAME"))) {
-                System.out.println("识别为用户名唯一性约束违反: " + teacher.getUsername());
-                return RegisterResult.USERNAME_EXISTS;
-            }
-        }
-        
-        System.out.println("无法识别的唯一性约束类型");
-        return RegisterResult.DATABASE_ERROR;
-    }
-
-    
     /**
      * 根据用户ID获取用户信息
      */
