@@ -5,45 +5,51 @@ import com.vCampus.entity.*;
 import com.vCampus.util.TransactionManager;
 
 import java.sql.Connection;
-import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.List;
 
 /**
  * 用户服务类
  * 提供对用户数据的业务逻辑操作
  */
-public class UserServiceImpl implements IUserService {
+public class UserServiceImpl 
+extends AbstractBaseServiceImpl<User, Integer> implements IUserService {
 
     private static final IUserDao userDao = new UserDaoImpl();
     private static final IStudentDao studentDao = new StudentDaoImpl();
     private static final ITeacherDao teacherDao = new TeacherDaoImpl();
     private static final IAdminDao adminDao = new AdminDaoImpl();
 
-    // 定义注册结果枚举 - 扩展原有的枚举
-    public enum RegisterResult {
-        SUCCESS("注册成功"),
-        USERNAME_EXISTS("用户名已存在"),
-        STUDENT_ID_EXISTS("学号已存在"),
-        TEACHER_ID_EXISTS("教师编号已存在"),
-        ADMIN_ID_EXISTS("管理员工号已存在"),
-        VALIDATION_FAILED("数据验证失败"),
-        DATABASE_ERROR("数据库错误");
-
-        private final String message;
-
-        RegisterResult(String message) {
-            this.message = message;
-        }
-
-        public String getMessage() {
-            return message;
-        }
+    // 实现抽象方法
+    @Override
+    protected User doGetBySelfId(Integer userId, Connection conn) throws Exception {
+        return userDao.findById(userId, conn);
     }
-    
-    /**
-     * 用户登录验证
-     */
+
+    @Override
+    protected List<User> doGetAll(Connection conn) throws Exception {
+        return userDao.findAll(conn);
+    }
+
+    @Override
+    protected boolean doAdd(User user, Connection conn) throws Exception {
+        return userDao.insert(user, conn);
+    }
+
+    @Override
+    protected boolean doUpdate(User user, Connection conn) throws Exception {
+        return userDao.update(user, conn);
+    }
+
+    @Override
+    protected boolean doDelete(Integer userId, Connection conn) throws Exception {
+        return userDao.delete(userId, conn);
+    }
+
+    @Override
+    protected boolean doExists(Integer userId, Connection conn) throws Exception {
+        return userDao.findById(userId, conn) != null;
+    }
+
     @Override
     public User login(String username, String password) {
         try {
@@ -61,27 +67,8 @@ public class UserServiceImpl implements IUserService {
         }
     }
 
-    /**
-     * 根据用户ID获取用户信息
-     */
     @Override
-    public User getUserById(Integer userId) {
-        try {
-            return TransactionManager.executeInTransaction(conn -> 
-                userDao.findById(userId, conn)
-            );
-        } catch (RuntimeException e) {
-            System.err.println("获取用户信息失败: " + e.getMessage());
-            e.printStackTrace();
-            return null;
-        }
-    }
-
-    /**
-     * 根据用户名获取用户信息
-     */
-    @Override
-    public User getUserByUsername(String username) {
+    public User getByUsername(String username) {
         try {
             return TransactionManager.executeInTransaction(conn -> 
                 userDao.findByUsername(username, conn)
@@ -92,52 +79,19 @@ public class UserServiceImpl implements IUserService {
             return null;
         }
     }
-
-    /**
-     * 更新用户信息
-     */
-     @Override
-    public boolean updateUser(User user) {
+	
+    @Override
+    public boolean validateUser(String username, String password) {
         try {
             return TransactionManager.executeInTransaction(conn -> 
-                userDao.update(user, conn)
+                userDao.validateUser(username, password, conn)
             );
-        } catch (RuntimeException e) {
-            System.err.println("更新用户信息失败: " + e.getMessage());
-            e.printStackTrace();
-            return false;
-        }
-    }
-
-    /**
-     * 删除用户
-     */
-     @Override
-    public boolean deleteUser(Integer userId) {
-        try {
-            return TransactionManager.executeInTransaction(conn -> 
-                userDao.delete(userId, conn)
-            );
-        } catch (RuntimeException e) {
-            System.err.println("删除用户失败: " + e.getMessage());
-            e.printStackTrace();
+        } catch (Exception e) {
+            handleException("验证用户失败", e);
             return false;
         }
     }
     
-	@Override
-	public List<User> getAllUsers() {
-	    try {
-	        return TransactionManager.executeInTransaction(conn -> 
-	            userDao.findAll(conn)
-	        );
-	    } catch (RuntimeException e) {
-	        System.err.println("获取所有用户失败: " + e.getMessage());
-	        e.printStackTrace();
-	        return new ArrayList<>();
-	    }
-	}
-	
     @Override
     public boolean isUsernameExists(String username) {
         try {
@@ -189,7 +143,7 @@ public class UserServiceImpl implements IUserService {
 
 
     @Override
-    public UserServiceImpl.RegisterResult register(User user) {
+    public RegisterResult register(User user) {
         try {
             return TransactionManager.executeInTransaction(conn -> {
                 // 根据用户类型进行不同的注册处理
@@ -215,13 +169,11 @@ public class UserServiceImpl implements IUserService {
                 boolean success = userDao.insert(user, conn);
                 return success ? RegisterResult.SUCCESS : RegisterResult.DATABASE_ERROR;
             });
-        } catch (RuntimeException e) {
-            System.err.println("注册失败: " + e.getMessage());
-            e.printStackTrace();
+        } catch (Exception e) {
+            handleException("注册失败", e);
             return RegisterResult.DATABASE_ERROR;
         }
     }
-    
     //私有辅助方法保持不变
     /**
      * 注册教师账户（事务内部使用）

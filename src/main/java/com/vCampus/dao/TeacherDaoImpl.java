@@ -3,7 +3,6 @@ package com.vCampus.dao;
 import com.vCampus.entity.Teacher;
 import com.vCampus.service.ValidationService;
 import com.vCampus.util.DBConstants;
-import com.vCampus.util.DBUtil;
 import java.sql.*;
 
 /**

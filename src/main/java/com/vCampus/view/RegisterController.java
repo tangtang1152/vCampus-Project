@@ -4,13 +4,12 @@ import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
-import com.vCampus.common.NavigationUtil;
 import com.vCampus.entity.User;
 import com.vCampus.entity.Student;
 import com.vCampus.entity.Teacher;
 import com.vCampus.entity.Admin;
-import com.vCampus.service.UserServiceImpl;
 import com.vCampus.service.IUserService;
+import com.vCampus.service.ServiceFactory;
 import com.vCampus.util.TransactionManager;
 
 public class RegisterController {
@@ -151,8 +150,8 @@ public class RegisterController {
      */
     private void registerUser(User user, String userType) {
         new Thread(() -> {
-            IUserService userService = new UserServiceImpl();
-            UserServiceImpl.RegisterResult result = userService.register(user);
+        	IUserService userService = ServiceFactory.getUserService();
+            IUserService.RegisterResult result = userService.register(user);
             TransactionManager.runLaterSafe(() -> {
                 handleRegisterResult(result, userType);
             });
@@ -162,7 +161,7 @@ public class RegisterController {
     /**
      * 处理注册结果
      */
-    private void handleRegisterResult(UserServiceImpl.RegisterResult result, String userType) {
+    private void handleRegisterResult(IUserService.RegisterResult result, String userType) {
         System.out.println("处理注册结果: " + result + ", 用户类型: " + userType);
 
         switch (result) {

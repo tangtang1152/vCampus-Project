@@ -8,15 +8,19 @@ import java.util.List;
  */
 public interface IBaseService<T, ID> {
     
-    T getById(ID id);
+	//自身Id studentId teacherId adminId
+    T getBySelfId(ID id);
     
     List<T> getAll();
     
     boolean add(T entity);
     
+    //也更新tbl_user
     boolean update(T entity);
     
+    //也删tbl_user
     boolean delete(ID id);
     
+    //此Id记录是否存在
     boolean exists(ID id);
 }
