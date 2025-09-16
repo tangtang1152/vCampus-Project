@@ -3,14 +3,17 @@ package com.vCampus.service;
 import com.vCampus.dao.*;
 import com.vCampus.entity.*;
 import com.vCampus.util.TransactionManager;
+
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 用户服务类
  * 提供对用户数据的业务逻辑操作
  */
-public class UserService {
+public class UserServiceImpl implements IUserService {
 
     private static final IUserDao userDao = new UserDaoImpl();
     private static final IStudentDao studentDao = new StudentDaoImpl();
@@ -41,7 +44,8 @@ public class UserService {
     /**
      * 用户登录验证
      */
-    public static User login(String username, String password) {
+    @Override
+    public User login(String username, String password) {
         try {
             return TransactionManager.executeInTransaction(conn -> {
                 boolean isValid = userDao.validateUser(username, password, conn);
@@ -58,9 +62,134 @@ public class UserService {
     }
 
     /**
-     * 用户注册 - 扩展支持多种角色
+     * 根据用户ID获取用户信息
      */
-    public static RegisterResult register(User user) {
+    @Override
+    public User getUserById(Integer userId) {
+        try {
+            return TransactionManager.executeInTransaction(conn -> 
+                userDao.findById(userId, conn)
+            );
+        } catch (RuntimeException e) {
+            System.err.println("获取用户信息失败: " + e.getMessage());
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    /**
+     * 根据用户名获取用户信息
+     */
+    @Override
+    public User getUserByUsername(String username) {
+        try {
+            return TransactionManager.executeInTransaction(conn -> 
+                userDao.findByUsername(username, conn)
+            );
+        } catch (RuntimeException e) {
+            System.err.println("获取用户信息失败: " + e.getMessage());
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    /**
+     * 更新用户信息
+     */
+     @Override
+    public boolean updateUser(User user) {
+        try {
+            return TransactionManager.executeInTransaction(conn -> 
+                userDao.update(user, conn)
+            );
+        } catch (RuntimeException e) {
+            System.err.println("更新用户信息失败: " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    /**
+     * 删除用户
+     */
+     @Override
+    public boolean deleteUser(Integer userId) {
+        try {
+            return TransactionManager.executeInTransaction(conn -> 
+                userDao.delete(userId, conn)
+            );
+        } catch (RuntimeException e) {
+            System.err.println("删除用户失败: " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
+    }
+    
+	@Override
+	public List<User> getAllUsers() {
+	    try {
+	        return TransactionManager.executeInTransaction(conn -> 
+	            userDao.findAll(conn)
+	        );
+	    } catch (RuntimeException e) {
+	        System.err.println("获取所有用户失败: " + e.getMessage());
+	        e.printStackTrace();
+	        return new ArrayList<>();
+	    }
+	}
+	
+    @Override
+    public boolean isUsernameExists(String username) {
+        try {
+            return TransactionManager.executeInTransaction(conn -> 
+                userDao.findByUsername(username, conn) != null
+            );
+        } catch (RuntimeException e) {
+            System.err.println("检查用户名是否存在失败: " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
+    }
+    
+    @Override
+    public boolean changePassword(Integer userId, String oldPassword, String newPassword) {
+        try {
+            return TransactionManager.executeInTransaction(conn -> {
+                User user = userDao.findById(userId, conn);
+                if (user != null && user.getPassword().equals(oldPassword)) {
+                    user.setPassword(newPassword);
+                    return userDao.update(user, conn);
+                }
+                return false;
+            });
+        } catch (RuntimeException e) {
+            System.err.println("修改密码失败: " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    @Override
+    public boolean resetPassword(Integer userId, String newPassword) {
+        try {
+            return TransactionManager.executeInTransaction(conn -> {
+                User user = userDao.findById(userId, conn);
+                if (user != null) {
+                    user.setPassword(newPassword);
+                    return userDao.update(user, conn);
+                }
+                return false;
+            });
+        } catch (RuntimeException e) {
+            System.err.println("重置密码失败: " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+
+    @Override
+    public UserServiceImpl.RegisterResult register(User user) {
         try {
             return TransactionManager.executeInTransaction(conn -> {
                 // 根据用户类型进行不同的注册处理
@@ -93,6 +222,7 @@ public class UserService {
         }
     }
     
+    //私有辅助方法保持不变
     /**
      * 注册教师账户（事务内部使用）
      */
@@ -274,67 +404,6 @@ public class UserService {
             System.err.println("注册学生时发生未知错误: " + e.getMessage());
             e.printStackTrace();
             return RegisterResult.DATABASE_ERROR;
-        }
-    }
-    
-
-    /**
-     * 根据用户ID获取用户信息
-     */
-    public static User getUserById(Integer userId) {
-        try {
-            return TransactionManager.executeInTransaction(conn -> 
-                userDao.findById(userId, conn)
-            );
-        } catch (RuntimeException e) {
-            System.err.println("获取用户信息失败: " + e.getMessage());
-            e.printStackTrace();
-            return null;
-        }
-    }
-
-    /**
-     * 根据用户名获取用户信息
-     */
-    public static User getUserByUsername(String username) {
-        try {
-            return TransactionManager.executeInTransaction(conn -> 
-                userDao.findByUsername(username, conn)
-            );
-        } catch (RuntimeException e) {
-            System.err.println("获取用户信息失败: " + e.getMessage());
-            e.printStackTrace();
-            return null;
-        }
-    }
-
-    /**
-     * 更新用户信息
-     */
-    public static boolean updateUser(User user) {
-        try {
-            return TransactionManager.executeInTransaction(conn -> 
-                userDao.update(user, conn)
-            );
-        } catch (RuntimeException e) {
-            System.err.println("更新用户信息失败: " + e.getMessage());
-            e.printStackTrace();
-            return false;
-        }
-    }
-
-    /**
-     * 删除用户
-     */
-    public static boolean deleteUser(Integer userId) {
-        try {
-            return TransactionManager.executeInTransaction(conn -> 
-                userDao.delete(userId, conn)
-            );
-        } catch (RuntimeException e) {
-            System.err.println("删除用户失败: " + e.getMessage());
-            e.printStackTrace();
-            return false;
         }
     }
 
