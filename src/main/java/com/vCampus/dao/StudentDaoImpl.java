@@ -12,7 +12,7 @@ import java.util.List;
 /**
  * 学生数据访问对象实现类
  */
-public class StudentDao implements IStudentDao {
+public class StudentDaoImpl implements IStudentDao {
 
     @Override
     public Student findById(String studentId, Connection conn) throws SQLException {

@@ -8,7 +8,7 @@ import java.sql.*;
 /**
  * 管理员数据访问对象实现类
  */
-public class AdminDao implements IAdminDao {
+public class AdminDaoImpl implements IAdminDao {
 
     @Override
     public Admin findById(String adminId, Connection conn) throws SQLException {

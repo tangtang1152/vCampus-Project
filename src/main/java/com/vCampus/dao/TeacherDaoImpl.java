@@ -9,7 +9,7 @@ import java.sql.*;
 /**
  * 教师数据访问对象实现类
  */
-public class TeacherDao implements ITeacherDao {
+public class TeacherDaoImpl implements ITeacherDao {
 
     @Override
     public Teacher findById(String teacherId, Connection conn) throws SQLException {

@@ -9,5 +9,6 @@ import java.sql.SQLException;
  */
 public interface IUserDao extends IBaseDao<User,Integer> {
     User findByUsername(String username, Connection conn) throws SQLException;
+    //登陆权限认证 （用户名密码）
     boolean validateUser(String username, String password, Connection conn) throws SQLException;
 }

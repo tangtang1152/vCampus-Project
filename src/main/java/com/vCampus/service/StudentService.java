@@ -1,7 +1,7 @@
 package com.vCampus.service;
 
 import com.vCampus.dao.IStudentDao;
-import com.vCampus.dao.StudentDao;
+import com.vCampus.dao.StudentDaoImpl;
 import com.vCampus.entity.Student;
 import com.vCampus.util.TransactionManager;
 
@@ -14,7 +14,7 @@ import java.sql.SQLException;
  */
 public class StudentService {
 
-    private static final IStudentDao studentDao = new StudentDao();
+    private static final IStudentDao studentDao = new StudentDaoImpl();
 
     /**
      * 根据学号获取学生信息

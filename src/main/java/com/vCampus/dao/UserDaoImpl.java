@@ -12,7 +12,7 @@ import java.util.List;
 /**
  * 用户数据访问对象实现类
  */
-public class UserDao implements IUserDao {
+public class UserDaoImpl implements IUserDao {
 
     @Override
     public User findById(Integer userId, Connection conn) throws SQLException {

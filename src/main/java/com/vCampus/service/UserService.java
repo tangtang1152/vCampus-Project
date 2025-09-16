@@ -12,10 +12,10 @@ import java.sql.SQLException;
  */
 public class UserService {
 
-    private static final IUserDao userDao = new UserDao();
-    private static final IStudentDao studentDao = new StudentDao();
-    private static final ITeacherDao teacherDao = new TeacherDao();
-    private static final IAdminDao adminDao = new AdminDao();
+    private static final IUserDao userDao = new UserDaoImpl();
+    private static final IStudentDao studentDao = new StudentDaoImpl();
+    private static final ITeacherDao teacherDao = new TeacherDaoImpl();
+    private static final IAdminDao adminDao = new AdminDaoImpl();
 
     // 定义注册结果枚举 - 扩展原有的枚举
     public enum RegisterResult {
