@@ -89,6 +89,7 @@ public class StudentServiceImpl implements IStudentService {
             return TransactionManager.executeInTransaction(conn -> 
                 studentDao.update(student, conn)
             );
+            
         } catch (RuntimeException e) {
             System.err.println("更新学生信息失败: " + e.getMessage());
             e.printStackTrace();
