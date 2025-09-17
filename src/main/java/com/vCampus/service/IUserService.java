@@ -41,4 +41,8 @@ public interface IUserService extends IBaseService<User, Integer> {
     
     // 其他特定方法
     boolean isUsernameExists(String username);
+    
+    //-------------------------------------
+    
+
 }
