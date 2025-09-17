@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.collections.FXCollections?>
+<?import java.lang.String?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+
+<BorderPane xmlns:fx="http://javafx.com/fxml"
+            fx:controller="com.vCampus.view.LibraryAdminController"
+            stylesheets="@../css/main.css">
+    <top>
+        <ToolBar>
+            <Button text="新增" onAction="#onAdd"/>
+            <Button text="编辑" onAction="#onEdit"/>
+            <Button text="删除" onAction="#onDelete"/>
+            <Separator/>
+            <Button text="库存+1" onAction="#onInc"/>
+            <Button text="库存-1" onAction="#onDec"/>
+            <Separator/>
+            <Label text="状态"/>
+            <ComboBox fx:id="statusBox">
+                <items>
+                    <FXCollections fx:factory="observableArrayList">
+                        <String fx:value="正常"/>
+                        <String fx:value="下架"/>
+                    </FXCollections>
+                </items>
+            </ComboBox>
+            <Button text="设置状态" onAction="#onSetStatus"/>
+            <Separator/>
+            <TextField fx:id="keywordField" promptText="ISBN/书名/作者"/>
+            <Button text="搜索" onAction="#onSearch"/>
+            <Button text="刷新" onAction="#onRefresh"/>
+            <Separator/>
+            <Button text="导入CSV" onAction="#onImportCsv"/>
+            <Button text="导出CSV" onAction="#onExportCsv"/>
+        </ToolBar>
+    </top>
+
+    <center>
+        <TableView fx:id="table">
+            <columns>
+                <TableColumn text="ID" fx:id="idCol"/>
+                <TableColumn text="ISBN" fx:id="isbnCol"/>
+                <TableColumn text="书名" fx:id="titleCol"/>
+                <TableColumn text="作者" fx:id="authorCol"/>
+                <TableColumn text="分类" fx:id="categoryCol"/>
+                <TableColumn text="出版社" fx:id="publisherCol"/>
+                <TableColumn text="出版日" fx:id="pubDateCol"/>
+                <TableColumn text="总数" fx:id="totalCol"/>
+                <TableColumn text="可借" fx:id="availableCol"/>
+                <TableColumn text="位置" fx:id="locationCol"/>
+                <TableColumn text="状态" fx:id="statusCol"/>
+            </columns>
+        </TableView>
+    </center>
+
+</BorderPane>
+
+

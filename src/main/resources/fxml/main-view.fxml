@@ -6,6 +6,7 @@
 
 <BorderPane xmlns:fx="http://javafx.com/fxml"
             fx:controller="com.vCampus.view.MainController"
+            fx:id="mainContainer"
             stylesheets="@../css/main.css">
     
     <!-- 顶部菜单 -->
@@ -19,6 +20,8 @@
                     <MenuItem text="用户管理" onAction="#onUserManagement"/>
                     <MenuItem text="学生管理" onAction="#onStudentManagement"/>
                     <MenuItem text="课程管理" onAction="#onCourseManagement"/>
+                    <MenuItem text="图书馆" onAction="#onLibrary"/>
+                    <MenuItem text="图书维护(管理员)" onAction="#onLibraryAdmin"/>
                 </Menu>
                 <Menu text="帮助">
                     <MenuItem text="关于" onAction="#onAbout"/>
@@ -43,6 +46,8 @@
             <Button text="用户管理" onAction="#onUserManagement" style="-fx-min-width: 150;"/>
             <Button text="学生管理" onAction="#onStudentManagement" style="-fx-min-width: 150;"/>
             <Button text="课程管理" onAction="#onCourseManagement" style="-fx-min-width: 150;"/>
+            <Button text="图书馆" onAction="#onLibrary" style="-fx-min-width: 150;"/>
+            <Button text="图书维护(管理员)" onAction="#onLibraryAdmin" style="-fx-min-width: 150;"/>
             <Region VBox.vgrow="ALWAYS"/>
             <Button text="退出系统" onAction="#onExit" style="-fx-background-color: #dc3545; -fx-text-fill: white; -fx-min-width: 150;"/>
         </VBox>
