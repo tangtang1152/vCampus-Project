@@ -8,6 +8,7 @@ import com.vCampus.entity.User;
  */
 public final class SessionContext {
     private static volatile User currentUser;
+<<<<<<< HEAD
     private static volatile String activeRole; // 当前激活角色（用于多角色切换）
 
     private SessionContext() {}
@@ -58,6 +59,26 @@ public final class SessionContext {
             return true;
         }
         return false;
+=======
+
+    private SessionContext() {}
+
+    public static void setCurrentUser(User user) {
+        currentUser = user;
+    }
+
+    public static User getCurrentUser() {
+        return currentUser;
+    }
+
+    public static Integer requireCurrentUserId() {
+        if (currentUser == null) return null;
+        return currentUser.getUserId();
+    }
+
+    public static void clear() {
+        currentUser = null;
+>>>>>>> refs/heads/feature/course-selection-finalllll
     }
 }
 

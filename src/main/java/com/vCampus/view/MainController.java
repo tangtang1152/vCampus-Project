@@ -2,13 +2,22 @@ package com.vCampus.view;
 
 import com.vCampus.common.BaseController;
 import com.vCampus.common.NavigationUtil;
+<<<<<<< HEAD
 import com.vCampus.common.SessionContext;
 import com.vCampus.util.RBACUtil;
+=======
+import com.vCampus.common.SessionContext; // 确保引入 SessionContext
+>>>>>>> refs/heads/feature/course-selection-finalllll
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
+<<<<<<< HEAD
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.ComboBox;
+=======
+import javafx.scene.control.Menu; // 确保引入 Menu
+import javafx.scene.control.MenuItem; // 确保引入 MenuItem
+>>>>>>> refs/heads/feature/course-selection-finalllll
 import javafx.scene.layout.BorderPane;
 
 import java.net.URL;
@@ -40,7 +49,14 @@ public class MainController extends BaseController {
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         // 可以在这里加载用户信息
-        welcomeLabel.setText("欢迎使用 vCampus 系统");
+        // 确保登录后设置 welcomeLabel, 例如:
+        // var user = SessionContext.getCurrentUser();
+        // if (user != null) {
+        //     welcomeLabel.setText("欢迎, " + user.getUsername() + "!");
+        // } else {
+        //     welcomeLabel.setText("欢迎使用 vCampus 系统");
+        // }
+        welcomeLabel.setText("欢迎使用 vCampus 系统"); // 初始显示
         statusLabel.setText("就绪");
 
         // 初始化角色切换器
@@ -84,6 +100,11 @@ public class MainController extends BaseController {
      */
     @FXML
     private void onCourseManagement() {
+    	var user = SessionContext.getCurrentUser();
+        if (user == null || user.getRole() == null || (!user.getRole().toLowerCase().contains("admin") && !user.getRole().contains("管理员"))) {
+            showWarning("需要管理员权限");
+            return;
+        }
         loadContent("course-management-view.fxml");
         statusLabel.setText("课程管理模块");
     }
@@ -93,6 +114,7 @@ public class MainController extends BaseController {
      */
     @FXML
     private void onLibraryAdmin() {
+<<<<<<< HEAD
         var user = com.vCampus.common.SessionContext.getCurrentUser();
         if (!RBACUtil.canMaintainLibrary(user)) {
             showWarning("需要管理员权限");
@@ -109,6 +131,40 @@ public class MainController extends BaseController {
     private void onLibrary() {
         loadContent("library-view.fxml");
         statusLabel.setText("图书馆模块");
+=======
+        var user = SessionContext.getCurrentUser();
+        if (user == null || user.getRole() == null || (!user.getRole().toLowerCase().contains("admin") && !user.getRole().contains("管理员"))) {
+            showWarning("需要管理员权限");
+            return;
+        }
+        loadContent("library-admin-view.fxml");
+        statusLabel.setText("图书维护");
+    }
+
+    /**
+     * 图书馆菜单点击
+     */
+    @FXML
+    private void onLibrary() {
+        loadContent("library-view.fxml");
+        statusLabel.setText("图书馆模块");
+    }
+
+    /**
+     * 选课系统菜单点击
+     */
+    @FXML // 新增的选课系统入口方法
+    private void onChoose() {
+        var user = SessionContext.getCurrentUser();
+
+        if (user == null || user.getRole() == null || (!user.getRole().toLowerCase().contains("student") && !user.getRole().contains("学生"))) {
+            showWarning("需要学生权限才能访问选课系统");
+            return;
+        }
+
+        loadContent("choose-view.fxml");
+        statusLabel.setText("选课系统");
+>>>>>>> refs/heads/feature/course-selection-finalllll
     }
     
     /**
@@ -124,11 +180,15 @@ public class MainController extends BaseController {
         
         alert.showAndWait().ifPresent(response -> {
             if (response == javafx.scene.control.ButtonType.OK) {
+<<<<<<< HEAD
                 com.vCampus.common.SessionContext.clear();
+=======
+                SessionContext.clear(); // 清除会话信息
+>>>>>>> refs/heads/feature/course-selection-finalllll
                 NavigationUtil.navigateTo(
-                    getCurrentStage(),
-                    "login-view.fxml",
-                    "用户登录 - vCampus"
+  getCurrentStage(),
+  "login-view.fxml",
+  "用户登录 - vCampus"
                 );
             }
         });

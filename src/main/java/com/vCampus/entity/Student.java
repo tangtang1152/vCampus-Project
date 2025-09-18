@@ -118,20 +118,16 @@ public class Student extends User {
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
-        
+
         Student student = (Student) o;
-        
-        return studentId == student.studentId;
+
+        // 修正：使用 .equals() 比较字符串内容
+        return studentId != null ? studentId.equals(student.studentId) : student.studentId == null;
     }
-    
-    /**
-     * 返回对象的哈希码值
-     * 基于学号生成哈希码
-     * 
-     * @return 对象的哈希码值
-     */
+
     @Override
     public int hashCode() {
-        return studentId.hashCode();
+        // 修正：使用 studentId 的 hashCode
+        return studentId != null ? studentId.hashCode() : 0;
     }
 }
