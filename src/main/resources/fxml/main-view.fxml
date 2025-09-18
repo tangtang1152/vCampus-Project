@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+
+<BorderPane xmlns:fx="http://javafx.com/fxml"
+            fx:controller="com.vCampus.view.MainController"
+            fx:id="mainContainer"
+            stylesheets="@../css/main.css">
+
+    <!-- 顶部菜单 -->
+    <top>
+        <VBox>
+            <MenuBar>
+                <Menu text="系统">
+  <MenuItem text="退出" onAction="#onExit"/>
+                </Menu>
+                <!-- 修复：为管理菜单添加 fx:id -->
+                <Menu fx:id="manageMenu" text="管理">
+  <!-- 修复：为菜单项添加 fx:id -->
+  <MenuItem fx:id="userManagementMenuItem" text="用户管理" onAction="#onUserManagement"/>
+  <MenuItem fx:id="studentManagementMenuItem" text="学籍管理" onAction="#onStudentManagement"/>
+  <MenuItem fx:id="courseManagementMenuItem" text="课程管理" onAction="#onCourseManagement"/>
+                </Menu>
+                <Menu text="帮助">
+  <MenuItem text="关于" onAction="#onAbout"/>
+                </Menu>
+            </MenuBar>
+
+            <!-- 状态栏 -->
+            <HBox style="-fx-background-color: #f0f0f0; -fx-padding: 5;" spacing="10">
+                <Label fx:id="welcomeLabel" style="-fx-font-weight: bold;"/>
+                <Label fx:id="statusLabel"/>
+                <Region HBox.hgrow="ALWAYS"/>
+                <Label text="就绪"/>
+            </HBox>
+        </VBox>
+    </top>
+
+    <!-- 左侧导航 -->
+    <left>
+        <VBox spacing="10" style="-fx-background-color: #f8f9fa; -fx-padding: 15; -fx-min-width: 200;">
+            <Label text="功能导航" style="-fx-font-weight: bold; -fx-font-size: 14;"/>
+            <Separator/>
+            <!-- 修复：为按钮添加 fx:id -->
+            <Button fx:id="userManagementButton" text="用户管理" onAction="#onUserManagement" style="-fx-min-width: 150;"/>
+            <Button fx:id="studentManagementButton" text="学籍管理" onAction="#onStudentManagement" style="-fx-min-width: 150;"/>
+            <Button fx:id="courseManagementButton" text="课程管理" onAction="#onCourseManagement" style="-fx-min-width: 150;"/>
+            <Region VBox.vgrow="ALWAYS"/>
+            <Button text="退出系统" onAction="#onExit" style="-fx-background-color: #dc3545; -fx-text-fill: white; -fx-min-width: 150;"/>
+        </VBox>
+    </left>
+
+    <!-- 中心内容区域 -->
+    <center>
+        <StackPane>
+            <Label text="欢迎使用 vCampus 系统\n请从左侧选择功能模块"
+                   style="-fx-font-size: 16; -fx-text-alignment: center;"/>
+        </StackPane>
+    </center>
+
+</BorderPane>
