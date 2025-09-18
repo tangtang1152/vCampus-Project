@@ -26,7 +26,12 @@
                 </columns>
             </TableView>
 
-            <Label text="我的借阅（仅显示“借出”状态）" style="-fx-font-weight: bold; -fx-padding: 6 0 0 0;"/>
+            <HBox spacing="10" style="-fx-padding: 6 0 0 0; -fx-alignment: CENTER_LEFT;">
+                <Label text="我的借阅" style="-fx-font-weight: bold;"/>
+                <Region HBox.hgrow="ALWAYS"/>
+                <Label text="借阅状态："/>
+                <ComboBox fx:id="statusFilter" prefWidth="120"/>
+            </HBox>
             <TableView fx:id="borrowTable" prefHeight="200">
                 <columns>
                     <TableColumn text="书名" fx:id="brTitleCol"/>
@@ -34,6 +39,8 @@
                     <TableColumn text="到期日" fx:id="brDueCol"/>
                     <TableColumn text="状态" fx:id="brStatusCol"/>
                     <TableColumn text="罚金(元)" fx:id="brFineCol"/>
+                    <TableColumn text="剩余天数" fx:id="brRemainingDaysCol"/>
+                    <TableColumn text="续借次数" fx:id="brRenewTimesCol"/>
                 </columns>
             </TableView>
         </VBox>

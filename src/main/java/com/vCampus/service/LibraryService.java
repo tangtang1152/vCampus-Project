@@ -3,7 +3,9 @@ package com.vCampus.service;
 import com.vCampus.dao.*;
 import com.vCampus.entity.BorrowRecord;
 import com.vCampus.entity.Reservation;
+import com.vCampus.entity.User;
 import com.vCampus.util.TransactionManager;
+import com.vCampus.util.LibraryUserRules;
 
 import java.sql.Connection;
 import java.sql.Date;
@@ -14,6 +16,7 @@ public class LibraryService {
     private final IBookDao bookDao = new BookDao();
     private final IBorrowRecordDao borrowRecordDao = new BorrowRecordDao();
     private final IReservationDao reservationDao = new ReservationDao();
+    private final IUserDao userDao = new UserDao();
 
     public List<com.vCampus.entity.Book> searchBooks(String keyword, int page, int size) {
         return TransactionManager.executeInTransaction(conn -> {
@@ -35,9 +38,14 @@ public class LibraryService {
             if (bk.getAvailableCopies() == null || bk.getAvailableCopies() <= 0) return ServiceResult.fail("库存不足");
 
             Integer uid = Integer.parseInt(userId);
+            
+            // 暂时使用默认规则，避免复杂的用户检查
+            int maxBorrowCount = 5; // 默认值
+            int maxBorrowDays = 30; // 默认值
+            
             int active = borrowRecordDao.countActiveBorrowsByUser(uid, conn);
-            if (active >= com.vCampus.util.DBConstants.MAX_BORROW_CONCURRENT)
-                return ServiceResult.fail("超过最大借阅数 " + com.vCampus.util.DBConstants.MAX_BORROW_CONCURRENT);
+            if (active >= maxBorrowCount)
+                return ServiceResult.fail("超过最大借阅数 " + maxBorrowCount);
             if (borrowRecordDao.existsOverdueByUser(uid, conn))
                 return ServiceResult.fail("存在逾期记录，无法借书");
 
@@ -47,7 +55,7 @@ public class LibraryService {
             r.setUserId(uid);
             LocalDate now = LocalDate.now();
             r.setBorrowDate(Date.valueOf(now));
-            int d = Math.max(1, Math.min(30, days));
+            int d = Math.max(1, Math.min(maxBorrowDays, days));
             r.setDueDate(Date.valueOf(now.plusDays(d)));
             r.setReturnDate(null);
             r.setRenewTimes(0);
@@ -98,13 +106,26 @@ public class LibraryService {
             if (!"借出".equals(r.getStatus())) return ServiceResult.fail("仅在借出状态可续借");
             // 禁止逾期续借
             if (r.getDueDate() != null && r.getDueDate().toLocalDate().isBefore(LocalDate.now())) return ServiceResult.fail("已逾期，无法续借");
-            if (r.getRenewTimes() != null && r.getRenewTimes() >= maxTimes) return ServiceResult.fail("超过最大续借次数");
-            int d = Math.max(1, Math.min(30, days));
+            
+            // 规则：管理员可续借2次，其它1次；续借天数上限30天
+            int userMaxRenewDays = 30; // 固定
+            int userMaxRenewTimes = 1;  // 默认
+            try {
+                com.vCampus.entity.User u = getUserById(r.getUserId());
+                if (u != null && u.getRole() != null && (u.getRole().toLowerCase().contains("admin") || u.getRole().contains("管理员"))) {
+                    userMaxRenewTimes = 2;
+                }
+            } catch (Exception ignored) {}
+            
+            if (r.getRenewTimes() != null && r.getRenewTimes() >= userMaxRenewTimes) 
+                return ServiceResult.fail("超过最大续借次数 " + userMaxRenewTimes);
+            
+            int d = Math.max(1, Math.min(userMaxRenewDays, days));
             LocalDate newDue = r.getDueDate().toLocalDate().plusDays(d);
             r.setDueDate(Date.valueOf(newDue));
             r.setRenewTimes((r.getRenewTimes() == null ? 0 : r.getRenewTimes()) + 1);
             boolean ok = borrowRecordDao.update(r, conn);
-            return ok ? ServiceResult.ok("续借成功（"+ d +" 天），新的到期日：" + newDue) : ServiceResult.fail("续借失败");
+            return ok ? ServiceResult.ok("续借成功（"+ d +" 天），新的到期日：" + newDue + "，剩余续借次数：" + (userMaxRenewTimes - r.getRenewTimes())) : ServiceResult.fail("续借失败");
         });
     }
 
@@ -154,6 +175,18 @@ public class LibraryService {
         return TransactionManager.executeInTransaction(conn -> borrowRecordDao.findActiveByUser(userId, conn));
     }
 
+    /**
+     * 根据状态筛选我的借阅（全部/借出/已还/逾期）
+     */
+    public List<BorrowRecord> listMyBorrowsByStatus(String userId, String status) {
+        return TransactionManager.executeInTransaction(conn -> {
+            if (status == null || status.isBlank() || "全部".equals(status)) {
+                return borrowRecordDao.listByUser(userId, conn);
+            }
+            return borrowRecordDao.listByUserAndStatus(userId, status, conn);
+        });
+    }
+
     public List<Reservation> listMyReservations(String userId) {
         return TransactionManager.executeInTransaction(conn -> reservationDao.listActiveByUser(userId, conn));
     }
@@ -177,6 +210,21 @@ public class LibraryService {
             if (b == null) return false;
             b.setStatus(status);
             return bookDao.update(b, conn);
+        });
+    }
+
+    /**
+     * 统计某书的借阅数据：总次数、本月次数、当前借出数
+     */
+    public int[] statsForBook(Integer bookId) {
+        return TransactionManager.executeInTransaction(conn -> {
+            int total = borrowRecordDao.countTotalByBook(bookId, conn);
+            java.time.LocalDate now = java.time.LocalDate.now();
+            java.time.LocalDate first = now.withDayOfMonth(1);
+            java.time.LocalDate next = first.plusMonths(1);
+            int month = borrowRecordDao.countMonthlyByBook(bookId, java.sql.Date.valueOf(first), java.sql.Date.valueOf(next), conn);
+            int current = borrowRecordDao.countCurrentBorrowedByBook(bookId, conn);
+            return new int[]{ total, month, current };
         });
     }
 
@@ -275,6 +323,30 @@ public class LibraryService {
             System.err.println("Smoke test failed: " + e.getMessage());
             e.printStackTrace();
         }
+    }
+
+    /**
+     * 根据用户ID获取用户信息
+     */
+    private User getUserById(Integer userId) {
+        return TransactionManager.executeInTransaction(conn -> userDao.findById(userId, conn));
+    }
+    
+    /**
+     * 获取用户借阅规则信息
+     */
+    public String getUserBorrowRules(String userId) {
+        User user = getUserById(Integer.parseInt(userId));
+        if (user == null) return "用户不存在";
+        
+        int maxBorrow = LibraryUserRules.getMaxBorrowCount(user);
+        int maxRenew = LibraryUserRules.getMaxRenewCount(user);
+        int maxBorrowDays = LibraryUserRules.getMaxBorrowDays(user);
+        int maxRenewDays = LibraryUserRules.getMaxRenewDays(user);
+        String userType = LibraryUserRules.getUserTypeDescription(user);
+        
+        return String.format("%s：最多借%d本，最多续借%d次，借阅%d天，续借%d天", 
+                userType, maxBorrow, maxRenew, maxBorrowDays, maxRenewDays);
     }
 
     public static void main(String[] args) {

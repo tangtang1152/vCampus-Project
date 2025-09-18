@@ -121,6 +121,62 @@ public class BorrowRecordDao implements IBorrowRecordDao {
     }
 
     @Override
+    public List<BorrowRecord> listByUser(String userId, Connection conn) throws SQLException {
+        String sql = "SELECT * FROM tbl_borrow_record WHERE userId=? ORDER BY borrowDate DESC";
+        List<BorrowRecord> list = new ArrayList<>();
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, Integer.parseInt(userId));
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) list.add(mapRow(rs));
+            }
+        }
+        return list;
+    }
+
+    @Override
+    public List<BorrowRecord> listByUserAndStatus(String userId, String status, Connection conn) throws SQLException {
+        String sql = "SELECT * FROM tbl_borrow_record WHERE userId=? AND borrowStatus=? ORDER BY borrowDate DESC";
+        List<BorrowRecord> list = new ArrayList<>();
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, Integer.parseInt(userId));
+            ps.setString(2, status);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) list.add(mapRow(rs));
+            }
+        }
+        return list;
+    }
+
+    @Override
+    public int countTotalByBook(Integer bookId, Connection conn) throws SQLException {
+        String sql = "SELECT COUNT(*) FROM tbl_borrow_record WHERE bookId=?";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, bookId);
+            try (ResultSet rs = ps.executeQuery()) { return rs.next() ? rs.getInt(1) : 0; }
+        }
+    }
+
+    @Override
+    public int countMonthlyByBook(Integer bookId, java.sql.Date monthStart, java.sql.Date nextMonthStart, Connection conn) throws SQLException {
+        String sql = "SELECT COUNT(*) FROM tbl_borrow_record WHERE bookId=? AND borrowDate>=? AND borrowDate<?";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, bookId);
+            ps.setDate(2, monthStart);
+            ps.setDate(3, nextMonthStart);
+            try (ResultSet rs = ps.executeQuery()) { return rs.next() ? rs.getInt(1) : 0; }
+        }
+    }
+
+    @Override
+    public int countCurrentBorrowedByBook(Integer bookId, Connection conn) throws SQLException {
+        String sql = "SELECT COUNT(*) FROM tbl_borrow_record WHERE bookId=? AND borrowStatus='借出'";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, bookId);
+            try (ResultSet rs = ps.executeQuery()) { return rs.next() ? rs.getInt(1) : 0; }
+        }
+    }
+
+    @Override
     public int countActiveBorrowsByUser(Integer userId, Connection conn) throws SQLException {
         String sql = "SELECT COUNT(*) FROM tbl_borrow_record WHERE userId=? AND borrowStatus='借出'";
         try (PreparedStatement ps = conn.prepareStatement(sql)) {

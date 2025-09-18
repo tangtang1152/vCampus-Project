@@ -2,13 +2,22 @@ package com.vCampus.view;
 
 import com.vCampus.common.BaseController;
 import com.vCampus.entity.Book;
+import com.vCampus.entity.BorrowRecord;
 import com.vCampus.service.LibraryService;
+import com.vCampus.util.LibraryUserRules;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
+import javafx.scene.paint.Color;
+import javafx.stage.Stage;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Scene;
 
+import java.io.IOException;
 import java.net.URL;
+import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.ResourceBundle;
 
@@ -26,7 +35,10 @@ public class LibraryController extends BaseController {
     @FXML private TableColumn<com.vCampus.entity.BorrowRecord, String> brDueCol;
     @FXML private TableColumn<com.vCampus.entity.BorrowRecord, String> brStatusCol;
     @FXML private TableColumn<com.vCampus.entity.BorrowRecord, String> brFineCol;
+    @FXML private TableColumn<com.vCampus.entity.BorrowRecord, String> brRemainingDaysCol;
+    @FXML private TableColumn<com.vCampus.entity.BorrowRecord, String> brRenewTimesCol;
     @FXML private Label infoLabel;
+    @FXML private ComboBox<String> statusFilter;
     @FXML private Pagination pagination;
 
     private final LibraryService libraryService = new LibraryService();
@@ -42,18 +54,52 @@ public class LibraryController extends BaseController {
         availableCol.setCellValueFactory(c -> new javafx.beans.property.SimpleIntegerProperty(
                 c.getValue().getAvailableCopies() == null ? 0 : c.getValue().getAvailableCopies()));
         bookTable.setItems(data);
+        
+        // 行右键菜单：查看详情
+        bookTable.setRowFactory(tv -> {
+            TableRow<Book> row = new TableRow<>();
+            MenuItem viewItem = new MenuItem("查看详情");
+            viewItem.setOnAction(e -> {
+                Book book = row.getItem();
+                if (book != null) {
+                    showBookDetail(book);
+                }
+            });
+            ContextMenu menu = new ContextMenu(viewItem);
+            row.contextMenuProperty().bind(
+                    javafx.beans.binding.Bindings.when(row.emptyProperty())
+                            .then((ContextMenu) null)
+                            .otherwise(menu)
+            );
+            return row;
+        });
         // 我的借阅表格
         brTitleCol.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(resolveBookTitle(c.getValue().getBookId())));
         brBorrowDateCol.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(String.valueOf(c.getValue().getBorrowDate())));
         brDueCol.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(String.valueOf(c.getValue().getDueDate())));
         brStatusCol.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(String.valueOf(c.getValue().getStatus())));
         brFineCol.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(String.valueOf(c.getValue().getFine()==null?0:c.getValue().getFine())));
+        // 恢复增强列
+        if (brRemainingDaysCol != null) {
+            brRemainingDaysCol.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(calculateRemainingDays(c.getValue())));
+        }
+        if (brRenewTimesCol != null) {
+            brRenewTimesCol.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(formatRenewTimes(c.getValue())));
+        }
+        // 状态筛选初始化
+        if (statusFilter != null) {
+            statusFilter.getItems().setAll("全部", "借出", "已还", "逾期");
+            statusFilter.setValue("借出");
+            statusFilter.valueProperty().addListener((obs, o, n) -> loadMyBorrows());
+        }
         loadPage();
         pagination.currentPageIndexProperty().addListener((obs, o, n) -> {
             page = n.intValue() + 1;
             loadPage();
         });
         loadMyBorrows();
+        // 恢复行样式设置
+        setupBorrowTableRowFactory();
     }
 
     @FXML
@@ -70,12 +116,15 @@ public class LibraryController extends BaseController {
     }
 
     private void loadMyBorrows() {
-        var list = libraryService.listMyBorrows(getCurrentUserId());
+        String status = statusFilter == null ? "借出" : statusFilter.getValue();
+        var list = libraryService.listMyBorrowsByStatus(getCurrentUserId(), status);
         // 这里只显示在借记录
         if (borrowTable != null) {
             borrowTable.getItems().setAll(list);
         }
     }
+
+    // 顶部筛选按钮已移除，这里不再需要 onFilter
 
     private String resolveBookTitle(Integer bookId) {
         try {
@@ -112,7 +161,9 @@ public class LibraryController extends BaseController {
     @FXML private void onRenew() {
         var sel = borrowTable.getSelectionModel().getSelectedItem();
         if (sel == null) { showWarning("请选择要续借的记录"); return; }
+        
         int days = askDays("续借时长（天）", 30);
+        // maxTimes 由服务层按角色判断，这里传1不再生效，但保持参数兼容
         var res = libraryService.renewBorrowWithReason(getCurrentUserId(), sel.getRecordId(), days, 1);
         if (res.isSuccess()) { showInformation("提示", res.getMessage()); loadMyBorrows(); }
         else { showError(res.getMessage()); }
@@ -147,6 +198,84 @@ public class LibraryController extends BaseController {
             return d;
         } catch (Exception e) {
             return defVal;
+        }
+    }
+    
+    /**
+     * 计算剩余天数
+     */
+    private String calculateRemainingDays(BorrowRecord record) {
+        if (record.getDueDate() == null) return "未知";
+        
+        LocalDate dueDate = record.getDueDate().toLocalDate();
+        LocalDate today = LocalDate.now();
+        long days = ChronoUnit.DAYS.between(today, dueDate);
+        
+        if (days < 0) {
+            return "逾期 " + Math.abs(days) + " 天";
+        } else if (days == 0) {
+            return "今天到期";
+        } else {
+            return days + " 天";
+        }
+    }
+    
+    /**
+     * 格式化续借次数显示
+     */
+    private String formatRenewTimes(BorrowRecord record) {
+        int currentRenew = record.getRenewTimes() == null ? 0 : record.getRenewTimes();
+        // 暂时使用默认值，避免复杂的字符串解析
+        int maxRenew = 1; // 默认值
+        return currentRenew + "/" + maxRenew;
+    }
+    
+    /**
+     * 设置借阅记录表格的行样式
+     */
+    private void setupBorrowTableRowFactory() {
+        borrowTable.setRowFactory(tv -> {
+            TableRow<BorrowRecord> row = new TableRow<>();
+            row.itemProperty().addListener((obs, oldItem, newItem) -> {
+                if (newItem != null && newItem.getDueDate() != null) {
+                    LocalDate dueDate = newItem.getDueDate().toLocalDate();
+                    LocalDate today = LocalDate.now();
+                    long days = ChronoUnit.DAYS.between(today, dueDate);
+                    
+                    if (days < 0) {
+                        // 逾期：红色背景
+                        row.setStyle("-fx-background-color: #ffebee; -fx-text-fill: #c62828;");
+                    } else if (days <= 3) {
+                        // 即将到期（3天内）：黄色背景
+                        row.setStyle("-fx-background-color: #fff3e0; -fx-text-fill: #ef6c00;");
+                    } else {
+                        // 正常状态：绿色背景
+                        row.setStyle("-fx-background-color: #e8f5e8; -fx-text-fill: #2e7d32;");
+                    }
+                } else {
+                    row.setStyle("");
+                }
+            });
+            return row;
+        });
+    }
+    
+    /**
+     * 显示图书详情页面（暂时注释掉）
+     */
+    private void showBookDetail(Book book) {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/book-detail-view.fxml"));
+            Stage detailStage = new Stage();
+            detailStage.setScene(new Scene(loader.load()));
+            detailStage.setTitle("图书详情 - " + book.getTitle());
+            
+            BookDetailController controller = loader.getController();
+            controller.setBook(book);
+            
+            detailStage.show();
+        } catch (IOException e) {
+            showError("打开图书详情失败：" + e.getMessage());
         }
     }
 }
