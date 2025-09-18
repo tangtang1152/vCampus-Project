@@ -33,6 +33,8 @@ public interface IUserService extends IBaseService<User, Integer> {
         
     User getByUsername(String username);
     
+    User findByUsername(String username);
+    
     boolean validateUser(String username, String password);
     
     boolean changePassword(Integer userId, String oldPassword, String newPassword);

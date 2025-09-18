@@ -10,6 +10,8 @@ public class ServiceFactory {
     private static volatile IStudentService studentService;
     private static volatile ITeacherService teacherService;
     private static volatile IAdminService adminService;
+    private static volatile IPermissionService permissionService;
+    private static volatile IUserManagementService userManagementService;
     
     public static IUserService getUserService() {
         if (userService == null) {
@@ -53,5 +55,27 @@ public class ServiceFactory {
             }
         }
         return adminService;
+    }
+    
+    public static IPermissionService getPermissionService() {
+        if (permissionService == null) {
+            synchronized (ServiceFactory.class) {
+                if (permissionService == null) {
+                    permissionService = new PermissionServiceImpl();
+                }
+            }
+        }
+        return permissionService;
+    }
+    
+    public static IUserManagementService getUserManagementService() {
+        if (userManagementService == null) {
+            synchronized (ServiceFactory.class) {
+                if (userManagementService == null) {
+                    userManagementService = new UserManagementServiceImpl();
+                }
+            }
+        }
+        return userManagementService;
     }
 }

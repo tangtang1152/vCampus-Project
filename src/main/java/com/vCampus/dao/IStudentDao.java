@@ -19,6 +19,9 @@ public interface IStudentDao extends IBaseDao<Student,String> {
     boolean updateStudentStatus(String studentId, String status,Connection conn) throws SQLException;
     boolean isStudentActive(String studentId,Connection conn) throws SQLException;
     
+    // 用户管理模块
+    List<Student> findByClass(String className, Connection conn);
+    
     // 商店模块相关的新增方法
    // Student findStudentByUserId(Integer userId) throws SQLException;    
     int getStudentOrderCount(String studentId,Connection conn) throws SQLException;

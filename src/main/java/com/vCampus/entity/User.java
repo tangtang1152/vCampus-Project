@@ -21,7 +21,7 @@ public class User {
     }
     
     // Getter 和 Setter 方法
-    public int getUserId() {
+    public Integer getUserId() {
         return userId;
     }
     

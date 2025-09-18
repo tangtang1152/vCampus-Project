@@ -4,6 +4,7 @@
 <?import javafx.scene.layout.*?>
 <?import javafx.geometry.Insets?>
 <?import javafx.collections.FXCollections?>
+<?import javafx.scene.control.DatePicker?>
 
 <GridPane xmlns:fx="http://javafx.com/fxml"
     fx:controller="com.vCampus.view.RegisterController"
@@ -66,6 +67,38 @@
             <Label text="学号:" style="-fx-min-width: 80; -fx-font-weight: bold;"/>
             <TextField fx:id="studentIdField" promptText="请输入学号"
                 style="-fx-pref-width: 200;"/>
+        </HBox>
+        
+        <!-- 性别 -->
+        <HBox spacing="10" alignment="CENTER_LEFT">
+            <Label text="性别:" style="-fx-min-width: 80; -fx-font-weight: bold;"/>
+            <ComboBox fx:id="studentSexComboBox" style="-fx-pref-width: 200;"/>
+        </HBox>
+        
+        <!-- 邮箱 -->
+        <HBox spacing="10" alignment="CENTER_LEFT">
+            <Label text="邮箱:" style="-fx-min-width: 80; -fx-font-weight: bold;"/>
+            <TextField fx:id="studentEmailField" promptText="请输入邮箱"
+                style="-fx-pref-width: 200;"/>
+        </HBox>
+        
+        <!-- 身份证号 -->
+        <HBox spacing="10" alignment="CENTER_LEFT">
+            <Label text="身份证号:" style="-fx-min-width: 80; -fx-font-weight: bold;"/>
+            <TextField fx:id="studentIdCardField" promptText="请输入身份证号"
+                style="-fx-pref-width: 200;"/>
+        </HBox>
+        
+        <!-- 入学日期 -->
+        <HBox spacing="10" alignment="CENTER_LEFT">
+            <Label text="入学日期:" style="-fx-min-width: 80; -fx-font-weight: bold;"/>
+            <DatePicker fx:id="studentEnrollDatePicker" style="-fx-pref-width: 200;"/>
+        </HBox>
+        
+        <!-- 学籍状态 -->
+        <HBox spacing="10" alignment="CENTER_LEFT">
+            <Label text="学籍状态:" style="-fx-min-width: 80; -fx-font-weight: bold;"/>
+            <ComboBox fx:id="studentStatusComboBox" style="-fx-pref-width: 200;"/>
         </HBox>
     </VBox>
 

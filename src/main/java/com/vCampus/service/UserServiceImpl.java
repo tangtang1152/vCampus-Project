@@ -79,6 +79,11 @@ extends AbstractBaseServiceImpl<User, Integer> implements IUserService {
             return null;
         }
     }
+    
+    @Override
+    public User findByUsername(String username) {
+        return getByUsername(username);
+    }
 	
     @Override
     public boolean validateUser(String username, String password) {

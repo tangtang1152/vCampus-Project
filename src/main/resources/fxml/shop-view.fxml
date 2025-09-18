@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+
+<BorderPane xmlns:fx="http://javafx.com/fxml"
+            fx:controller="com.vCampus.view.ShopController"
+            stylesheets="@../css/main.css">
+    <top>
+        <ToolBar>
+            <TextField fx:id="keywordField" promptText="搜索商品名称/分类"/>
+            <Button text="搜索" onAction="#onSearch"/>
+            <Region HBox.hgrow="ALWAYS"/>
+            <Button text="查看订单" onAction="#onViewOrders"/>
+        </ToolBar>
+    </top>
+
+    <center>
+        <SplitPane dividerPositions="0.6">
+            <TableView fx:id="productTable">
+                <columns>
+                    <TableColumn text="ID" fx:id="pIdCol"/>
+                    <TableColumn text="名称" fx:id="pNameCol"/>
+                    <TableColumn text="分类" fx:id="pCategoryCol"/>
+                    <TableColumn text="价格" fx:id="pPriceCol"/>
+                    <TableColumn text="库存" fx:id="pStockCol"/>
+                </columns>
+            </TableView>
+            <VBox spacing="8" style="-fx-padding: 10;">
+                <Label text="购物车" style="-fx-font-weight: bold;"/>
+                <TableView fx:id="cartTable" prefHeight="250">
+                    <columns>
+                        <TableColumn text="商品ID" fx:id="cProductIdCol"/>
+                        <TableColumn text="数量" fx:id="cQtyCol"/>
+                        <TableColumn text="小计" fx:id="cSubtotalCol"/>
+                    </columns>
+                </TableView>
+                <HBox spacing="8">
+                    <Label text="数量"/>
+                    <TextField fx:id="qtyField" promptText="1" prefWidth="60"/>
+                    <Button text="加入购物车" onAction="#onAddToCart"/>
+                </HBox>
+                <HBox spacing="8">
+                    <Label text="总计："/>
+                    <Label fx:id="totalLabel" text="0.0"/>
+                    <Region HBox.hgrow="ALWAYS"/>
+                    <Button text="下单" onAction="#onPurchase"/>
+                    <Button text="清空" onAction="#onClearCart"/>
+                </HBox>
+            </VBox>
+        </SplitPane>
+    </center>
+</BorderPane>
+
+

@@ -2,8 +2,13 @@ package com.vCampus.view;
 
 import com.vCampus.common.BaseController;
 import com.vCampus.common.NavigationUtil;
+import com.vCampus.common.RoleSwitcher;
+import com.vCampus.common.SessionContext;
+import com.vCampus.entity.User;
 import com.vCampus.service.IUserService;
+import com.vCampus.service.IPermissionService;
 import com.vCampus.service.ServiceFactory;
+import java.util.Set;
 import javafx.fxml.FXML;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
@@ -72,7 +77,13 @@ public class LoginController extends BaseController {
             if (user != null) {
                 showSuccess("登录成功！欢迎 " + user.getUsername());
                 // 保存到会话上下文
-                com.vCampus.common.SessionContext.setCurrentUser(user);
+                SessionContext.setCurrentUser(user);
+                
+                // 确保用户有角色分配
+                ensureUserHasRole(user);
+                
+                // 初始化角色切换器
+                RoleSwitcher.initialize();
                 
                 // 跳转到主界面
                 NavigationUtil.navigateTo(
@@ -116,6 +127,47 @@ public class LoginController extends BaseController {
         showInformation("忘记密码", "请联系系统管理员重置密码");
     }
     
+    /**
+     * 确保用户有角色分配
+     */
+    private void ensureUserHasRole(User user) {
+        try {
+            IPermissionService permissionService = ServiceFactory.getPermissionService();
+            Set<String> userRoles = permissionService.getUserRoleCodes(user.getUserId());
+            
+            if (userRoles.isEmpty()) {
+                // 用户没有角色，根据用户类型自动分配
+                String roleCode = convertRoleToEnglish(user.getRole());
+                boolean success = permissionService.assignRoleToUser(user.getUserId(), roleCode, "SYSTEM");
+                
+                if (success) {
+                    System.out.println("✅ 为用户 " + user.getUsername() + " 自动分配角色: " + roleCode);
+                } else {
+                    System.err.println("❌ 为用户 " + user.getUsername() + " 分配角色失败: " + roleCode);
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("❌ 检查用户角色时发生错误: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    /**
+     * 将中文角色转换为英文角色代码
+     */
+    private String convertRoleToEnglish(String role) {
+        switch (role) {
+            case "学生":
+                return "STUDENT";
+            case "教师":
+                return "TEACHER";
+            case "管理员":
+                return "ADMIN";
+            default:
+                return role; // 如果已经是英文，直接返回
+        }
+    }
+
     /**
      * 获取当前舞台
      */

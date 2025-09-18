@@ -28,8 +28,6 @@ public class Student extends User {
     private String className;
     
    // ---------------------------------------------------
-    private Integer userId;     // 外键，关联tbl_user.userId
-    
     private Date enrollDate;    // 入学日期
     private String sex;         // 性别
     private String email;       // 邮箱
@@ -154,7 +152,7 @@ public class Student extends User {
     public String toString() {
         return "Student{" +
                 "studentId='" + studentId + '\'' +
-                ", userId=" + userId +
+                ", userId=" + getUserId() +
                 ", studentName='" + studentName + '\'' +
                 ", classId='" + className + '\'' +
                 ", enrollDate=" + enrollDate +

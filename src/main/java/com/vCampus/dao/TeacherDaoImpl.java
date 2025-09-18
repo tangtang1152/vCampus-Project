@@ -5,6 +5,8 @@ import com.vCampus.service.ValidationService;
 import com.vCampus.util.DBConstants;
 
 import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
 
 public class TeacherDaoImpl extends AbstractBaseDaoImpl<Teacher, String> implements ITeacherDao {
 
@@ -105,5 +107,24 @@ public class TeacherDaoImpl extends AbstractBaseDaoImpl<Teacher, String> impleme
             }
         }
         return null;
+    }
+    
+    @Override
+    public List<Teacher> findByDepartment(String departmentId, Connection conn) {
+        List<Teacher> teachers = new ArrayList<>();
+        String sql = "SELECT t.*, u.username, u.password, u.role FROM tbl_teacher t " +
+                    "JOIN tbl_user u ON t.userId = u.userId WHERE t.DepartmentId = ?";
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, departmentId);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                while (rs.next()) {
+                    teachers.add(createEntityFromResultSet(rs));
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("根据部门查找教师失败: " + e.getMessage());
+            e.printStackTrace();
+        }
+        return teachers;
     }
 }

@@ -21,7 +21,9 @@
                     <MenuItem text="学生管理" onAction="#onStudentManagement"/>
                     <MenuItem text="课程管理" onAction="#onCourseManagement"/>
                     <MenuItem text="图书馆" onAction="#onLibrary"/>
+                    <MenuItem fx:id="menuShop" text="商店" onAction="#onShop"/>
                     <MenuItem fx:id="menuLibraryAdmin" text="图书维护(管理员)" onAction="#onLibraryAdmin"/>
+                    <MenuItem fx:id="menuShopManagement" text="商品管理" onAction="#onShopManagement"/>
                 </Menu>
                 <Menu text="帮助">
                     <MenuItem text="关于" onAction="#onAbout"/>
@@ -33,6 +35,8 @@
                 <Label fx:id="welcomeLabel" style="-fx-font-weight: bold;"/>
                 <Label fx:id="statusLabel"/>
                 <Region HBox.hgrow="ALWAYS"/>
+                <Label text="当前角色:"/>
+                <ComboBox fx:id="roleSwitcher" promptText="选择角色" style="-fx-min-width: 120;"/>
                 <Label text="就绪"/>
             </HBox>
         </VBox>
@@ -40,16 +44,8 @@
     
     <!-- 左侧导航 -->
     <left>
-        <VBox spacing="10" style="-fx-background-color: #f8f9fa; -fx-padding: 15; -fx-min-width: 200;">
-            <Label text="功能导航" style="-fx-font-weight: bold; -fx-font-size: 14;"/>
-            <Separator/>
-            <Button text="用户管理" onAction="#onUserManagement" style="-fx-min-width: 150;"/>
-            <Button text="学生管理" onAction="#onStudentManagement" style="-fx-min-width: 150;"/>
-            <Button text="课程管理" onAction="#onCourseManagement" style="-fx-min-width: 150;"/>
-            <Button text="图书馆" onAction="#onLibrary" style="-fx-min-width: 150;"/>
-            <Button fx:id="btnLibraryAdmin" text="图书维护(管理员)" onAction="#onLibraryAdmin" style="-fx-min-width: 150;"/>
-            <Region VBox.vgrow="ALWAYS"/>
-            <Button text="退出系统" onAction="#onExit" style="-fx-background-color: #dc3545; -fx-text-fill: white; -fx-min-width: 150;"/>
+        <VBox fx:id="leftNavigation" spacing="10" style="-fx-background-color: #f8f9fa; -fx-padding: 15; -fx-min-width: 200;">
+            <!-- 动态导航菜单将在这里生成 -->
         </VBox>
     </left>
     

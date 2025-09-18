@@ -9,6 +9,7 @@ import com.vCampus.entity.Student;
 import com.vCampus.entity.Teacher;
 import com.vCampus.entity.Admin;
 import com.vCampus.service.IUserService;
+import com.vCampus.service.IPermissionService;
 import com.vCampus.service.ServiceFactory;
 import com.vCampus.util.TransactionManager;
 
@@ -25,6 +26,11 @@ public class RegisterController {
     @FXML private TextField studentNameField;
     @FXML private TextField classNameField;
     @FXML private TextField studentIdField;
+    @FXML private ComboBox<String> studentSexComboBox;
+    @FXML private TextField studentEmailField;
+    @FXML private TextField studentIdCardField;
+    @FXML private DatePicker studentEnrollDatePicker;
+    @FXML private ComboBox<String> studentStatusComboBox;
 
     // 教师专属字段
     @FXML private VBox teacherFields;
@@ -50,6 +56,14 @@ public class RegisterController {
         // 初始化教师性别选项
         teacherSexComboBox.getItems().addAll("男", "女");
         teacherSexComboBox.setValue("男");
+        
+        // 初始化学生性别选项
+        studentSexComboBox.getItems().addAll("男", "女");
+        studentSexComboBox.setValue("男");
+        
+        // 初始化学生学籍状态选项
+        studentStatusComboBox.getItems().addAll("正常", "休学", "退学", "毕业");
+        studentStatusComboBox.setValue("正常");
 
         // 添加监听器，当选项变化时调用
         roleComboBox.valueProperty().addListener((observable, oldValue, newValue) -> {
@@ -108,6 +122,15 @@ public class RegisterController {
                 student.setStudentName(studentNameField.getText().trim());
                 student.setClassName(classNameField.getText().trim());
                 student.setStudentId(studentIdField.getText().trim());
+                student.setSex(studentSexComboBox.getValue());
+                student.setEmail(studentEmailField.getText().trim());
+                student.setIdCard(studentIdCardField.getText().trim());
+                student.setStatus(studentStatusComboBox.getValue());
+                
+                // 设置入学日期
+                if (studentEnrollDatePicker.getValue() != null) {
+                    student.setEnrollDate(java.sql.Date.valueOf(studentEnrollDatePicker.getValue()));
+                }
 
                 System.out.println("注册学生信息: " + student.toString());
                 registerUser(student, "学生");
@@ -159,6 +182,37 @@ public class RegisterController {
     }
 
     /**
+     * 自动分配角色到RBAC系统
+     */
+    private void assignRoleToUser(String userType) {
+        try {
+            String username = usernameField.getText().trim();
+            String roleCode = convertRoleToEnglish(userType);
+            
+            // 获取用户ID
+            IUserService userService = ServiceFactory.getUserService();
+            User user = userService.findByUsername(username);
+            
+            if (user != null) {
+                // 分配角色
+                IPermissionService permissionService = ServiceFactory.getPermissionService();
+                boolean success = permissionService.assignRoleToUser(user.getUserId(), roleCode, "SYSTEM");
+                
+                if (success) {
+                    System.out.println("✅ 成功为用户 " + username + " 分配角色: " + roleCode);
+                } else {
+                    System.err.println("❌ 为用户 " + username + " 分配角色失败: " + roleCode);
+                }
+            } else {
+                System.err.println("❌ 找不到用户: " + username);
+            }
+        } catch (Exception e) {
+            System.err.println("❌ 分配角色时发生错误: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    /**
      * 处理注册结果
      */
     private void handleRegisterResult(IUserService.RegisterResult result, String userType) {
@@ -166,6 +220,8 @@ public class RegisterController {
 
         switch (result) {
             case SUCCESS:
+                // 自动分配角色到RBAC系统
+                assignRoleToUser(userType);
                 showSuccess(userType + "注册成功！");
                 closeWindow();
                 break;
@@ -246,6 +302,20 @@ public class RegisterController {
                 Integer.parseInt(studentIdField.getText().trim());
             } catch (NumberFormatException e) {
                 showError("学号必须是数字");
+                return false;
+            }
+            
+            // 验证邮箱格式（如果填写了）
+            String email = studentEmailField.getText().trim();
+            if (!email.isEmpty() && !email.contains("@")) {
+                showError("邮箱格式不正确");
+                return false;
+            }
+            
+            // 验证身份证号格式（如果填写了）
+            String idCard = studentIdCardField.getText().trim();
+            if (!idCard.isEmpty() && (idCard.length() != 15 && idCard.length() != 18)) {
+                showError("身份证号格式不正确（应为15位或18位）");
                 return false;
             }
 

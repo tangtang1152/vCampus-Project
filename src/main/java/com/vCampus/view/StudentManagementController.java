@@ -15,6 +15,8 @@ import javafx.scene.layout.HBox;
 import javafx.util.Callback;
 
 import java.time.format.DateTimeFormatter;
+import java.text.SimpleDateFormat;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -38,6 +40,7 @@ public class StudentManagementController extends BaseController {
         setupTable();
         setupFilters();
         loadStudentData();
+        setupRowStyle();
     }
     
     /**
@@ -63,16 +66,20 @@ public class StudentManagementController extends BaseController {
         emailCol.setCellValueFactory(new PropertyValueFactory<>("email"));
         idCardCol.setCellValueFactory(new PropertyValueFactory<>("idCard"));
         
-        // 格式化日期显示
+        // 格式化日期显示（兼容 java.sql.Date 与 java.util.Date）
         enrollDateCol.setCellValueFactory(cellData -> {
-            if (cellData.getValue().getEnrollDate() != null) {
-                return new SimpleStringProperty(
-                    cellData.getValue().getEnrollDate().toLocaleString().formatted(
-                        DateTimeFormatter.ofPattern("yyyy-MM-dd")
-                    )
-                );
+            try {
+                var d = cellData.getValue().getEnrollDate();
+                if (d == null) return new SimpleStringProperty("");
+                if (d instanceof java.sql.Date) {
+                    return new SimpleStringProperty(((java.sql.Date) d).toLocalDate()
+                            .format(DateTimeFormatter.ofPattern("yyyy-MM-dd")));
+                }
+                // 兼容 util.Date
+                return new SimpleStringProperty(new SimpleDateFormat("yyyy-MM-dd").format(d));
+            } catch (Exception e) {
+                return new SimpleStringProperty("");
             }
-            return new SimpleStringProperty("");
         });
         
         statusCol.setCellValueFactory(new PropertyValueFactory<>("status"));
@@ -181,14 +188,14 @@ public class StudentManagementController extends BaseController {
      */
     private void setupFilters() {
         // 初始化状态筛选器
-        statusFilter.getItems().addAll("全部", "正常", "休学", "退学", "毕业");
+        statusFilter.getItems().setAll("全部", "正常", "休学", "退学", "毕业");
         statusFilter.setValue("全部");
-        statusFilter.setOnAction(event -> filterStudents());
+        statusFilter.setOnAction(event -> onFilterByStatus());
         
         // 初始化班级筛选器
-        classFilter.getItems().add("全部");
+        classFilter.getItems().setAll("全部");
         classFilter.setValue("全部");
-        classFilter.setOnAction(event -> filterStudents());
+        classFilter.setOnAction(event -> onFilterByClass());
     }
     
     /**
@@ -196,18 +203,13 @@ public class StudentManagementController extends BaseController {
      */
     private void loadStudentData() {
         try {
-            // 使用IBaseService中的getAll方法获取所有学生
             List<Student> students = studentService.getAll();
+            if (students == null) students = List.of();
             studentList.setAll(students);
             studentTable.setItems(studentList);
-            
-            // 更新班级筛选器
             updateClassFilter(students);
-            
-            showSuccess("数据加载成功，共 " + students.size() + " 条记录");
         } catch (Exception e) {
             showError("加载学生数据失败: " + e.getMessage());
-            e.printStackTrace();
         }
     }
     
@@ -215,16 +217,13 @@ public class StudentManagementController extends BaseController {
      * 更新班级筛选器
      */
     private void updateClassFilter(List<Student> students) {
-        classFilter.getItems().clear();
-        classFilter.getItems().add("全部");
-        
-        students.stream()
-            .map(Student::getClassName)
-            .distinct()
-            .sorted()
-            .forEach(classFilter.getItems()::add);
-        
-        classFilter.setValue("全部");
+        if (classFilter == null) return;
+        classFilter.getItems().setAll("全部");
+        students.stream().map(Student::getClassName)
+                .filter(s -> s != null && !s.isBlank())
+                .distinct().sorted()
+                .forEach(s -> classFilter.getItems().add(s));
+        if (!classFilter.getItems().isEmpty()) classFilter.setValue("全部");
     }
     
     /**
@@ -282,9 +281,7 @@ public class StudentManagementController extends BaseController {
      * 搜索按钮点击事件
      */
     @FXML
-    private void onSearch() {
-        filterStudents();
-    }
+    private void onSearch() { filterStudents(); }
     
     /**
      * 刷新按钮点击事件
@@ -316,8 +313,55 @@ public class StudentManagementController extends BaseController {
      * 更改学籍状态
      */
     private void onChangeStatus(Student student) {
-        NavigationUtil.showDialog("status-change-view.fxml", "更改学籍状态 - " + student.getStudentName());
-        loadStudentData(); // 刷新数据
+        if (student == null) return;
+        var options = Arrays.asList("正常", "休学", "退学", "毕业");
+        ChoiceDialog<String> dlg = new ChoiceDialog<>(student.getStatus(), options);
+        dlg.setTitle("更改学籍状态");
+        dlg.setHeaderText("学生：" + student.getStudentName() + " (" + student.getStudentId() + ")");
+        dlg.setContentText("选择新的学籍状态：");
+        dlg.showAndWait().ifPresent(sel -> {
+            try {
+                boolean ok = studentService.updateStudentStatus(student.getStudentId(), sel);
+                if (ok) { showSuccess("状态已更新为：" + sel); loadStudentData(); }
+                else { showError("状态更新失败"); }
+            } catch (Exception e) {
+                showError("状态更新失败: " + e.getMessage());
+            }
+        });
+    }
+
+    /**
+     * 按学籍状态为表格行着色
+     */
+    private void setupRowStyle() {
+        studentTable.setRowFactory(tv -> new TableRow<>() {
+            @Override
+            protected void updateItem(Student item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setStyle("");
+                    return;
+                }
+                String st = item.getStatus() == null ? "" : item.getStatus();
+                // 正常/休学/退学/毕业：绿/黄/红/灰（淡色背景）
+                switch (st) {
+                    case "正常":
+                        setStyle("-fx-background-color: #e8f5e9;");
+                        break;
+                    case "休学":
+                        setStyle("-fx-background-color: #fff8e1;");
+                        break;
+                    case "退学":
+                        setStyle("-fx-background-color: #ffebee;");
+                        break;
+                    case "毕业":
+                        setStyle("-fx-background-color: #eceff1;");
+                        break;
+                    default:
+                        setStyle("");
+                }
+            }
+        });
     }
     
     /**

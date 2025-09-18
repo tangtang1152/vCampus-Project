@@ -23,29 +23,62 @@ public class StudentDaoImpl extends AbstractBaseDaoImpl<Student, String> impleme
     @Override
     protected Student createEntityFromResultSet(ResultSet rs) throws SQLException {
         Student student = new Student();
-        student.setUserId(rs.getInt("userId"));
-        student.setUsername(rs.getString("username"));
-        student.setPassword(rs.getString("password"));
-        student.setRole(rs.getString("role"));
-        student.setStudentId(rs.getString("studentId"));
-        student.setStudentName(rs.getString("studentName"));
-        student.setClassName(rs.getString("className"));
+        // 基础字段（来自 tbl_student）
+        if (hasColumn(rs, "userId")) student.setUserId((Integer) rs.getObject("userId"));
+        if (hasColumn(rs, "studentId")) student.setStudentId(rs.getString("studentId"));
+        if (hasColumn(rs, "studentName")) student.setStudentName(rs.getString("studentName"));
+        if (hasColumn(rs, "className")) student.setClassName(rs.getString("className"));
+
+        // 可选字段（在 findAll 不一定存在）
+        if (hasColumn(rs, "enrollDate")) {
+            java.sql.Date d = rs.getDate("enrollDate");
+            if (d != null) student.setEnrollDate(new java.util.Date(d.getTime()));
+        }
+        if (hasColumn(rs, "sex")) student.setSex(rs.getString("sex"));
+        if (hasColumn(rs, "email")) student.setEmail(rs.getString("email"));
+        if (hasColumn(rs, "idCard")) student.setIdCard(rs.getString("idCard"));
+        if (hasColumn(rs, "status")) student.setStatus(rs.getString("status"));
+
+        // 来自 tbl_user 的联接字段（仅在 join 时可用）
+        if (hasColumn(rs, "username")) student.setUsername(rs.getString("username"));
+        if (hasColumn(rs, "password")) student.setPassword(rs.getString("password"));
+        if (hasColumn(rs, "role")) student.setRole(rs.getString("role"));
         return student;
+    }
+
+    private boolean hasColumn(ResultSet rs, String column) {
+        try {
+            rs.findColumn(column);
+            return true;
+        } catch (SQLException e) {
+            return false;
+        }
     }
 
     @Override
     protected void setInsertParameters(PreparedStatement pstmt, Student student) throws SQLException {
         pstmt.setString(1, student.getStudentId());
-        pstmt.setInt(2, student.getUserId());
+        if (student.getUserId() == null) pstmt.setNull(2, java.sql.Types.INTEGER); else pstmt.setInt(2, student.getUserId());
         pstmt.setString(3, student.getStudentName());
         pstmt.setString(4, student.getClassName());
+        // 可选字段
+        if (student.getEnrollDate() != null) pstmt.setDate(5, new java.sql.Date(student.getEnrollDate().getTime())); else pstmt.setNull(5, java.sql.Types.DATE);
+        pstmt.setString(6, student.getSex());
+        pstmt.setString(7, student.getEmail());
+        pstmt.setString(8, student.getIdCard());
+        pstmt.setString(9, student.getStatus());
     }
 
     @Override
     protected void setUpdateParameters(PreparedStatement pstmt, Student student) throws SQLException {
         pstmt.setString(1, student.getStudentName());
         pstmt.setString(2, student.getClassName());
-        pstmt.setString(3, student.getStudentId());
+        pstmt.setString(3, student.getSex());
+        pstmt.setString(4, student.getEmail());
+        pstmt.setString(5, student.getIdCard());
+        if (student.getEnrollDate() != null) pstmt.setDate(6, new java.sql.Date(student.getEnrollDate().getTime())); else pstmt.setNull(6, java.sql.Types.DATE);
+        pstmt.setString(7, student.getStatus());
+        pstmt.setString(8, student.getStudentId());
     }
 
     @Override
@@ -58,7 +91,7 @@ public class StudentDaoImpl extends AbstractBaseDaoImpl<Student, String> impleme
         student.setStudentName(truncatedStudentName);
         student.setClassName(truncatedClassName);
 
-        String sql = "INSERT INTO tbl_student (studentId, userId, studentName, className) VALUES (?, ?, ?, ?)";
+        String sql = "INSERT INTO tbl_student (studentId, userId, studentName, className, enrollDate, sex, email, idCard, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
         try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
             setInsertParameters(pstmt, student);
             int affectedRows = pstmt.executeUpdate();
@@ -71,7 +104,7 @@ public class StudentDaoImpl extends AbstractBaseDaoImpl<Student, String> impleme
 
     @Override
     public boolean update(Student student, Connection conn) throws SQLException {
-        String sql = "UPDATE tbl_student SET studentName = ?, className = ? WHERE studentId = ?";
+        String sql = "UPDATE tbl_student SET studentName = ?, className = ?, sex = ?, email = ?, idCard = ?, enrollDate = ?, status = ? WHERE studentId = ?";
         try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
             setUpdateParameters(pstmt, student);
             int affectedRows = pstmt.executeUpdate();
@@ -264,6 +297,17 @@ public class StudentDaoImpl extends AbstractBaseDaoImpl<Student, String> impleme
             }
         }
         return orderIds;
+    }
+    
+    @Override
+    public List<Student> findByClass(String className, Connection conn) {
+        try {
+            return findStudentsByClass(className, conn);
+        } catch (SQLException e) {
+            System.err.println("根据班级查找学生失败: " + e.getMessage());
+            e.printStackTrace();
+            return new ArrayList<>();
+        }
     }
     
 }
