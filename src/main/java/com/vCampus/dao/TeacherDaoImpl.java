@@ -22,12 +22,14 @@ public class TeacherDaoImpl extends AbstractBaseDaoImpl<Teacher, String> impleme
     protected Teacher createEntityFromResultSet(ResultSet rs) throws SQLException {
         Teacher teacher = new Teacher();
         teacher.setUserId(rs.getInt("userId"));
-        teacher.setUsername(rs.getString("username"));
-        teacher.setPassword(rs.getString("password"));
-        teacher.setRole(rs.getString("role"));
+        try { teacher.setUsername(rs.getString("username")); } catch (SQLException ignored) {}
+        try { teacher.setPassword(rs.getString("password")); } catch (SQLException ignored) {}
+        try { teacher.setRole(rs.getString("role")); } catch (SQLException ignored) {}
         teacher.setTeacherId(rs.getString("teacherId"));
         teacher.setTeacherName(rs.getString("teacherName"));
-        teacher.setDepartmentId(rs.getString("DepartmentId"));
+        teacher.setSex(rs.getString("sex"));
+        teacher.setTechnical(rs.getString("technical"));
+        teacher.setDepartmentId(rs.getString("departmentId"));
         return teacher;
     }
 
@@ -36,27 +38,37 @@ public class TeacherDaoImpl extends AbstractBaseDaoImpl<Teacher, String> impleme
         pstmt.setString(1, teacher.getTeacherId());
         pstmt.setInt(2, teacher.getUserId());
         pstmt.setString(3, teacher.getTeacherName());
-        pstmt.setString(4, teacher.getDepartmentId());
+        pstmt.setString(4, teacher.getSex());
+        pstmt.setString(5, teacher.getTechnical());
+        pstmt.setString(6, teacher.getDepartmentId());
     }
 
     @Override
     protected void setUpdateParameters(PreparedStatement pstmt, Teacher teacher) throws SQLException {
         pstmt.setString(1, teacher.getTeacherName());
-        pstmt.setString(2, teacher.getDepartmentId());
-        pstmt.setString(3, teacher.getTeacherId());
+        pstmt.setString(2, teacher.getSex());
+        pstmt.setString(3, teacher.getTechnical());
+        pstmt.setString(4, teacher.getDepartmentId());
+        pstmt.setString(5, teacher.getTeacherId());
     }
 
     @Override
     public boolean insert(Teacher teacher, Connection conn) throws SQLException {
         String truncatedTeacherName = ValidationService.truncateString(
                 teacher.getTeacherName(), DBConstants.TEACHER_NAME_MAX_LENGTH);
-        String truncatedClassName = ValidationService.truncateString(
-                teacher.getDepartmentId(), DBConstants.CLASS_NAME_MAX_LENGTH);
+        String truncatedSex = ValidationService.truncateString(
+                teacher.getSex(), DBConstants.SEX_MAX_LENGTH);
+        String truncatedTechnical = ValidationService.truncateString(
+                teacher.getTechnical(), DBConstants.TECHNICAL_MAX_LENGTH);
+        String truncatedDeptId = ValidationService.truncateString(
+                teacher.getDepartmentId(), DBConstants.DEPARTMENT_ID_MAX_LENGTH);
         
         teacher.setTeacherName(truncatedTeacherName);
-        teacher.setDepartmentId(truncatedClassName);
+        teacher.setSex(truncatedSex);
+        teacher.setTechnical(truncatedTechnical);
+        teacher.setDepartmentId(truncatedDeptId);
 
-        String sql = "INSERT INTO tbl_teacher (teacherId, userId, teacherName, DepartmentName) VALUES (?, ?, ?, ?)";
+        String sql = "INSERT INTO tbl_teacher (teacherId, userId, teacherName, sex, technical, departmentId) VALUES (?, ?, ?, ?, ?, ?)";
         try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
             setInsertParameters(pstmt, teacher);
             int affectedRows = pstmt.executeUpdate();
@@ -69,7 +81,7 @@ public class TeacherDaoImpl extends AbstractBaseDaoImpl<Teacher, String> impleme
 
     @Override
     public boolean update(Teacher teacher, Connection conn) throws SQLException {
-        String sql = "UPDATE tbl_teacher SET teacherName = ?, DepartmentName = ? WHERE teacherId = ?";
+        String sql = "UPDATE tbl_teacher SET teacherName = ?, sex = ?, technical = ?, departmentId = ? WHERE teacherId = ?";
         try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
             setUpdateParameters(pstmt, teacher);
             int affectedRows = pstmt.executeUpdate();

@@ -40,6 +40,10 @@ public class LibraryController extends BaseController {
     @FXML private Label infoLabel;
     @FXML private ComboBox<String> statusFilter;
     @FXML private Pagination pagination;
+    @FXML private ComboBox<String> bookStatusBox;
+    @FXML private ComboBox<String> sortBox;
+    @FXML private Button btnRenew;
+    @FXML private Button btnReturn;
 
     private final LibraryService libraryService = new LibraryService();
     private final ObservableList<Book> data = FXCollections.observableArrayList();
@@ -86,12 +90,30 @@ public class LibraryController extends BaseController {
         if (brRenewTimesCol != null) {
             brRenewTimesCol.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(formatRenewTimes(c.getValue())));
         }
-        // 状态筛选初始化
+        // 借阅记录状态筛选初始化
         if (statusFilter != null) {
             statusFilter.getItems().setAll("全部", "借出", "已还", "逾期");
             statusFilter.setValue("借出");
             statusFilter.valueProperty().addListener((obs, o, n) -> loadMyBorrows());
         }
+        // 图书列表额外筛选/排序
+        if (bookStatusBox != null) {
+            bookStatusBox.getItems().setAll("全部", "正常", "下架");
+            bookStatusBox.setValue("全部");
+            bookStatusBox.valueProperty().addListener((o,ov,nv)-> { page=1; loadPage(); });
+        }
+        if (sortBox != null) {
+            sortBox.getItems().setAll("默认(最新)", "书名↑", "书名↓", "可借↑", "可借↓");
+            sortBox.setValue("默认(最新)");
+            sortBox.valueProperty().addListener((o,ov,nv)-> { page=1; loadPage(); });
+        }
+
+        // 前端按钮权限（activeRole）
+        var user = com.vCampus.common.SessionContext.getCurrentUser();
+        boolean canUse = com.vCampus.util.RBACUtil.canUseLibrary(user);
+        boolean canMaintain = com.vCampus.util.RBACUtil.canMaintainLibrary(user);
+        if (btnRenew != null) btnRenew.setDisable(!canUse);
+        if (btnReturn != null) btnReturn.setDisable(!canUse);
         loadPage();
         pagination.currentPageIndexProperty().addListener((obs, o, n) -> {
             page = n.intValue() + 1;
@@ -110,7 +132,9 @@ public class LibraryController extends BaseController {
 
     private void loadPage() {
         String kw = keywordField == null ? "" : keywordField.getText();
-        List<Book> list = libraryService.searchBooks(kw, page, pageSize);
+        String st = bookStatusBox == null ? "全部" : String.valueOf(bookStatusBox.getValue());
+        String sort = sortBox == null ? "默认(最新)" : String.valueOf(sortBox.getValue());
+        List<Book> list = libraryService.searchBooksAdvanced(kw, st, sort, page, pageSize);
         data.setAll(list);
         infoLabel.setText("共 " + data.size() + " 条（本页）");
     }

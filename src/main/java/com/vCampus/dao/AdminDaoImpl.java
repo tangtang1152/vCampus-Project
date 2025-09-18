@@ -22,9 +22,9 @@ public class AdminDaoImpl extends AbstractBaseDaoImpl<Admin, String> implements 
     protected Admin createEntityFromResultSet(ResultSet rs) throws SQLException {
         Admin admin = new Admin();
         admin.setUserId(rs.getInt("userId"));
-        admin.setUsername(rs.getString("username"));
-        admin.setPassword(rs.getString("password"));
-        admin.setRole(rs.getString("role"));
+        try { admin.setUsername(rs.getString("username")); } catch (SQLException ignored) {}
+        try { admin.setPassword(rs.getString("password")); } catch (SQLException ignored) {}
+        try { admin.setRole(rs.getString("role")); } catch (SQLException ignored) {}
         admin.setAdminId(rs.getString("adminId"));
         admin.setAdminName(rs.getString("adminName"));
         return admin;
@@ -50,6 +50,7 @@ public class AdminDaoImpl extends AbstractBaseDaoImpl<Admin, String> implements 
        
         admin.setAdminName(truncatedAdminName);
 
+        // 根据业务规范：adminId 为手工输入的唯一学工号（短文本），需要显式插入
         String sql = "INSERT INTO tbl_admin (adminId, userId, adminName) VALUES (?, ?, ?)";
         try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
             setInsertParameters(pstmt, admin);

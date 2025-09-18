@@ -20,13 +20,11 @@ public class LibraryUserRules {
         if (user == null || user.getRole() == null) {
             return 3; // 默认值
         }
-        
-        String role = user.getRole().toLowerCase();
-        if (role.contains("admin") || role.contains("管理员")) {
+        if (RBACUtil.isAdmin(user)) {
             return 10; // 管理员可以借更多书
-        } else if (role.contains("teacher") || role.contains("教师")) {
+        } else if (RBACUtil.isTeacher(user)) {
             return 8; // 教师
-        } else if (role.contains("student") || role.contains("学生")) {
+        } else if (RBACUtil.isStudent(user)) {
             return 5; // 学生
         }
         return 3; // 默认值
@@ -39,13 +37,11 @@ public class LibraryUserRules {
         if (user == null || user.getRole() == null) {
             return 1; // 默认值
         }
-        
-        String role = user.getRole().toLowerCase();
-        if (role.contains("admin") || role.contains("管理员")) {
+        if (RBACUtil.isAdmin(user)) {
             return 3; // 管理员可以续借3次
-        } else if (role.contains("teacher") || role.contains("教师")) {
+        } else if (RBACUtil.isTeacher(user)) {
             return 2; // 教师可以续借2次
-        } else if (role.contains("student") || role.contains("学生")) {
+        } else if (RBACUtil.isStudent(user)) {
             return 1; // 学生只能续借1次
         }
         return 1; // 默认值
@@ -58,13 +54,11 @@ public class LibraryUserRules {
         if (user == null || user.getRole() == null) {
             return 30; // 默认值
         }
-        
-        String role = user.getRole().toLowerCase();
-        if (role.contains("admin") || role.contains("管理员")) {
+        if (RBACUtil.isAdmin(user)) {
             return 60; // 管理员可以续借60天
-        } else if (role.contains("teacher") || role.contains("教师")) {
+        } else if (RBACUtil.isTeacher(user)) {
             return 45; // 教师可以续借45天
-        } else if (role.contains("student") || role.contains("学生")) {
+        } else if (RBACUtil.isStudent(user)) {
             return 30; // 学生可以续借30天
         }
         return 30; // 默认值
@@ -77,13 +71,11 @@ public class LibraryUserRules {
         if (user == null || user.getRole() == null) {
             return 30; // 默认值
         }
-        
-        String role = user.getRole().toLowerCase();
-        if (role.contains("admin") || role.contains("管理员")) {
+        if (RBACUtil.isAdmin(user)) {
             return 60; // 管理员可以借60天
-        } else if (role.contains("teacher") || role.contains("教师")) {
+        } else if (RBACUtil.isTeacher(user)) {
             return 45; // 教师可以借45天
-        } else if (role.contains("student") || role.contains("学生")) {
+        } else if (RBACUtil.isStudent(user)) {
             return 30; // 学生可以借30天
         }
         return 30; // 默认值
@@ -103,13 +95,11 @@ public class LibraryUserRules {
         if (user == null || user.getRole() == null) {
             return "普通用户";
         }
-        
-        String role = user.getRole().toLowerCase();
-        if (role.contains("admin") || role.contains("管理员")) {
+        if (RBACUtil.isAdmin(user)) {
             return "管理员";
-        } else if (role.contains("teacher") || role.contains("教师")) {
+        } else if (RBACUtil.isTeacher(user)) {
             return "教师";
-        } else if (role.contains("student") || role.contains("学生")) {
+        } else if (RBACUtil.isStudent(user)) {
             return "学生";
         }
         return "普通用户";

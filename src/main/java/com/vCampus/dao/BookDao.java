@@ -112,6 +112,35 @@ public class BookDao implements IBookDao {
         return list;
     }
 
+    // 扩展：按状态筛选、排序与分页（模糊搜索）
+    public List<Book> searchAdvanced(String keyword, String status, String orderBy, int offset, int limit, Connection conn) throws SQLException {
+        String like = "%" + (keyword == null ? "" : keyword) + "%";
+        boolean filterStatus = status != null && !status.isBlank() && !"全部".equals(status);
+        StringBuilder sql = new StringBuilder("SELECT * FROM tbl_book WHERE (title LIKE ? OR author LIKE ? OR isbn LIKE ?)");
+        if (filterStatus) sql.append(" AND status = ?");
+        sql.append(" ORDER BY ").append(orderBy == null || orderBy.isBlank() ? "bookId DESC" : orderBy);
+
+        List<Book> list = new ArrayList<>();
+        try (PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+            int idx = 1;
+            ps.setString(idx++, like);
+            ps.setString(idx++, like);
+            ps.setString(idx++, like);
+            if (filterStatus) ps.setString(idx++, status);
+            try (ResultSet rs = ps.executeQuery()) {
+                int skipped = 0;
+                int taken = 0;
+                while (rs.next()) {
+                    if (skipped < offset) { skipped++; continue; }
+                    list.add(mapRow(rs));
+                    taken++;
+                    if (taken >= limit) break;
+                }
+            }
+        }
+        return list;
+    }
+
     @Override
     public boolean decreaseAvailable(Integer bookId, Connection conn) throws SQLException {
         String sql = "UPDATE tbl_book SET availableCopies = availableCopies - 1 WHERE bookId = ? AND availableCopies > 0";
@@ -142,7 +171,7 @@ public class BookDao implements IBookDao {
         b.setTotalCopies((Integer) rs.getObject("totalCopies"));
         b.setAvailableCopies((Integer) rs.getObject("availableCopies"));
         b.setLocation(rs.getString("location"));
-        // 无 status 列
+        try { b.setStatus(rs.getString("status")); } catch (SQLException ignore) {}
         return b;
     }
 }

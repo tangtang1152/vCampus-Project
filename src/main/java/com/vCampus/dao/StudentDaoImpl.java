@@ -22,9 +22,9 @@ public class StudentDaoImpl extends AbstractBaseDaoImpl<Student, String> impleme
     protected Student createEntityFromResultSet(ResultSet rs) throws SQLException {
         Student student = new Student();
         student.setUserId(rs.getInt("userId"));
-        student.setUsername(rs.getString("username"));
-        student.setPassword(rs.getString("password"));
-        student.setRole(rs.getString("role"));
+        try { student.setUsername(rs.getString("username")); } catch (SQLException ignored) {}
+        try { student.setPassword(rs.getString("password")); } catch (SQLException ignored) {}
+        try { student.setRole(rs.getString("role")); } catch (SQLException ignored) {}
         student.setStudentId(rs.getString("studentId"));
         student.setStudentName(rs.getString("studentName"));
         student.setClassName(rs.getString("className"));

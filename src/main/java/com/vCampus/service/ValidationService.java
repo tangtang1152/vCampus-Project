@@ -77,9 +77,13 @@ public class ValidationService {
             return false;
         }
         
-        // 验证学号范围
-        if (Integer.parseInt(student.getStudentId()) <= 0) {
-            System.out.println("错误: 学号必须大于0");
+        // 学号为短文本（Access: 短文本 长度20），仅校验非空与长度
+        if (student.getStudentId() == null || student.getStudentId().trim().isEmpty()) {
+            System.out.println("错误: 学号为空");
+            return false;
+        }
+        if (student.getStudentId().length() > 20) {
+            System.out.println("错误: 学号超过长度限制");
             return false;
         }
         
@@ -142,6 +146,16 @@ public class ValidationService {
      */
     public static boolean validateAdmin(Admin admin) {
         if (admin == null) {
+            return false;
+        }
+
+        // 管理员工号（短文本，手工输入，允许字母数字混合）
+        if (admin.getAdminId() == null || admin.getAdminId().trim().isEmpty()) {
+            System.out.println("错误: 管理员工号为空");
+            return false;
+        }
+        if (admin.getAdminId().length() > DBConstants.ADMIN_ID_MAX_LENGTH) {
+            System.out.println("错误: 管理员工号超过长度限制");
             return false;
         }
 

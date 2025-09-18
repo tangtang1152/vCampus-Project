@@ -155,7 +155,7 @@ extends AbstractBaseServiceImpl<User, Integer> implements IUserService {
                     return registerAdmin((Admin) user, conn);
                 }
                 
-                // 通用的用户验证和注册逻辑
+                // 通用的用户验证和注册逻辑（长度按 DBConstants 约束）
                 if (!ValidationService.validateUser(user)) {
                     return RegisterResult.VALIDATION_FAILED;
                 }

@@ -37,12 +37,10 @@ public class LibraryAdminController extends BaseController {
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        // 简单权限：非管理员禁止进入
+        // 权限：基于 activeRole 的显隐与校验
         var user = SessionContext.getCurrentUser();
-        if (user == null || user.getRole() == null || !user.getRole().toLowerCase().contains("admin") && !user.getRole().contains("管理员")) {
-            showError("无权限访问图书维护页");
-            return;
-        }
+        boolean canMaintain = com.vCampus.util.RBACUtil.canMaintainLibrary(user);
+        if (!canMaintain) { showError("无权限访问图书维护页"); return; }
 
         idCol.setCellValueFactory(c -> new SimpleIntegerProperty(c.getValue().getBookId() == null ? 0 : c.getValue().getBookId()));
         isbnCol.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getIsbn()));

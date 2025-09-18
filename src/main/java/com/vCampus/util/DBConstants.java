@@ -6,24 +6,24 @@ package com.vCampus.util;
  */
 public class DBConstants {
     // tbl_user 表字段长度限制
-    public static final int USERNAME_MAX_LENGTH = 50;
+    public static final int USERNAME_MAX_LENGTH = 20;
     public static final int PASSWORD_MAX_LENGTH = 255;
-    public static final int ROLE_MAX_LENGTH = 20;
+    public static final int ROLE_MAX_LENGTH = 10;
 
     // tbl_student 表字段长度限制
-    public static final int STUDENT_NAME_MAX_LENGTH = 50;
-    public static final int CLASS_NAME_MAX_LENGTH = 50;
+    public static final int STUDENT_NAME_MAX_LENGTH = 10;
+    public static final int CLASS_NAME_MAX_LENGTH = 20;
 
     // tbl_teacher 表字段长度限制
-    public static final int TEACHER_ID_MAX_LENGTH = 20;
-    public static final int TEACHER_NAME_MAX_LENGTH = 50;
-    public static final int SEX_MAX_LENGTH = 10;
-    public static final int TECHNICAL_MAX_LENGTH = 20;
-    public static final int DEPARTMENT_ID_MAX_LENGTH = 20;
+    public static final int TEACHER_ID_MAX_LENGTH = 8;
+    public static final int TEACHER_NAME_MAX_LENGTH = 10;
+    public static final int SEX_MAX_LENGTH = 2;
+    public static final int TECHNICAL_MAX_LENGTH = 10;
+    public static final int DEPARTMENT_ID_MAX_LENGTH = 4;
 
     // tbl_admin 表字段长度限制
     public static final int ADMIN_ID_MAX_LENGTH = 20;
-    public static final int ADMIN_NAME_MAX_LENGTH = 50;
+    public static final int ADMIN_NAME_MAX_LENGTH = 255;
 
     // 图书馆规则
     public static final int MAX_BORROW_CONCURRENT = 5; // 同时借出上限

@@ -25,6 +25,21 @@ public class LibraryService {
         });
     }
 
+    public List<com.vCampus.entity.Book> searchBooksAdvanced(String keyword, String status, String sort, int page, int size) {
+        return TransactionManager.executeInTransaction(conn -> {
+            int offset = Math.max(0, (page - 1) * size);
+            String kw = keyword == null ? "" : keyword;
+            String st = status == null ? "全部" : status;
+            String order;
+            if ("书名↑".equals(sort)) order = "title ASC";
+            else if ("书名↓".equals(sort)) order = "title DESC";
+            else if ("可借↑".equals(sort)) order = "availableCopies ASC";
+            else if ("可借↓".equals(sort)) order = "availableCopies DESC";
+            else order = "bookId DESC";
+            return ((com.vCampus.dao.BookDao)bookDao).searchAdvanced(kw, st, order, offset, size, conn);
+        });
+    }
+
     public ServiceResult borrowBookWithReason(String userId, Integer bookId) {
         return borrowBookWithReason(userId, bookId, 30);
     }
@@ -112,7 +127,7 @@ public class LibraryService {
             int userMaxRenewTimes = 1;  // 默认
             try {
                 com.vCampus.entity.User u = getUserById(r.getUserId());
-                if (u != null && u.getRole() != null && (u.getRole().toLowerCase().contains("admin") || u.getRole().contains("管理员"))) {
+                if (com.vCampus.util.RBACUtil.isAdmin(u)) {
                     userMaxRenewTimes = 2;
                 }
             } catch (Exception ignored) {}
