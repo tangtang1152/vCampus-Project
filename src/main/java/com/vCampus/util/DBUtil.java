@@ -8,9 +8,6 @@ import java.util.Properties;
 
 public class DBUtil {
     
-    // 调试模式标志，控制详细输出
-    private static final boolean DEBUG_MODE = false;
-    
     // 数据库文件相对于项目根目录的路径
     private static final String DB_RELATIVE_PATH = "src\\main\\resources\\database\\vCampus.accdb";
     private static String connectionString;
@@ -74,14 +71,9 @@ public class DBUtil {
      * @throws SQLException 如果连接失败则抛出异常
      */
     public static Connection getConnection() throws SQLException {
-        // 减少重复输出，只在调试模式下输出
-        if (DEBUG_MODE) {
-            System.out.println("正在尝试建立数据库连接...");
-        }
+        System.out.println("正在尝试建立数据库连接...");
         Connection conn = DriverManager.getConnection(connectionString, connectionProperties);
-        if (DEBUG_MODE) {
-            System.out.println("数据库连接成功！");
-        }
+        System.out.println("数据库连接成功！");
         return conn;
     }
 
@@ -93,9 +85,7 @@ public class DBUtil {
         if (conn != null) {
             try {
                 conn.close();
-                if (DEBUG_MODE) {
-                    System.out.println("数据库连接已关闭。");
-                }
+                System.out.println("数据库连接已关闭。");
             } catch (SQLException e) {
                 System.err.println("关闭数据库连接时发生错误:");
                 e.printStackTrace();

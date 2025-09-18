@@ -33,8 +33,6 @@ public interface IUserService extends IBaseService<User, Integer> {
         
     User getByUsername(String username);
     
-    User findByUsername(String username);
-    
     boolean validateUser(String username, String password);
     
     boolean changePassword(Integer userId, String oldPassword, String newPassword);
@@ -43,8 +41,4 @@ public interface IUserService extends IBaseService<User, Integer> {
     
     // 其他特定方法
     boolean isUsernameExists(String username);
-    
-    //-------------------------------------
-    
-
 }

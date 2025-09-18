@@ -46,39 +46,6 @@ public abstract class BaseController implements Initializable {
     }
     
     /**
-     * 显示错误消息（带标题）
-     */
-    protected void showError(String title, String message) {
-        Alert alert = new Alert(Alert.AlertType.ERROR);
-        alert.setTitle("错误");
-        alert.setHeaderText(title);
-        alert.setContentText(message);
-        alert.showAndWait();
-    }
-    
-    /**
-     * 显示信息消息（带标题）
-     */
-    protected void showInfo(String title, String message) {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle("信息");
-        alert.setHeaderText(title);
-        alert.setContentText(message);
-        alert.showAndWait();
-    }
-    
-    /**
-     * 显示警告消息（带标题）
-     */
-    protected void showWarning(String title, String message) {
-        Alert alert = new Alert(Alert.AlertType.WARNING);
-        alert.setTitle("警告");
-        alert.setHeaderText(title);
-        alert.setContentText(message);
-        alert.showAndWait();
-    }
-    
-    /**
      * 显示警告消息
      */
     protected void showWarning(String message) {

@@ -11,8 +11,6 @@ import java.io.IOException;
 import java.net.URL;
 
 import com.vCampus.app.MainApp;
-import com.vCampus.entity.Student;
-import com.vCampus.view.StudentDetailController;
 
 /**
  * 页面导航工具类
@@ -117,39 +115,6 @@ public class NavigationUtil {
             System.err.println("❌ 打开对话框失败: " + e.getMessage());
             e.printStackTrace();
             throw new RuntimeException("Failed to open dialog: " + e.getMessage(), e);
-        }
-    }
-    
-    //----------------------------------------------------------------------
-    
-    /**
-     * 显示学籍管理界面
-     */
-    public static void showStudentManagement() {
-        showDialog("student-management-view.fxml", "学籍管理");
-    }
-    
-    /**
-     * 显示学生详情对话框
-     */
-    public static void showStudentDetail(Student student) {
-        try {
-            FXMLLoader loader = new FXMLLoader(NavigationUtil.class.getResource("/fxml/student-detail-view.fxml"));
-            Parent root = loader.load();
-            
-            // 传递学生数据给控制器
-            StudentDetailController controller = loader.getController();
-            controller.setStudent(student);
-            
-            Stage dialogStage = new Stage();
-            dialogStage.setTitle("学生详情 - " + student.getStudentName());
-            dialogStage.initModality(Modality.WINDOW_MODAL);
-            dialogStage.initOwner(MainApp.getPrimaryStage());
-            dialogStage.setScene(new Scene(root));
-            dialogStage.showAndWait();
-        } catch (IOException e) {
-            System.err.println("打开学生详情失败: " + e.getMessage());
-            e.printStackTrace();
         }
     }
 }

@@ -9,9 +9,6 @@ import java.sql.SQLException;
  */
 public class TransactionManager {
     
-    // 调试模式标志，控制详细输出
-    private static final boolean DEBUG_MODE = false;
-    
     /**
      * 在事务中执行操作
      */
@@ -19,14 +16,9 @@ public class TransactionManager {
         Connection conn = null;
         try {
             conn = DBUtil.getConnection();
-            // 减少重复输出，只在调试模式下输出
-            if (DEBUG_MODE) {
-                System.out.println("获取数据库连接成功");
-            }
+            System.out.println("获取数据库连接成功");
             conn.setAutoCommit(false);
-            if (DEBUG_MODE) {
-                System.out.println("开始事务");
-            }
+            System.out.println("开始事务");
             
             //registerStudent方法中，虽然检查了学号和用户名是否存在，
             //但在高并发环境下，这两个检查和后续的插入操作之间可能存在竞态条件。
@@ -36,9 +28,7 @@ public class TransactionManager {
             T result = callback.doInTransaction(conn);
             
             conn.commit();
-            if (DEBUG_MODE) {
-                System.out.println("事务提交成功");
-            }
+            System.out.println("事务提交成功");
             return result;
         } catch (SQLException e) {
             System.err.println("=== 数据库操作异常 ===");
@@ -78,9 +68,7 @@ public class TransactionManager {
                     if (!conn.isClosed()) {
                         conn.setAutoCommit(true);
                         conn.close();
-                        if (DEBUG_MODE) {
-                            System.out.println("数据库连接已关闭");
-                        }
+                        System.out.println("数据库连接已关闭");
                     }
                 } catch (SQLException e) {
                     System.err.println("关闭连接失败: " + e.getMessage());

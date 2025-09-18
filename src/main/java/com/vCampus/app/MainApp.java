@@ -5,7 +5,6 @@ import java.io.OutputStream;
 import java.io.PrintStream;
 
 import com.vCampus.common.ConfigManager;
-import com.vCampus.util.AccessDatabaseInitializer;
 
 import javafx.application.Application;
 import javafx.application.Platform;
@@ -14,6 +13,7 @@ import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.image.Image;
 import javafx.stage.Stage;
+
 /**
  * vCampus 系统主应用程序入口
  * 负责初始化应用程序并启动主界面
@@ -230,18 +230,8 @@ public class MainApp extends Application {
             System.exit(1);
         }
         
-        // 初始化RBAC权限控制系统
-        System.out.println("🔐 初始化RBAC权限控制系统...");
-        if (!AccessDatabaseInitializer.checkRBACTablesExist()) {
-            System.out.println("📊 创建RBAC数据库表...");
-            if (AccessDatabaseInitializer.initializeRBACTables()) {
-                System.out.println("✅ RBAC数据库表初始化成功");
-            } else {
-                System.err.println("❌ RBAC数据库表初始化失败");
-            }
-        } else {
-            System.out.println("✅ RBAC数据库表已存在");
-        }
+        // 检查数据库连接（注释掉以测试是否影响启动）
+        // checkDatabaseConnection();
         
         System.out.println("🎯 准备调用 launch(args)...");
         System.out.println("==========================================");

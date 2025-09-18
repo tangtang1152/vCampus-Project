@@ -19,19 +19,4 @@ public interface IStudentService extends IBaseService<Student,String>{
     boolean deleteStudentOnly(String studentId);
     
     List<Student> getStudentsByClass(String className);
-    //------------------------------------------------
-    List<Student> getStudentsByStatus(String status);
-    
-    boolean validateStudentStatus(String studentId, String requiredStatus) throws Exception;
-    String getStudentStatus(String studentId) throws Exception;
-    //boolean changeStudentStatus(String studentId, String newStatus, 
-    //                          String reason, String operator) throws Exception;
-    boolean isStudentActive(String studentId);
-    boolean updateStudentStatus(String studentId, String status);
-    //int getStudentBorrowLimit(String studentId) throws Exception;
-    
-    // 商店模块相关的方法
-    int getStudentOrderCount(String studentId);
-    double getStudentTotalSpending(String studentId);
-
 }
