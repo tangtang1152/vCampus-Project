@@ -158,4 +158,8 @@ public class MainController extends BaseController {
     private javafx.stage.Stage getCurrentStage() {
         return (javafx.stage.Stage) mainContainer.getScene().getWindow();
     }
+    
+    //---------------------------------------------------------------
+    
+  
 }

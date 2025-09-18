@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+
+<BorderPane xmlns:fx="http://javafx.com/fxml"
+            fx:controller="com.vCampus.view.StudentManagementController"
+            stylesheets="@../css/main.css">
+    
+    <top>
+        <VBox spacing="10" style="-fx-padding: 15;">
+            <HBox spacing="10" alignment="CENTER_LEFT">
+                <Label text="学籍管理" style="-fx-font-size: 18px; -fx-font-weight: bold;"/>
+                <Region HBox.hgrow="ALWAYS"/>
+                <Button text="刷新" onAction="#onRefresh" style="-fx-min-width: 80;"/>
+            </HBox>
+            
+            <HBox spacing="10" alignment="CENTER_LEFT">
+                <TextField fx:id="searchField" promptText="输入学号、姓名或班级搜索" 
+                          style="-fx-min-width: 250;"/>
+                <Button text="搜索" onAction="#onSearch" style="-fx-min-width: 80;"/>
+                <ComboBox fx:id="statusFilter" promptText="按状态筛选" 
+                         style="-fx-min-width: 120;"/>
+                <ComboBox fx:id="classFilter" promptText="按班级筛选" 
+                         style="-fx-min-width: 120;"/>
+            </HBox>
+        </VBox>
+    </top>
+    
+    <center>
+        <TableView fx:id="studentTable" BorderPane.alignment="CENTER">
+    <columns>
+        <TableColumn text="学号" prefWidth="100"/>
+        <TableColumn text="姓名" prefWidth="80"/>
+        <TableColumn text="班级" prefWidth="100"/>
+        <TableColumn text="性别" prefWidth="60"/>
+        <TableColumn text="邮箱" prefWidth="150"/>
+        <TableColumn text="身份证号" prefWidth="150"/>
+        <TableColumn text="入学日期" prefWidth="100"/>
+        <TableColumn text="学籍状态" prefWidth="100"/>
+        <TableColumn text="操作" prefWidth="200">
+                    <!-- 操作列将在控制器中动态生成 -->
+        </TableColumn>
+    </columns>
+</TableView>
+    </center>
+    
+    <bottom>
+        <HBox spacing="10" style="-fx-padding: 10;" alignment="CENTER_RIGHT">
+            <Button text="添加学生" onAction="#onAddStudent" 
+                   style="-fx-background-color: #28a745; -fx-text-fill: white; -fx-min-width: 100;"/>
+            <Button text="导出数据" onAction="#onExport" 
+                   style="-fx-background-color: #17a2b8; -fx-text-fill: white; -fx-min-width: 100;"/>
+            <Button text="批量操作" onAction="#onBatchOperation" 
+                   style="-fx-background-color: #6c757d; -fx-text-fill: white; -fx-min-width: 100;"/>
+        </HBox>
+    </bottom>
+    
+</BorderPane>

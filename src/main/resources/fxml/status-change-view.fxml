@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+
+<VBox xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.vCampus.view.StatusChangeController"
+      spacing="15"
+      style="-fx-padding: 20;">
+    
+    <Label text="学籍状态变更" style="-fx-font-size: 16px; -fx-font-weight: bold;"/>
+    
+    <HBox spacing="10" alignment="CENTER_LEFT">
+        <Label text="学号:" style="-fx-min-width: 80;"/>
+        <Label fx:id="studentIdLabel" style="-fx-font-weight: bold;"/>
+    </HBox>
+    
+    <HBox spacing="10" alignment="CENTER_LEFT">
+        <Label text="姓名:" style="-fx-min-width: 80;"/>
+        <Label fx:id="studentNameLabel" style="-fx-font-weight: bold;"/>
+    </HBox>
+    
+    <Separator/>
+    
+    <HBox spacing="10" alignment="CENTER_LEFT">
+        <Label text="当前状态:" style="-fx-min-width: 80;"/>
+        <Label fx:id="currentStatusLabel" style="-fx-font-weight: bold;"/>
+    </HBox>
+    
+    <HBox spacing="10" alignment="CENTER_LEFT">
+        <Label text="新状态:" style="-fx-min-width: 80;"/>
+        <ComboBox fx:id="newStatusComboBox" style="-fx-min-width: 120;"/>
+    </HBox>
+    
+    <Label text="变更原因:"/>
+    <TextArea fx:id="reasonTextArea" style="-fx-min-height: 80;"/>
+    
+    <HBox spacing="10" alignment="CENTER_RIGHT">
+        <Button text="提交变更" onAction="#onSubmit" style="-fx-min-width: 100;"/>
+        <Button text="取消" onAction="#onCancel" style="-fx-min-width: 80;"/>
+    </HBox>
+    
+</VBox>

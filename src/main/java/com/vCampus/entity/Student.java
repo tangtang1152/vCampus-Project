@@ -1,5 +1,7 @@
 package com.vCampus.entity;
 
+import java.util.Date;
+
 /**
  * 学生实体类
  * 表示系统中的学生信息，包含学生的基本属性
@@ -24,6 +26,15 @@ public class Student extends User {
      * 用于组织和管理学生分组
      */
     private String className;
+    
+   // ---------------------------------------------------
+    private Integer userId;     // 外键，关联tbl_user.userId
+    
+    private Date enrollDate;    // 入学日期
+    private String sex;         // 性别
+    private String email;       // 邮箱
+    private String idCard;      // 身份证号
+    private String status;      // 学籍状态
     
     // ==================== 构造函数 ====================
     
@@ -72,6 +83,27 @@ public class Student extends User {
     public String getClassName() {
         return className;
     }
+    //------------------------------------------------------
+    
+    public Date getEnrollDate() {
+        return enrollDate;
+    }
+    
+    public String getSex() {
+        return sex;
+    }
+    
+    public String getEmail() {
+        return email;
+    }
+    
+    public String getIdCard() {
+        return idCard;
+    }
+    
+    public String getStatus() {
+        return status;
+    }
     
     // ==================== Setter 方法 ====================
     
@@ -89,6 +121,26 @@ public class Student extends User {
     public void setClassName(String className) {
         this.className = className;
     }
+    //----------------------------------------------
+    public void setEnrollDate(Date enrollDate) {
+        this.enrollDate = enrollDate;
+    }
+    
+    public void setSex(String sex) {
+        this.sex = sex;
+    }
+    
+    public void setEmail(String email) {
+        this.email = email;
+    }
+    
+    public void setIdCard(String idCard) {
+        this.idCard = idCard;
+    }
+    
+    public void setStatus(String status) {
+        this.status = status;
+    }
     
     // ==================== 辅助方法 ====================
     
@@ -101,9 +153,15 @@ public class Student extends User {
     @Override
     public String toString() {
         return "Student{" +
-                "studentId=" + studentId +
+                "studentId='" + studentId + '\'' +
+                ", userId=" + userId +
                 ", studentName='" + studentName + '\'' +
-                ", className='" + className + '\'' +
+                ", classId='" + className + '\'' +
+                ", enrollDate=" + enrollDate +
+                ", sex='" + sex + '\'' +
+                ", email='" + email + '\'' +
+                ", idCard='" + idCard + '\'' +
+                ", status='" + status + '\'' +
                 '}';
     }
     
