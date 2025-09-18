@@ -6,6 +6,7 @@
 
 <BorderPane xmlns:fx="http://javafx.com/fxml"
             fx:controller="com.vCampus.view.MainController"
+            fx:id="mainContainer"  
             stylesheets="@../css/main.css">
     
     <!-- 顶部菜单 -->
