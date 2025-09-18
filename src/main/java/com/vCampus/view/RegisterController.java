@@ -192,6 +192,8 @@ public class RegisterController {
    
     */
     private void handleResponse(String response) {
+        System.out.println("=== handleResponse 被调用 ===");
+        System.out.println("收到的响应: " + response);
         switch (response) {
             case "SUCCESS":
                 showSuccess("注册成功！");
@@ -234,27 +236,13 @@ public class RegisterController {
                 
                 // 添加类型特定字段
                 if ("学生".equals(userType)) {
-                	/* Student student = new Student();
-                student.setUsername(username);
-                student.setPassword(password);
-                student.setRole(roleEnglish);
-                student.setStudentName(studentNameField.getText().trim());
-                student.setClassName(classNameField.getText().trim());
-                student.setStudentId(studentIdField.getText().trim()); 
-                 
-
-                System.out.println("注册学生信息: " + student.toString());
-                registerUser(student, "学生");
-                	 * 
-                	 * 
-                	 * */
                     Student student = (Student)user;
                     request += ("|" + student.getStudentId() + "|" + 
-                    		String.valueOf(student.getUserId()) + "|" + 
-                              student.getStudentName()+"|"+student.getUsername()+"|"+student.getClassName()
+                              student.getStudentName()+"|"+student.getUsername()+"|"+student.getPassword()+"|"+student.getRole()+"|"+student.getClassName()
                               );
                     	  String response = SocketClient.sendRequest(request);
-                          handleResponse(response);
+                          // 使用Platform.runLater确保UI更新在正确的线程上执行
+                          javafx.application.Platform.runLater(() -> handleResponse(response));
                   
                     /*
                      * 
@@ -271,26 +259,26 @@ public class RegisterController {
                      * */      
                 } 
                 else if ("教师".equals(userType)) {
-                	
-      
                     Teacher teacher = (Teacher)user;
-                    request += ("|" + teacher.getTeacherId() + "|" + String.valueOf(teacher.getUserId())+
-                              teacher.getTeacherName()+"|" +teacher.getUsername()+"|"+teacher.getTechnical()+"|"
+                    request += ("|" + teacher.getTeacherId() + "|" +
+                              teacher.getTeacherName()+"|" +teacher.getUsername()+"|"+teacher.getPassword()+"|"+teacher.getRole()+"|"+teacher.getTechnical()+"|"
                               +teacher.getDepartmentId()+"|"+teacher.getSex());
                     String response = SocketClient.sendRequest(request);
-                    handleResponse(response);
+                    // 使用Platform.runLater确保UI更新在正确的线程上执行
+                    javafx.application.Platform.runLater(() -> handleResponse(response));
                 }
                 // 管理员可能不需要额外字段
                 else if("管理员".equals(userType)) {
                 	Admin admin=(Admin)user;
-                	 request += ("|" + admin.getAdminId() + "|" + String.valueOf(admin.getUserId())+
-                			 admin.getAdminName()+"|" +admin.getUsername());
+                	 request += ("|" + admin.getAdminId() + "|" +
+                			 admin.getAdminName()+"|" +admin.getUsername()+"|"+admin.getPassword()+"|"+admin.getRole());
                 	  String response = SocketClient.sendRequest(request);
-                      handleResponse(response);
+                      // 使用Platform.runLater确保UI更新在正确的线程上执行
+                      javafx.application.Platform.runLater(() -> handleResponse(response));
                 	
                 }
                 else {
-                	showError("代码不应该执行到这里");
+                	javafx.application.Platform.runLater(() -> showError("代码不应该执行到这里"));
                 }
                 
             } catch (Exception e) {
@@ -419,11 +407,19 @@ public class RegisterController {
 
     private void showError(String message) {
         try {
-            System.out.println("显示错误信息: " + message);
-            errorLabel.setText(message);
-            errorLabel.setVisible(true);
+            System.out.println("=== showError 被调用 ===");
+            System.out.println("错误信息: " + message);
+            System.out.println("errorLabel 是否为null: " + (errorLabel == null));
+            if (errorLabel != null) {
+                errorLabel.setText(message);
+                errorLabel.setVisible(true);
+                System.out.println("错误信息已设置到UI");
+            } else {
+                System.err.println("errorLabel 为 null，无法显示错误信息");
+            }
         } catch (Exception e) {
             System.err.println("显示错误信息时发生异常: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 

@@ -74,23 +74,22 @@ public class ClientThread extends Thread {
          {
         	 switch(parts[1]) {
         	 case "学生":{
-        		 if (parts.length < 7) {
+        		 if (parts.length < 8) {
                      return "ERROR|登录参数不足";
                  }
         		 
         		 String StudentId = parts[2] ;
-        		 int UserId = Integer.parseInt(parts[3]) ;
-        		 if(UserId==0) {
-        			 return "ZERO";
-        		 }
-        		 String StudentName = parts[4] ;
-        		 String Username = parts[5] ;
-        		 String ClassName = parts[6];
+        		 String StudentName = parts[3] ;
+        		 String Username = parts[4] ;
+        		 String Password = parts[5] ;
+        		 String Role = parts[6] ;
+        		 String ClassName = parts[7];
         		 
         		 Student st = new Student();
         		 st.setStudentId(StudentId);
-        		 st.setUserId(UserId);
         		 st.setUsername(Username);
+        		 st.setPassword(Password);
+        		 st.setRole(Role);
         		 st.setStudentName(StudentName);
         		 st.setClassName(ClassName);
         		 
@@ -99,22 +98,24 @@ public class ClientThread extends Thread {
                  return ReturnResult(result,"学生");
         	 }
              case "教师":{
-            	 if (parts.length < 9) {
+            	 if (parts.length < 10) {
                      return "ERROR|登录参数不足";
                  }
             	 String TeacherId = parts[2] ;
-        		 int UserId = Integer.parseInt(parts[3]) ;
-        		 String TeacherName = parts[4] ;
-        		 String Username = parts[5] ;
-        		 String Technical = parts[6];
-        		 String DepartmentId = parts[7];
-        		 String Sex = parts[8];
+        		 String TeacherName = parts[3] ;
+        		 String Username = parts[4] ;
+        		 String Password = parts[5] ;
+        		 String Role = parts[6] ;
+        		 String Technical = parts[7];
+        		 String DepartmentId = parts[8];
+        		 String Sex = parts[9];
         		 
         		 Teacher tc = new Teacher();
         		 tc.setTeacherId(TeacherId);
-        		 tc.setUserId(UserId);
         		 tc.setTeacherName(TeacherName);
         		 tc.setUsername(Username);
+        		 tc.setPassword(Password);
+        		 tc.setRole(Role);
         		 tc.setTechnical(Technical);
         		 tc.setDepartmentId(DepartmentId);
         		 tc.setSex(Sex);
@@ -124,19 +125,21 @@ public class ClientThread extends Thread {
             	
         	 }
             case "管理员":{
-            	if (parts.length < 6) {
+            	if (parts.length < 7) {
                     return "ERROR|登录参数不足";
                 }
             	 String AdminId = parts[2] ;
-        		 int UserId = Integer.parseInt(parts[3]) ;
-        		 String AdminName = parts[4] ;
-        		 String Username = parts[5] ;
+        		 String AdminName = parts[3] ;
+        		 String Username = parts[4] ;
+        		 String Password = parts[5] ;
+        		 String Role = parts[6] ;
         		 
         		 Admin admin = new Admin();
         		 admin.setAdminId(AdminId);
-        		 admin.setUserId(UserId);
         		 admin.setAdminName(AdminName);
         		 admin.setUsername(Username);
+        		 admin.setPassword(Password);
+        		 admin.setRole(Role);
         		 IUserService userService = ServiceFactory.getUserService();
                  IUserService.RegisterResult result = userService.register(admin);
                  return ReturnResult(result,"管理员");
