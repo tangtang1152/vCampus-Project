@@ -43,10 +43,11 @@
         <version>5.0.1</version>
     </dependency>
     <!-- UCanAccess 的依赖项 -->
+    <!-- 与 UCanAccess 5.0.1 兼容的 HSQLDB 版本，避免函数加载报错 -->
     <dependency>
         <groupId>org.hsqldb</groupId>
         <artifactId>hsqldb</artifactId>
-        <version>2.7.2</version>
+        <version>2.5.1</version>
     </dependency>
     <dependency>
         <groupId>org.apache.commons</groupId>

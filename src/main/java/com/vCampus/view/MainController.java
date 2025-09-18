@@ -65,6 +65,29 @@ public class MainController extends BaseController {
         loadContent("course-management-view.fxml");
         statusLabel.setText("课程管理模块");
     }
+
+    /**
+     * 管理员图书维护
+     */
+    @FXML
+    private void onLibraryAdmin() {
+        var user = com.vCampus.common.SessionContext.getCurrentUser();
+        if (user == null || user.getRole() == null || (!user.getRole().toLowerCase().contains("admin") && !user.getRole().contains("管理员"))) {
+            showWarning("需要管理员权限");
+            return;
+        }
+        loadContent("library-admin-view.fxml");
+        statusLabel.setText("图书维护");
+    }
+
+    /**
+     * 图书馆菜单点击
+     */
+    @FXML
+    private void onLibrary() {
+        loadContent("library-view.fxml");
+        statusLabel.setText("图书馆模块");
+    }
     
     /**
      * 退出系统
@@ -79,6 +102,7 @@ public class MainController extends BaseController {
         
         alert.showAndWait().ifPresent(response -> {
             if (response == javafx.scene.control.ButtonType.OK) {
+                com.vCampus.common.SessionContext.clear();
                 NavigationUtil.navigateTo(
                     getCurrentStage(),
                     "login-view.fxml",

@@ -71,6 +71,8 @@ public class LoginController extends BaseController {
             var user = userService.login(username, password);
             if (user != null) {
                 showSuccess("登录成功！欢迎 " + user.getUsername());
+                // 保存到会话上下文
+                com.vCampus.common.SessionContext.setCurrentUser(user);
                 
                 // 跳转到主界面
                 NavigationUtil.navigateTo(
