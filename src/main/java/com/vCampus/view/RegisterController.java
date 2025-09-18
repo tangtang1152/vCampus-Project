@@ -8,10 +8,10 @@ import com.vCampus.entity.User;
 import com.vCampus.entity.Student;
 import com.vCampus.entity.Teacher;
 import com.vCampus.entity.Admin;
-import com.vCampus.service.IUserService;
-import com.vCampus.service.ServiceFactory;
+
 import com.vCampus.util.TransactionManager;
 
+import client.net.SocketClient;
 public class RegisterController {
 
     @FXML private TextField usernameField;
@@ -45,11 +45,11 @@ public class RegisterController {
 
         // 在控制器中初始化选项
         roleComboBox.getItems().addAll("学生", "教师", "管理员");
-        roleComboBox.setValue("学生");
+        roleComboBox.setValue("学生");//默认为学生
 
         // 初始化教师性别选项
         teacherSexComboBox.getItems().addAll("男", "女");
-        teacherSexComboBox.setValue("男");
+        teacherSexComboBox.setValue("男");//默认为男
 
         // 添加监听器，当选项变化时调用
         roleComboBox.valueProperty().addListener((observable, oldValue, newValue) -> {
@@ -101,16 +101,19 @@ public class RegisterController {
 
             // 根据角色创建相应的对象
             if ("学生".equals(role)) {
-                Student student = new Student();
+            
+                 Student student = new Student();
                 student.setUsername(username);
                 student.setPassword(password);
                 student.setRole(roleEnglish);
                 student.setStudentName(studentNameField.getText().trim());
                 student.setClassName(classNameField.getText().trim());
-                student.setStudentId(studentIdField.getText().trim());
+                student.setStudentId(studentIdField.getText().trim()); 
+                 
 
                 System.out.println("注册学生信息: " + student.toString());
                 registerUser(student, "学生");
+                
 
             } else if ("教师".equals(role)) {
                 Teacher teacher = new Teacher();
@@ -148,8 +151,33 @@ public class RegisterController {
     /**
      * 注册用户（在后台线程执行）
      */
+    /*
     private void registerUser(User user, String userType) {
         new Thread(() -> {
+        	/*String request = "REGISTER|" + userType + "|";
+        	
+        	 * try {
+        	    String response = SocketClient.sendRequest(request);
+        	    // 处理响应...
+        	} catch (IOException e) {
+        	    System.err.println("网络通信失败: " + e.getMessage());
+        	    e.printStackTrace();
+        	    // 可选：显示错误提示给用户
+        	    showError("无法连接服务器，请检查网络");
+        	}
+       	if ("学生".equals(userType)) {
+        		request+=user.get ;
+        	}
+        	else if ("教师".equals(userType)) {
+            	
+            }
+            else if ("管理员".equals(userType)) {
+            	
+            }
+            else {
+            	//程序不应该执行到此
+            }
+        	
         	IUserService userService = ServiceFactory.getUserService();
             IUserService.RegisterResult result = userService.register(user);
             TransactionManager.runLaterSafe(() -> {
@@ -157,45 +185,134 @@ public class RegisterController {
             });
         }).start();
     }
-
+   
     /**
      * 处理注册结果
-     */
-    private void handleRegisterResult(IUserService.RegisterResult result, String userType) {
-        System.out.println("处理注册结果: " + result + ", 用户类型: " + userType);
-
-        switch (result) {
-            case SUCCESS:
-                showSuccess(userType + "注册成功！");
+     
+   
+    */
+    private void handleResponse(String response) {
+        switch (response) {
+            case "SUCCESS":
+                showSuccess("注册成功！");
                 closeWindow();
                 break;
-            case USERNAME_EXISTS:
+            case "用户名已存在":
                 showError("注册失败，用户名已存在");
                 usernameField.requestFocus();
                 break;
-            case STUDENT_ID_EXISTS:
+            case "学号已存在":
                 showError("注册失败，学号已存在");
                 studentIdField.requestFocus();
                 break;
-            case TEACHER_ID_EXISTS:
+            case "教师编号已存在":
                 showError("注册失败，教师编号已存在");
                 teacherIdField.requestFocus();
                 break;
-            case ADMIN_ID_EXISTS:
+            case "管理员工号已存在":
                 showError("注册失败，管理员工号已存在");
                 adminIdField.requestFocus();
                 break;
-            case VALIDATION_FAILED:
+            case "注册失败，数据验证失败，请检查输入":
                 showError("注册失败，数据验证失败，请检查输入");
                 break;
-            case DATABASE_ERROR:
+            case "注册失败，数据库错误，请检查数据格式或联系管理员":
                 showError("注册失败，数据库错误，请检查数据格式或联系管理员");
+                break;
+            case "ZERO":
+            	showError("userid==null");
                 break;
             default:
                 showError("注册失败，未知错误");
         }
     }
+    private void registerUser(User user, String userType) {
+        new Thread(() -> {
+            try {
+                // 构建请求字符串
+                String request = "REGISTER|" + userType;
+                
+                // 添加类型特定字段
+                if ("学生".equals(userType)) {
+                	/* Student student = new Student();
+                student.setUsername(username);
+                student.setPassword(password);
+                student.setRole(roleEnglish);
+                student.setStudentName(studentNameField.getText().trim());
+                student.setClassName(classNameField.getText().trim());
+                student.setStudentId(studentIdField.getText().trim()); 
+                 
 
+                System.out.println("注册学生信息: " + student.toString());
+                registerUser(student, "学生");
+                	 * 
+                	 * 
+                	 * */
+                    Student student = (Student)user;
+                    request += ("|" + student.getStudentId() + "|" + 
+                    		String.valueOf(student.getUserId()) + "|" + 
+                              student.getStudentName()+"|"+student.getUsername()+"|"+student.getClassName()
+                              );
+                    	  String response = SocketClient.sendRequest(request);
+                          handleResponse(response);
+                  
+                    /*
+                     * 
+                     * try {
+                        String response = SocketClient.sendRequest(request);
+                        handleResponse(response);
+                   
+                    } catch (Exception e) {
+                        showError("登录失败: " + e.getMessage());
+                        e.printStackTrace();
+                    }
+                }
+                     * 
+                     * */      
+                } 
+                else if ("教师".equals(userType)) {
+                	
+      
+                    Teacher teacher = (Teacher)user;
+                    request += ("|" + teacher.getTeacherId() + "|" + String.valueOf(teacher.getUserId())+
+                              teacher.getTeacherName()+"|" +teacher.getUsername()+"|"+teacher.getTechnical()+"|"
+                              +teacher.getDepartmentId()+"|"+teacher.getSex());
+                    String response = SocketClient.sendRequest(request);
+                    handleResponse(response);
+                }
+                // 管理员可能不需要额外字段
+                else if("管理员".equals(userType)) {
+                	Admin admin=(Admin)user;
+                	 request += ("|" + admin.getAdminId() + "|" + String.valueOf(admin.getUserId())+
+                			 admin.getAdminName()+"|" +admin.getUsername());
+                	  String response = SocketClient.sendRequest(request);
+                      handleResponse(response);
+                	
+                }
+                else {
+                	showError("代码不应该执行到这里");
+                }
+                
+            } catch (Exception e) {
+                TransactionManager.runLaterSafe(() -> {
+                    showError("注册失败: " + e.getMessage());
+                });
+                e.printStackTrace();
+            }
+        }).start();
+    }
+
+   
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
     private boolean validateInput() {
         // 检查必填字段
         if (usernameField.getText().trim().isEmpty()) {

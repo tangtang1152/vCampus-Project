@@ -80,6 +80,7 @@
       </plugin>
       
       <!-- 如果需要处理资源文件，可以添加资源插件 -->
+      
       <!-- JavaFX Maven 插件 -->
       <plugin>
         <groupId>org.openjfx</groupId>

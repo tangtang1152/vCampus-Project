@@ -2,8 +2,7 @@ package com.vCampus.view;
 
 import com.vCampus.common.BaseController;
 import com.vCampus.common.NavigationUtil;
-import com.vCampus.service.IUserService;
-import com.vCampus.service.ServiceFactory;
+
 import javafx.fxml.FXML;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
@@ -12,6 +11,8 @@ import javafx.scene.input.KeyEvent;
 
 import java.net.URL;
 import java.util.ResourceBundle;
+
+import client.net.*;
 
 /**
  * 登录界面控制器
@@ -53,7 +54,7 @@ public class LoginController extends BaseController {
         String password = passwordField.getText().trim();
         
         // 输入验证
-        if (!validateInput(username, password)) {
+        if (!validateInput(username, password)) {//在common包里面的函数
             showError("用户名和密码不能为空");
             usernameField.requestFocus();
             return;
@@ -65,23 +66,31 @@ public class LoginController extends BaseController {
             return;
         }
         
-        // 执行登录
+        // 执行登录:涉及到读写数据库的操作,需要socket
         try {
-        	IUserService userService = ServiceFactory.getUserService();
-            var user = userService.login(username, password);
-            if (user != null) {
-                showSuccess("登录成功！欢迎 " + user.getUsername());
-                
-                // 跳转到主界面
+            String request = "LOGIN|" + username + "|" + password;
+            String response = SocketClient.sendRequest(request);
+
+            // 处理空响应
+            if (response == null || response.trim().isEmpty()) {
+                throw new RuntimeException("服务器无响应");
+            }
+
+            String[] parts = response.split("\\|");
+            if (parts[0].equals("LOGIN_SUCCESS") && parts.length >= 2) {
+                showSuccess("登录成功！欢迎 " + parts[1]);
                 NavigationUtil.navigateTo(
                     getCurrentStage(),
                     "main-view.fxml", 
-                    "vCampus主界面 - " + user.getUsername()
+                    "vCampus主界面 - " + parts[1]
                 );
-            } else {
-                showError("用户名或密码错误");
+            } else if (parts[0].equals("LOGIN_FAILED")) {
+                showError("用户名或密码错误!");
                 passwordField.clear();
                 passwordField.requestFocus();
+            } 
+            else {
+            	showError("未知响应");
             }
         } catch (Exception e) {
             showError("登录失败: " + e.getMessage());

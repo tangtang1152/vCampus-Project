@@ -60,6 +60,10 @@ extends AbstractBaseServiceImpl<User, Integer> implements IUserService {
                 }
                 return null;
             });
+            /*
+             * 验证成功：返回完整的 User 对象
+               验证失败：返回 null
+               */
         } catch (RuntimeException e) {
             System.err.println("登录失败: " + e.getMessage());
             e.printStackTrace();
@@ -143,7 +147,7 @@ extends AbstractBaseServiceImpl<User, Integer> implements IUserService {
 
 
     @Override
-    public RegisterResult register(User user) {
+    public RegisterResult register(User user) {//调用了registerStudent registerTeacher registerAdmin
         try {
             return TransactionManager.executeInTransaction(conn -> {
                 // 根据用户类型进行不同的注册处理
