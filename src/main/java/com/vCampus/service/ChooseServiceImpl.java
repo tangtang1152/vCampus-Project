@@ -71,8 +71,8 @@ public class ChooseServiceImpl extends AbstractBaseServiceImpl<Choose, String> i
 
     @Override
     public boolean chooseSubject(String studentId, String subjectId) {
-        // 正常学生选课，所有检查都执行
-        return doChooseSubject(studentId, subjectId, false, false); // 不忽略时间冲突，不忽略选课有效期
+        // 正常学生选课，不做“选课有效期”检查（按你的需求），仍保留容量/重复/时间冲突检查
+        return doChooseSubject(studentId, subjectId, false, true); // 不忽略时间冲突，忽略选课有效期
     }
 
     /**
@@ -84,9 +84,8 @@ public class ChooseServiceImpl extends AbstractBaseServiceImpl<Choose, String> i
      */
     @Override
     public boolean adminAssistChooseSubject(String studentId, String subjectId, boolean ignoreTimeConflict) {
-        // 管理员代选，可以无视时间冲突，但通常不无视其他限制，如容量、学生已选、退选有效期等。
-        // 对于选课有效期，管理员代选通常也应该无视，因为管理员可能需要为学生补选过期课程。
-        return doChooseSubject(studentId, subjectId, ignoreTimeConflict, true); // 忽略时间冲突，忽略选课有效期
+        // 管理员代选：是否忽略时间冲突由参数控制；一律忽略选课有效期
+        return doChooseSubject(studentId, subjectId, ignoreTimeConflict, true);
     }
 
     /**
@@ -176,12 +175,12 @@ public class ChooseServiceImpl extends AbstractBaseServiceImpl<Choose, String> i
   return false;
                 }
 
-                // 2. 新增：检查是否在退选有效期内 (这个通常不应该跳过，除非有专门的管理员退选方法)
-                Subject subject = subjectDao.findById(choose.getSubjectId(), conn);
-                if (subject != null && !isWithinDropPeriod(subject)) {
-  System.out.println("退选失败: 已超过退选时间，无法退选，选课ID: " + selectid);
-  return false;
-                }
+                // 2. 退选有效期校验（已按需求关闭，允许任何时间退课）
+                // Subject subject = subjectDao.findById(choose.getSubjectId(), conn);
+                // if (subject != null && !isWithinDropPeriod(subject)) {
+                //     System.out.println("退选失败: 已超过退选时间，无法退选，选课ID: " + selectid);
+                //     return false;
+                // }
 
                 // 3. 删除选课记录
                 boolean success = chooseDao.delete(selectid, conn);

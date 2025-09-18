@@ -4,6 +4,8 @@ import com.vCampus.common.BaseController;
 import com.vCampus.common.SessionContext;
 import com.vCampus.entity.Subject;
 import com.vCampus.service.ChooseServiceImpl;
+import com.vCampus.service.IStudentService;
+import com.vCampus.service.ServiceFactory;
 import com.vCampus.service.SubjectServiceImpl;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
@@ -124,9 +126,17 @@ public class ChooseController extends BaseController {
 
     private String getCurrentStudentId() {
         var u = SessionContext.getCurrentUser();
+        if (u == null) return "";
         if (u instanceof com.vCampus.entity.Student s) {
             return s.getStudentId();
         }
-        return "";
+        // 兼容：登录保存的是通用 User 时，根据 userId 反查学生学号
+        try {
+            IStudentService stuSvc = ServiceFactory.getStudentService();
+            var stu = stuSvc.getByUserId(u.getUserId());
+            return stu == null ? "" : stu.getStudentId();
+        } catch (Exception e) {
+            return "";
+        }
     }
 }

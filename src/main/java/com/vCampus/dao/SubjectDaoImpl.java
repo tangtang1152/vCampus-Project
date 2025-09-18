@@ -33,7 +33,7 @@ public class SubjectDaoImpl extends AbstractBaseDaoImpl<Subject, String> impleme
         subject.setSubjectNum(rs.getInt("subjectNum"));
         subject.setCredit(rs.getDouble("credit"));
         subject.setTeacherId(rs.getString("teacherId"));
-        // 新增字段映射（从数据库结果集读取）
+        // 新增字段映射（从数据库结果集中读取）
         subject.setWeekRange(rs.getString("weekRange"));
         subject.setWeekType(rs.getString("weekType"));
         subject.setClassTime(rs.getString("classTime"));
@@ -43,14 +43,12 @@ public class SubjectDaoImpl extends AbstractBaseDaoImpl<Subject, String> impleme
 
     @Override
     protected void setInsertParameters(PreparedStatement pstmt, Subject subject) throws SQLException {
-        // 原有字段参数（1-6）
         pstmt.setString(1, subject.getSubjectId());
         pstmt.setString(2, subject.getSubjectName());
         pstmt.setDate(3, new java.sql.Date(subject.getSubjectDate().getTime()));
         pstmt.setInt(4, subject.getSubjectNum());
         pstmt.setDouble(5, subject.getCredit());
         pstmt.setString(6, subject.getTeacherId());
-        // 新增字段参数（7-10）
         pstmt.setString(7, subject.getWeekRange());
         pstmt.setString(8, subject.getWeekType());
         pstmt.setString(9, subject.getClassTime());
@@ -59,18 +57,15 @@ public class SubjectDaoImpl extends AbstractBaseDaoImpl<Subject, String> impleme
 
     @Override
     protected void setUpdateParameters(PreparedStatement pstmt, Subject subject) throws SQLException {
-        // 原有字段参数（1-5）
         pstmt.setString(1, subject.getSubjectName());
         pstmt.setDate(2, new java.sql.Date(subject.getSubjectDate().getTime()));
         pstmt.setInt(3, subject.getSubjectNum());
         pstmt.setDouble(4, subject.getCredit());
         pstmt.setString(5, subject.getTeacherId());
-        // 新增字段参数（6-9）
         pstmt.setString(6, subject.getWeekRange());
         pstmt.setString(7, subject.getWeekType());
         pstmt.setString(8, subject.getClassTime());
         pstmt.setString(9, subject.getClassroom());
-        // 条件字段（课程ID，第10个参数）
         pstmt.setString(10, subject.getSubjectId());
     }
 
@@ -92,12 +87,8 @@ public class SubjectDaoImpl extends AbstractBaseDaoImpl<Subject, String> impleme
         subject.setClassTime(truncatedClassTime);
         subject.setClassroom(truncatedClassroom);
 
-        // 新增字段的SQL插入语句
-        String sql = "INSERT INTO tbl_subject (" +
-                     "subjectId, subjectName, subjectDate, subjectNum, credit, teacherId, " +
-                     "weekRange, weekType, classTime, classroom" +  // 新增字段
-                     ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";  // 10个参数
-        
+        String sql = "INSERT INTO tbl_subject (subjectId, subjectName, subjectDate, subjectNum, credit, teacherId, weekRange, weekType, classTime, classroom) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
         try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
             setInsertParameters(pstmt, subject);
             int affectedRows = pstmt.executeUpdate();
@@ -110,13 +101,8 @@ public class SubjectDaoImpl extends AbstractBaseDaoImpl<Subject, String> impleme
 
     @Override
     public boolean update(Subject subject, Connection conn) throws SQLException {
-        // 新增字段的SQL更新语句
-        String sql = "UPDATE tbl_subject SET " +
-                     "subjectName = ?, subjectDate = ?, subjectNum = ?, " +
-                     "credit = ?, teacherId = ?, " +
-                     "weekRange = ?, weekType = ?, classTime = ?, classroom = ? " +  // 新增字段
-                     "WHERE subjectId = ?";
-        
+        String sql = "UPDATE tbl_subject SET subjectName = ?, subjectDate = ?, subjectNum = ?, credit = ?, teacherId = ?, weekRange = ?, weekType = ?, classTime = ?, classroom = ? WHERE subjectId = ?";
+
         try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
             setUpdateParameters(pstmt, subject);
             int affectedRows = pstmt.executeUpdate();
