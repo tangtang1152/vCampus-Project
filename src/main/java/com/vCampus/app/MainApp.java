@@ -3,12 +3,8 @@ package com.vCampus.app;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
-import java.sql.Connection;
-import java.sql.SQLException;
 
 import com.vCampus.common.ConfigManager;
-import com.vCampus.common.NavigationUtil;
-import com.vCampus.util.DBUtil;
 
 import javafx.application.Application;
 import javafx.application.Platform;
@@ -178,27 +174,27 @@ public class MainApp extends Application {
     public static void main(String[] args) {
     	
 		
-        // 保存原始的System.err
-        PrintStream originalErr = System.err;
-        
-        // 重定向System.err到空输出，完全隐藏所有错误信息
-        System.setErr(new PrintStream(new OutputStream() {
-            @Override
-            public void write(int b) throws IOException {
-                // 完全丢弃所有错误输出
-            }
-            
-            @Override
-            public void write(byte[] b, int off, int len) throws IOException {
-                String message = new String(b, off, len);
-                // 只允许显示我们自己程序的错误，过滤掉所有UCanAccess和HSQLDB的错误
-                if (message.contains("可替换") || message.contains("注册") || 
-                    message.contains("登录") || message.contains("错误")) {
-                    originalErr.write(b, off, len);
-                }
-                // 其他错误全部丢弃
-            }
-        }));
+//        // 保存原始的System.err
+//        PrintStream originalErr = System.err;
+//        
+//        // 重定向System.err到空输出，完全隐藏所有错误信息
+//        System.setErr(new PrintStream(new OutputStream() {
+//            @Override
+//            public void write(int b) throws IOException {
+//                // 完全丢弃所有错误输出
+//            }
+//            
+//            @Override
+//            public void write(byte[] b, int off, int len) throws IOException {
+//                String message = new String(b, off, len);
+//                // 只允许显示我们自己程序的错误，过滤掉所有UCanAccess和HSQLDB的错误
+//                if (message.contains("可替换") || message.contains("注册") || 
+//                    message.contains("登录") || message.contains("错误")) {
+//                    originalErr.write(b, off, len);
+//                }
+//                // 其他错误全部丢弃
+//            }
+//        }));
     	
         // 强制设置系统编码为 UTF-8
         try {
@@ -252,55 +248,5 @@ public class MainApp extends Application {
         System.out.println("==========================================");
         System.out.println("🏁 main() 方法结束");
         System.out.println("==========================================");
-    }
-    
-    /**
-     * 检查数据库连接
-     */
-    private static void checkDatabaseConnection() {
-        System.out.println("========== 数据库连接测试 ==========");
-        try {
-            Connection conn = DBUtil.getConnection();
-            if (conn != null && !conn.isClosed()) {
-                System.out.println("✅ 数据库连接检查通过");
-                System.out.println("   数据库URL: " + conn.getMetaData().getURL());
-                conn.close();
-            } else {
-                System.out.println("❌ 数据库连接失败");
-            }
-        } catch (Exception e) {
-            System.err.println("❌ 数据库连接失败: " + e.getMessage());
-            e.printStackTrace();
-            showStartupError("数据库连接失败", "请检查数据库文件是否存在且可访问");
-        }
-        System.out.println("========== 测试结束 ==========");
-    }
-    
-    /**
-     * 显示启动错误对话框
-     */
-    private static void showStartupError(String title, String message) {
-        System.out.println("❌ 显示启动错误: " + title);
-        Platform.runLater(() -> {
-            javafx.scene.control.Alert alert = new javafx.scene.control.Alert(
-                javafx.scene.control.Alert.AlertType.ERROR);
-            alert.setTitle("启动错误");
-            alert.setHeaderText(title);
-            alert.setContentText(message);
-            alert.showAndWait();
-            System.exit(1);
-        });
-    }
-    
-    /**
-     * 调试方法：检查线程信息
-     */
-    private static void checkThreadInfo() {
-        Thread currentThread = Thread.currentThread();
-        System.out.println("🧵 当前线程信息:");
-        System.out.println("   线程ID: " + currentThread.getId());
-        System.out.println("   线程名称: " + currentThread.getName());
-        System.out.println("   线程状态: " + currentThread.getState());
-        System.out.println("   是否为守护线程: " + currentThread.isDaemon());
     }
 }

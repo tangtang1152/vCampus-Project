@@ -2,7 +2,8 @@ package com.vCampus.view;
 
 import com.vCampus.common.BaseController;
 import com.vCampus.common.NavigationUtil;
-import com.vCampus.service.UserService;
+import com.vCampus.service.IUserService;
+import com.vCampus.service.ServiceFactory;
 import javafx.fxml.FXML;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
@@ -66,9 +67,12 @@ public class LoginController extends BaseController {
         
         // 执行登录
         try {
-            var user = UserService.login(username, password);
+        	IUserService userService = ServiceFactory.getUserService();
+            var user = userService.login(username, password);
             if (user != null) {
                 showSuccess("登录成功！欢迎 " + user.getUsername());
+                // 保存到会话上下文
+                com.vCampus.common.SessionContext.setCurrentUser(user);
                 
                 // 跳转到主界面
                 NavigationUtil.navigateTo(

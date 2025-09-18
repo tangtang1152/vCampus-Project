@@ -2,8 +2,13 @@ package com.vCampus.view;
 
 import com.vCampus.common.BaseController;
 import com.vCampus.common.NavigationUtil;
+import com.vCampus.common.SessionContext;
+import com.vCampus.util.RBACUtil;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
+import javafx.scene.control.Menu;
+import javafx.scene.control.MenuItem;
+import javafx.scene.control.ComboBox;
 import javafx.scene.layout.BorderPane;
 
 import java.net.URL;
@@ -18,6 +23,13 @@ public class MainController extends BaseController {
     @FXML private BorderPane mainContainer;
     @FXML private Label welcomeLabel;
     @FXML private Label statusLabel;
+    @FXML private Menu menuManage;
+    @FXML private MenuItem miUserMgmt;
+    @FXML private MenuItem miStudentMgmt;
+    @FXML private MenuItem miCourseMgmt;
+    @FXML private MenuItem miLibrary;
+    @FXML private MenuItem miLibraryAdmin;
+    @FXML private ComboBox<String> roleSwitcher;
     
     // 当前用户信息
     private String currentUsername;
@@ -30,6 +42,9 @@ public class MainController extends BaseController {
         // 可以在这里加载用户信息
         welcomeLabel.setText("欢迎使用 vCampus 系统");
         statusLabel.setText("就绪");
+
+        // 初始化角色切换器
+        initRoleSwitcherAndPermissions();
     }
     
     /**
@@ -38,6 +53,7 @@ public class MainController extends BaseController {
     public void setCurrentUser(String username) {
         this.currentUsername = username;
         welcomeLabel.setText("欢迎, " + username + "!");
+        initRoleSwitcherAndPermissions();
     }
     
     /**
@@ -45,7 +61,13 @@ public class MainController extends BaseController {
      */
     @FXML
     private void onUserManagement() {
-        NavigationUtil.showDialog("user-management-view.fxml", "用户管理");
+        var user = SessionContext.getCurrentUser();
+        if (!RBACUtil.canManageUsers(user)) {
+            showWarning("需要管理员权限");
+            return;
+        }
+        loadContent("user-management-view.fxml");
+        statusLabel.setText("用户管理模块");
     }
     
     /**
@@ -65,6 +87,29 @@ public class MainController extends BaseController {
         loadContent("course-management-view.fxml");
         statusLabel.setText("课程管理模块");
     }
+
+    /**
+     * 管理员图书维护
+     */
+    @FXML
+    private void onLibraryAdmin() {
+        var user = com.vCampus.common.SessionContext.getCurrentUser();
+        if (!RBACUtil.canMaintainLibrary(user)) {
+            showWarning("需要管理员权限");
+            return;
+        }
+        loadContent("library-admin-view.fxml");
+        statusLabel.setText("图书维护");
+    }
+
+    /**
+     * 图书馆菜单点击
+     */
+    @FXML
+    private void onLibrary() {
+        loadContent("library-view.fxml");
+        statusLabel.setText("图书馆模块");
+    }
     
     /**
      * 退出系统
@@ -79,6 +124,7 @@ public class MainController extends BaseController {
         
         alert.showAndWait().ifPresent(response -> {
             if (response == javafx.scene.control.ButtonType.OK) {
+                com.vCampus.common.SessionContext.clear();
                 NavigationUtil.navigateTo(
                     getCurrentStage(),
                     "login-view.fxml",
@@ -120,5 +166,40 @@ public class MainController extends BaseController {
      */
     private javafx.stage.Stage getCurrentStage() {
         return (javafx.stage.Stage) mainContainer.getScene().getWindow();
+    }
+
+    private void initRoleSwitcherAndPermissions() {
+        var user = SessionContext.getCurrentUser();
+        if (roleSwitcher != null) {
+            roleSwitcher.getItems().clear();
+            if (user != null) {
+                roleSwitcher.getItems().addAll(user.getRoleSet());
+                String active = SessionContext.getActiveRole();
+                if (active == null && !user.getRoleSet().isEmpty()) {
+                    active = user.getPrimaryRole();
+                }
+                if (active != null) roleSwitcher.setValue(active);
+                roleSwitcher.setOnAction(e -> {
+                    String sel = roleSwitcher.getValue();
+                    SessionContext.setActiveRole(sel);
+                    applyPermissions();
+                });
+            }
+        }
+        applyPermissions();
+    }
+
+    private void applyPermissions() {
+        var user = SessionContext.getCurrentUser();
+        boolean canUserMgmt = RBACUtil.canManageUsers(user);
+        boolean canCourse = RBACUtil.canManageCourses(user);
+        boolean canLibrary = RBACUtil.canUseLibrary(user);
+        boolean canLibraryAdmin = RBACUtil.canMaintainLibrary(user);
+
+        if (miUserMgmt != null) miUserMgmt.setDisable(!canUserMgmt);
+        if (miStudentMgmt != null) miStudentMgmt.setDisable(!(canCourse || canUserMgmt));
+        if (miCourseMgmt != null) miCourseMgmt.setDisable(!canCourse);
+        if (miLibrary != null) miLibrary.setDisable(!canLibrary);
+        if (miLibraryAdmin != null) miLibraryAdmin.setDisable(!canLibraryAdmin);
     }
 }
