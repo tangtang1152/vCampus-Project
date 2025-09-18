@@ -4,6 +4,8 @@ import com.vCampus.common.BaseController;
 import com.vCampus.common.NavigationUtil;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
+import javafx.scene.control.Button;
+import javafx.scene.control.MenuItem;
 import javafx.scene.layout.BorderPane;
 
 import java.net.URL;
@@ -18,6 +20,8 @@ public class MainController extends BaseController {
     @FXML private BorderPane mainContainer;
     @FXML private Label welcomeLabel;
     @FXML private Label statusLabel;
+    @FXML private Button btnLibraryAdmin;        // 左侧按钮（可选）
+    @FXML private MenuItem menuLibraryAdmin;     // 顶部菜单项（可选）
     
     // 当前用户信息
     private String currentUsername;
@@ -30,6 +34,15 @@ public class MainController extends BaseController {
         // 可以在这里加载用户信息
         welcomeLabel.setText("欢迎使用 vCampus 系统");
         statusLabel.setText("就绪");
+
+        // 根据登录角色控制“图书维护(管理员)”入口可见性
+        try {
+            var user = com.vCampus.common.SessionContext.getCurrentUser();
+            boolean isAdmin = user != null && user.getRole() != null &&
+                    (user.getRole().toLowerCase().contains("admin") || user.getRole().contains("管理员"));
+            if (btnLibraryAdmin != null) btnLibraryAdmin.setVisible(isAdmin);
+            if (menuLibraryAdmin != null) menuLibraryAdmin.setVisible(isAdmin);
+        } catch (Exception ignored) {}
     }
     
     /**
