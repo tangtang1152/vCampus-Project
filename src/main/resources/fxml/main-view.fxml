@@ -6,6 +6,7 @@
 
 <BorderPane xmlns:fx="http://javafx.com/fxml"
             fx:controller="com.vCampus.view.MainController"
+            fx:id="mainContainer"
             stylesheets="@../css/main.css">
     
     <!-- 顶部菜单 -->
@@ -13,15 +14,18 @@
         <VBox>
             <MenuBar>
                 <Menu text="系统">
-                    <MenuItem text="退出" onAction="#onExit"/>
+  <MenuItem text="退出" onAction="#onExit"/>
                 </Menu>
                 <Menu text="管理">
-                    <MenuItem text="用户管理" onAction="#onUserManagement"/>
-                    <MenuItem text="学生管理" onAction="#onStudentManagement"/>
-                    <MenuItem text="课程管理" onAction="#onCourseManagement"/>
+  <MenuItem text="用户管理" onAction="#onUserManagement"/>
+  <MenuItem text="学生管理" onAction="#onStudentManagement"/>
+  <MenuItem text="课程管理" onAction="#onCourseManagement"/>
+  <MenuItem text="图书馆" onAction="#onLibrary"/>
+  <MenuItem text="图书维护(管理员)" onAction="#onLibraryAdmin"/>
+  <MenuItem text="选课系统" onAction="#onChoose"/> <!-- 新增的选课系统菜单项 -->
                 </Menu>
                 <Menu text="帮助">
-                    <MenuItem text="关于" onAction="#onAbout"/>
+  <MenuItem text="关于" onAction="#onAbout"/>
                 </Menu>
             </MenuBar>
             
@@ -43,6 +47,9 @@
             <Button text="用户管理" onAction="#onUserManagement" style="-fx-min-width: 150;"/>
             <Button text="学生管理" onAction="#onStudentManagement" style="-fx-min-width: 150;"/>
             <Button text="课程管理" onAction="#onCourseManagement" style="-fx-min-width: 150;"/>
+            <Button text="图书馆" onAction="#onLibrary" style="-fx-min-width: 150;"/>
+            <Button text="图书维护(管理员)" onAction="#onLibraryAdmin" style="-fx-min-width: 150;"/>
+            <Button text="选课系统" onAction="#onChoose" style="-fx-min-width: 150;"/> <!-- 新增的选课系统按钮 -->
             <Region VBox.vgrow="ALWAYS"/>
             <Button text="退出系统" onAction="#onExit" style="-fx-background-color: #dc3545; -fx-text-fill: white; -fx-min-width: 150;"/>
         </VBox>

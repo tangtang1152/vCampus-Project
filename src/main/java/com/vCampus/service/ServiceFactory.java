@@ -10,6 +10,8 @@ public class ServiceFactory {
     private static volatile IStudentService studentService;
     private static volatile ITeacherService teacherService;
     private static volatile IAdminService adminService;
+    private static volatile IChooseService chooseService;
+    private static volatile ISubjectService subjectService;
     
     public static IUserService getUserService() {
         if (userService == null) {
@@ -54,4 +56,26 @@ public class ServiceFactory {
         }
         return adminService;
     }
+    
+	public static IChooseService getChooseService() {
+		if (chooseService == null) {
+			synchronized (ServiceFactory.class) {
+				if (chooseService == null) {
+					chooseService = new ChooseServiceImpl();
+				}
+			}
+		}
+		return chooseService;
+	}
+	
+	public static ISubjectService getSubjectService() {
+		if (subjectService == null) {
+			synchronized (ServiceFactory.class) {
+				if (subjectService == null) {
+					subjectService = new SubjectServiceImpl();
+				}
+			}
+		}
+		return subjectService;
+	}
 }

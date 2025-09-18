@@ -13,7 +13,8 @@ public class DBConstants {
     // tbl_student 表字段长度限制
     public static final int STUDENT_NAME_MAX_LENGTH = 50;
     public static final int CLASS_NAME_MAX_LENGTH = 50;
-
+	public static final int STUDENT_ID_MAX_LENGTH = 20;
+	
     // tbl_teacher 表字段长度限制
     public static final int TEACHER_ID_MAX_LENGTH = 20;
     public static final int TEACHER_NAME_MAX_LENGTH = 50;
@@ -24,4 +25,19 @@ public class DBConstants {
     // tbl_admin 表字段长度限制
     public static final int ADMIN_ID_MAX_LENGTH = 20;
     public static final int ADMIN_NAME_MAX_LENGTH = 50;
+    
+    // department 表字段长度限制
+	public static final int DEPARTMENT_NAME_MAX_LENGTH = 50;
+	public static final int DEPARTMENT_LOCATION_MAX_LENGTH = 100;
+
+	// tbl_course 表字段长度限制
+	public static final int COURSE_ID_MAX_LENGTH = 20;
+	public static final int COURSE_NAME_MAX_LENGTH = 100;
+	public static final int COURSE_CREDIT_MAX_LENGTH = 10;
+	public static final int COURSE_TEACHER_ID_MAX_LENGTH = 20;
+
+	// tbl_subject 表字段长度限制
+	public static final int SUBJECT_NAME_MAX_LENGTH = 50;
+	public static final int SUBJECT_ID_MAX_LENGTH = 20;
+
 }
