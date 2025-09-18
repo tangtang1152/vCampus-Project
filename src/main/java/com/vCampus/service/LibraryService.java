@@ -16,7 +16,7 @@ public class LibraryService {
     private final IBookDao bookDao = new BookDao();
     private final IBorrowRecordDao borrowRecordDao = new BorrowRecordDao();
     private final IReservationDao reservationDao = new ReservationDao();
-    private final IUserDao userDao = new UserDao();
+    private final IUserDao userDao = new UserDaoImpl();
 
     public List<com.vCampus.entity.Book> searchBooks(String keyword, int page, int size) {
         return TransactionManager.executeInTransaction(conn -> {
