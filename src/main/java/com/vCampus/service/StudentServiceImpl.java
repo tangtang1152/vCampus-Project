@@ -45,10 +45,8 @@ public class StudentServiceImpl
     protected boolean doDelete(String studentId, Connection conn) throws Exception {
         Student student = studentDao.findByStudentId(studentId, conn);
         if (student == null) return false;
-        
         boolean studentDeleted = studentDao.delete(studentId, conn);
         if (!studentDeleted) return false;
-        
         return userDao.delete(student.getUserId(), conn);
     }
 

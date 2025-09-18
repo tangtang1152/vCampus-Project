@@ -47,8 +47,8 @@ public class NavigationUtil {
         System.out.println("🔍 正在打开对话框: " + fxmlPath);
         
         try {
-            // 检查类加载器
-            System.out.println("🔍 当前类加载器: " + NavigationUtil.class.getClassLoader());
+            // 输出类信息方便定位
+            System.out.println("🔍 调用方类: " + NavigationUtil.class.getName());
             
             // 尝试不同的路径格式
             String[] possiblePaths = {
@@ -67,7 +67,6 @@ public class NavigationUtil {
             
             if (fxmlUrl == null) {
                 System.err.println("❌ 错误: 所有路径都未找到FXML文件: " + fxmlPath);
-                // 列出资源目录内容
                 try {
                     java.util.Enumeration<URL> resources = NavigationUtil.class.getClassLoader().getResources("fxml");
                     while (resources.hasMoreElements()) {

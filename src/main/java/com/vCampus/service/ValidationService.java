@@ -19,74 +19,25 @@ public class ValidationService {
         if (user == null) {
             return false;
         }
-        
-        // 验证用户名长度 (1-50字符)
-        if (user.getUsername() == null || user.getUsername().trim().isEmpty()) {
-            System.out.println("错误: 用户名为空");
-            return false;
-        }
-        if (user.getUsername().length() > DBConstants.USERNAME_MAX_LENGTH) {
-            System.out.println("错误: 用户名超过50字符限制");
-            return false;
-        }
-        
-        // 验证密码长度 (1-255字符)
-        if (user.getPassword() == null || user.getPassword().trim().isEmpty()) {
-            System.out.println("错误: 密码为空");
-            return false;
-        }
-        if (user.getPassword().length() > DBConstants.PASSWORD_MAX_LENGTH) {
-            System.out.println("错误: 密码超过255字符限制");
-            return false;
-        }
-        
-        // 验证角色长度 (1-20字符)
-        if (user.getRole() == null || user.getRole().trim().isEmpty()) {
-            System.out.println("错误: 角色为空");
-            return false;
-        }
-        if (user.getRole().length() > DBConstants.ROLE_MAX_LENGTH) {
-            System.out.println("错误: 角色超过20字符限制");
-            return false;
-        }
-        
+        if (user.getUsername() == null || user.getUsername().trim().isEmpty()) return false;
+        if (user.getUsername().length() > DBConstants.USERNAME_MAX_LENGTH) return false;
+        if (user.getPassword() == null || user.getPassword().trim().isEmpty()) return false;
+        if (user.getPassword().length() > DBConstants.PASSWORD_MAX_LENGTH) return false;
+        if (user.getRole() == null || user.getRole().trim().isEmpty()) return false;
+        if (user.getRole().length() > DBConstants.ROLE_MAX_LENGTH) return false;
         return true;
     }
     
     /**
-     * 验证学生数据长度
+     * 验证学生数据长度（学号为短文本，非纯数字）
      */
     public static boolean validateStudent(Student student) {
-        if (student == null) {
-            return false;
-        }
-        
-        // 验证学生姓名长度 (1-50字符)
-        if (student.getStudentName() == null || student.getStudentName().trim().isEmpty()) {
-            System.out.println("错误: 学生姓名为空");
-            return false;
-        }
-        if (student.getStudentName().length() > DBConstants.STUDENT_NAME_MAX_LENGTH) {
-            System.out.println("错误: 学生姓名超过50字符限制");
-            return false;
-        }
-        
-        // 验证班级名称长度 (0-50字符，允许为空)
-        if (student.getClassName() != null && student.getClassName().length() > DBConstants.CLASS_NAME_MAX_LENGTH) {
-            System.out.println("错误: 班级名称超过50字符限制");
-            return false;
-        }
-        
-        // 学号为短文本（Access: 短文本 长度20），仅校验非空与长度
-        if (student.getStudentId() == null || student.getStudentId().trim().isEmpty()) {
-            System.out.println("错误: 学号为空");
-            return false;
-        }
-        if (student.getStudentId().length() > 20) {
-            System.out.println("错误: 学号超过长度限制");
-            return false;
-        }
-        
+        if (student == null) return false;
+        if (student.getStudentName() == null || student.getStudentName().trim().isEmpty()) return false;
+        if (student.getStudentName().length() > DBConstants.STUDENT_NAME_MAX_LENGTH) return false;
+        if (student.getClassName() != null && student.getClassName().length() > DBConstants.CLASS_NAME_MAX_LENGTH) return false;
+        if (student.getStudentId() == null || student.getStudentId().trim().isEmpty()) return false;
+        if (student.getStudentId().length() > DBConstants.STUDENT_ID_MAX_LENGTH) return false;
         return true;
     }
     
@@ -94,50 +45,16 @@ public class ValidationService {
      * 验证教师数据长度
      */
     public static boolean validateTeacher(Teacher teacher) {
-        if (teacher == null) {
-            return false;
-        }
-
-        // 验证教师姓名长度 (1-50字符)
-        if (teacher.getTeacherName() == null || teacher.getTeacherName().trim().isEmpty()) {
-            System.out.println("错误: 教师姓名为空");
-            return false;
-        }
-        if (teacher.getTeacherName().length() > DBConstants.TEACHER_NAME_MAX_LENGTH) {
-            System.out.println("错误: 教师姓名超过50字符限制");
-            return false;
-        }
-
-        // 验证职称长度 (1-20字符)
-        if (teacher.getTechnical() == null || teacher.getTechnical().trim().isEmpty()) {
-            System.out.println("错误: 职称为空");
-            return false;
-        }
-        if (teacher.getTechnical().length() > DBConstants.TECHNICAL_MAX_LENGTH) {
-            System.out.println("错误: 职称超过20字符限制");
-            return false;
-        }
-
-        // 验证部门ID长度 (1-20字符)
-        if (teacher.getDepartmentId() == null || teacher.getDepartmentId().trim().isEmpty()) {
-            System.out.println("错误: 部门ID为空");
-            return false;
-        }
-        if (teacher.getDepartmentId().length() > DBConstants.DEPARTMENT_ID_MAX_LENGTH) {
-            System.out.println("错误: 部门ID超过20字符限制");
-            return false;
-        }
-
-        // 验证性别 (男/女)
-        if (teacher.getSex() == null || teacher.getSex().trim().isEmpty()) {
-            System.out.println("错误: 性别为空");
-            return false;
-        }
-        if (!teacher.getSex().equals("男") && !teacher.getSex().equals("女")) {
-            System.out.println("错误: 性别必须为'男'或'女'");
-            return false;
-        }
-
+        if (teacher == null) return false;
+        if (teacher.getTeacherName() == null || teacher.getTeacherName().trim().isEmpty()) return false;
+        if (teacher.getTeacherName().length() > DBConstants.TEACHER_NAME_MAX_LENGTH) return false;
+        if (teacher.getTechnical() == null || teacher.getTechnical().trim().isEmpty()) return false;
+        if (teacher.getTechnical().length() > DBConstants.TECHNICAL_MAX_LENGTH) return false;
+        if (teacher.getDepartmentId() == null || teacher.getDepartmentId().trim().isEmpty()) return false;
+        if (teacher.getDepartmentId().length() > DBConstants.DEPARTMENT_ID_MAX_LENGTH) return false;
+        if (teacher.getSex() == null || teacher.getSex().trim().isEmpty()) return false;
+        if (!"男".equals(teacher.getSex()) && !"女".equals(teacher.getSex())) return false;
+        if (teacher.getSex().length() > DBConstants.SEX_MAX_LENGTH) return false;
         return true;
     }
 
@@ -145,30 +62,11 @@ public class ValidationService {
      * 验证管理员数据长度
      */
     public static boolean validateAdmin(Admin admin) {
-        if (admin == null) {
-            return false;
-        }
-
-        // 管理员工号（短文本，手工输入，允许字母数字混合）
-        if (admin.getAdminId() == null || admin.getAdminId().trim().isEmpty()) {
-            System.out.println("错误: 管理员工号为空");
-            return false;
-        }
-        if (admin.getAdminId().length() > DBConstants.ADMIN_ID_MAX_LENGTH) {
-            System.out.println("错误: 管理员工号超过长度限制");
-            return false;
-        }
-
-        // 验证管理员姓名长度 (1-50字符)
-        if (admin.getAdminName() == null || admin.getAdminName().trim().isEmpty()) {
-            System.out.println("错误: 管理员姓名为空");
-            return false;
-        }
-        if (admin.getAdminName().length() > DBConstants.ADMIN_NAME_MAX_LENGTH) {
-            System.out.println("错误: 管理员姓名超过50字符限制");
-            return false;
-        }
-
+        if (admin == null) return false;
+        if (admin.getAdminId() == null || admin.getAdminId().trim().isEmpty()) return false;
+        if (admin.getAdminId().length() > DBConstants.ADMIN_ID_MAX_LENGTH) return false;
+        if (admin.getAdminName() == null || admin.getAdminName().trim().isEmpty()) return false;
+        if (admin.getAdminName().length() > DBConstants.ADMIN_NAME_MAX_LENGTH) return false;
         return true;
     }
     
@@ -176,13 +74,8 @@ public class ValidationService {
      * 截断字符串以适应字段长度
      */
     public static String truncateString(String input, int maxLength) {
-        if (input == null) {
-            return null;
-        }
-        if (input.length() <= maxLength) {
-            return input;
-        }
-        System.out.println("警告: 字符串被截断，原长度: " + input.length() + ", 截断后: " + maxLength);
+        if (input == null) return null;
+        if (input.length() <= maxLength) return input;
         return input.substring(0, maxLength);
     }
 }

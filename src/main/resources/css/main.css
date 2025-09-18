@@ -8,10 +8,13 @@
     -fx-background-radius: 5;
     -fx-border-radius: 5;
     -fx-cursor: hand;
+    -fx-font-size: 14px;
+    -fx-padding: 5 10 5 10;
 }
 
 .button:hover {
     -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.2), 10, 0, 0, 2);
+    -fx-opacity: 0.9;
 }
 
 /* 菜单样式 */
@@ -31,11 +34,16 @@
 .table-view {
     -fx-background-color: white;
     -fx-border-color: #ddd;
+    -fx-font-size: 14px;
 }
 
 .table-row-cell:selected {
     -fx-background-color: #667eea;
     -fx-text-fill: white;
+}
+
+.table-row-cell:hover {
+    -fx-background-color: #f5f5f5;
 }
 
 /* 输入框样式 */

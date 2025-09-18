@@ -50,7 +50,6 @@ public class AdminDaoImpl extends AbstractBaseDaoImpl<Admin, String> implements 
        
         admin.setAdminName(truncatedAdminName);
 
-        // 根据业务规范：adminId 为手工输入的唯一学工号（短文本），需要显式插入
         String sql = "INSERT INTO tbl_admin (adminId, userId, adminName) VALUES (?, ?, ?)";
         try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
             setInsertParameters(pstmt, admin);

@@ -39,11 +39,8 @@ public class MainController extends BaseController {
      */
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        // 可以在这里加载用户信息
         welcomeLabel.setText("欢迎使用 vCampus 系统");
         statusLabel.setText("就绪");
-
-        // 初始化角色切换器
         initRoleSwitcherAndPermissions();
     }
     
