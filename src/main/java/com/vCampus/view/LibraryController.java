@@ -24,6 +24,10 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.ResourceBundle;
 
+import com.vCampus.common.ConfigManager;
+import com.vCampus.net.LibrarySocketClient;
+import com.vCampus.net.CourseGrabResult;
+
 public class LibraryController extends BaseController {
     @FXML private TextField keywordField;
     @FXML private TableView<Book> bookTable;
@@ -192,10 +196,22 @@ public class LibraryController extends BaseController {
         if (sel == null) { showWarning("请先选择一本书"); return; }
         int days = askDays("借书时长（天）", 30);
         new Thread(() -> {
-            var res = libraryService.borrowBookWithReason(getCurrentUserId(), sel.getBookId(), days);
+            String uid = getCurrentUserId();
+            String msg;
+            boolean ok;
+            if (ConfigManager.isSocketEnabled()) {
+                CourseGrabResult r = LibrarySocketClient.fromConfig().borrow(uid, sel.getBookId(), days);
+                ok = r.isSuccess();
+                msg = r.getMessage();
+            } else {
+                var res = libraryService.borrowBookWithReason(uid, sel.getBookId(), days);
+                ok = res.isSuccess();
+                msg = res.getMessage();
+            }
+            final boolean fOk = ok; final String fMsg = msg;
             TransactionManager.runLaterSafe(() -> {
-                if (res.isSuccess()) { showInformation("提示", res.getMessage()); asyncLoadPage(); asyncLoadMyBorrows(); }
-                else { showError(res.getMessage()); }
+                if (fOk) { showInformation("提示", fMsg); asyncLoadPage(); asyncLoadMyBorrows(); }
+                else { showError(fMsg); }
             });
         }, "lib-borrow").start();
     }
@@ -205,10 +221,22 @@ public class LibraryController extends BaseController {
         Book sel = bookTable.getSelectionModel().getSelectedItem();
         if (sel == null) { showWarning("请先选择一本书"); return; }
         new Thread(() -> {
-            var res = libraryService.reserveBookWithReason(getCurrentUserId(), sel.getBookId());
+            String uid = getCurrentUserId();
+            String msg;
+            boolean ok;
+            if (ConfigManager.isSocketEnabled()) {
+                CourseGrabResult r = LibrarySocketClient.fromConfig().reserve(uid, sel.getBookId());
+                ok = r.isSuccess();
+                msg = r.getMessage();
+            } else {
+                var res = libraryService.reserveBookWithReason(uid, sel.getBookId());
+                ok = res.isSuccess();
+                msg = res.getMessage();
+            }
+            final boolean fOk = ok; final String fMsg = msg;
             TransactionManager.runLaterSafe(() -> {
-                if (res.isSuccess()) { showInformation("提示", res.getMessage()); }
-                else { showError(res.getMessage()); }
+                if (fOk) { showInformation("提示", fMsg); }
+                else { showError(fMsg); }
             });
         }, "lib-reserve").start();
     }
@@ -220,10 +248,22 @@ public class LibraryController extends BaseController {
         int days = askDays("续借时长（天）", 30);
         // maxTimes 由服务层按角色判断，这里传1不再生效，但保持参数兼容
         new Thread(() -> {
-            var res = libraryService.renewBorrowWithReason(getCurrentUserId(), sel.getRecordId(), days, 1);
+            String uid = getCurrentUserId();
+            String msg;
+            boolean ok;
+            if (ConfigManager.isSocketEnabled()) {
+                CourseGrabResult r = LibrarySocketClient.fromConfig().renew(uid, sel.getRecordId(), days);
+                ok = r.isSuccess();
+                msg = r.getMessage();
+            } else {
+                var res = libraryService.renewBorrowWithReason(uid, sel.getRecordId(), days, 1);
+                ok = res.isSuccess();
+                msg = res.getMessage();
+            }
+            final boolean fOk = ok; final String fMsg = msg;
             TransactionManager.runLaterSafe(() -> {
-                if (res.isSuccess()) { showInformation("提示", res.getMessage()); asyncLoadMyBorrows(); }
-                else { showError(res.getMessage()); }
+                if (fOk) { showInformation("提示", fMsg); asyncLoadMyBorrows(); }
+                else { showError(fMsg); }
             });
         }, "lib-renew").start();
     }
@@ -232,10 +272,22 @@ public class LibraryController extends BaseController {
         var sel = borrowTable.getSelectionModel().getSelectedItem();
         if (sel == null) { showWarning("请选择要归还的记录"); return; }
         new Thread(() -> {
-            var res = libraryService.returnBookWithReason(getCurrentUserId(), sel.getRecordId(), sel.getBookId());
+            String uid = getCurrentUserId();
+            String msg;
+            boolean ok;
+            if (ConfigManager.isSocketEnabled()) {
+                CourseGrabResult r = LibrarySocketClient.fromConfig().returnBook(uid, sel.getRecordId(), sel.getBookId());
+                ok = r.isSuccess();
+                msg = r.getMessage();
+            } else {
+                var res = libraryService.returnBookWithReason(uid, sel.getRecordId(), sel.getBookId());
+                ok = res.isSuccess();
+                msg = res.getMessage();
+            }
+            final boolean fOk = ok; final String fMsg = msg;
             TransactionManager.runLaterSafe(() -> {
-                if (res.isSuccess()) { showInformation("提示", res.getMessage()); asyncLoadMyBorrows(); asyncLoadPage(); }
-                else { showError(res.getMessage()); }
+                if (fOk) { showInformation("提示", fMsg); asyncLoadMyBorrows(); asyncLoadPage(); }
+                else { showError(fMsg); }
             });
         }, "lib-return").start();
     }

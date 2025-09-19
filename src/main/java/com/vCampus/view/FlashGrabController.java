@@ -2,6 +2,9 @@ package com.vCampus.view;
 
 import com.vCampus.common.BaseController;
 import com.vCampus.common.SessionContext;
+import com.vCampus.common.ConfigManager;
+import com.vCampus.net.CourseGrabClient;
+import com.vCampus.net.CourseGrabResult;
 import com.vCampus.entity.Subject;
 import com.vCampus.service.IChooseService;
 import com.vCampus.service.ISubjectService;
@@ -59,10 +62,26 @@ public class FlashGrabController extends BaseController {
         var r = confirm.showAndWait();
         if (r.isEmpty() || r.get() != ButtonType.OK) return;
         new Thread(() -> {
-            boolean ok = chooseService.chooseSubject(studentId, subjectId);
+            boolean ok;
+            String msg;
+            if (ConfigManager.isSocketEnabled()) {
+                CourseGrabClient client = CourseGrabClient.fromConfig();
+                CourseGrabResult rlt = client.choose(studentId, subjectId);
+                ok = rlt.isSuccess();
+                msg = rlt.getMessage();
+            } else {
+                ok = chooseService.chooseSubject(studentId, subjectId);
+                msg = ok ? "选课成功" : "选课失败：可能已满或已选过";
+            }
+            final boolean fOk = ok;
+            final String fMsg = msg;
             TransactionManager.runLaterSafe(() -> {
-                showInformation("结果", ok?"选课成功":"选课失败：可能已满或已选过");
-                loadData();
+                showInformation("结果", fMsg);
+                if (fOk) {
+                    loadData();
+                } else {
+                    table.refresh();
+                }
             });
         }, "grab-"+subjectId).start();
     }
