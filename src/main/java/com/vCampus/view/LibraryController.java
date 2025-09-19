@@ -97,18 +97,18 @@ public class LibraryController extends BaseController {
         if (statusFilter != null) {
             statusFilter.getItems().setAll("全部", "借出", "已还", "逾期");
             statusFilter.setValue("借出");
-            statusFilter.valueProperty().addListener((obs, o, n) -> loadMyBorrows());
+            statusFilter.valueProperty().addListener((obs, o, n) -> asyncLoadMyBorrows());
         }
         // 图书列表额外筛选/排序
         if (bookStatusBox != null) {
             bookStatusBox.getItems().setAll("全部", "正常", "下架");
             bookStatusBox.setValue("全部");
-            bookStatusBox.valueProperty().addListener((o,ov,nv)-> { page=1; loadPage(); });
+            bookStatusBox.valueProperty().addListener((o,ov,nv)-> { page=1; asyncLoadPage(); });
         }
         if (sortBox != null) {
             sortBox.getItems().setAll("默认(最新)", "书名↑", "书名↓", "可借↑", "可借↓");
             sortBox.setValue("默认(最新)");
-            sortBox.valueProperty().addListener((o,ov,nv)-> { page=1; loadPage(); });
+            sortBox.valueProperty().addListener((o,ov,nv)-> { page=1; asyncLoadPage(); });
         }
 
         // 前端按钮权限（activeRole）

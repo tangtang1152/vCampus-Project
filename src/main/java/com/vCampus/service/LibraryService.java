@@ -64,6 +64,10 @@ public class LibraryService {
             if (borrowRecordDao.existsOverdueByUser(uid, conn))
                 return ServiceResult.fail("存在逾期记录，无法借书");
 
+            // 防重复借阅：同一用户对同一本书只能存在一条借出记录
+            if (borrowRecordDao.existsActiveByUserAndBook(uid, bookId, conn))
+                return ServiceResult.fail("您已借出该书，无法重复借阅");
+
             if (!bookDao.decreaseAvailable(bookId, conn)) return ServiceResult.fail("扣减库存失败");
             BorrowRecord r = new BorrowRecord();
             r.setBookId(bookId);
@@ -90,6 +94,14 @@ public class LibraryService {
             // 计算罚金
             BorrowRecord r = borrowRecordDao.findById(recordId, conn);
             if (r == null) return ServiceResult.fail("借阅记录不存在");
+            // 身份校验：本人或管理员可以归还
+            Integer uidParam = Integer.parseInt(userId);
+            if (r.getUserId() != null && !r.getUserId().equals(uidParam)) {
+                User actor = getUserById(uidParam);
+                if (actor == null || !com.vCampus.util.RBACUtil.isAdmin(actor)) {
+                    return ServiceResult.fail("非本人记录，需管理员处理");
+                }
+            }
             LocalDate today = LocalDate.now();
             long overdueDays = 0;
             if (r.getDueDate() != null && r.getDueDate().toLocalDate().isBefore(today)) {
@@ -126,6 +138,14 @@ public class LibraryService {
             int userMaxRenewDays = 30; // 固定
             int userMaxRenewTimes = 1;  // 默认
             try {
+                // 仅本人可续借；管理员可代续借
+                Integer uidParam = Integer.parseInt(userId);
+                if (r.getUserId() != null && !r.getUserId().equals(uidParam)) {
+                    User actor = getUserById(uidParam);
+                    if (actor == null || !com.vCampus.util.RBACUtil.isAdmin(actor)) {
+                        return ServiceResult.fail("非本人记录，需管理员处理");
+                    }
+                }
                 com.vCampus.entity.User u = getUserById(r.getUserId());
                 if (com.vCampus.util.RBACUtil.isAdmin(u)) {
                     userMaxRenewTimes = 2;

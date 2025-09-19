@@ -14,6 +14,9 @@ public interface IBorrowRecordDao extends IBaseDao<BorrowRecord, Integer> {
     int countActiveBorrowsByUser(Integer userId, Connection conn) throws SQLException;
     boolean existsOverdueByUser(Integer userId, Connection conn) throws SQLException;
     
+    // 新增：是否已借出同一本书（防止重复借阅）
+    boolean existsActiveByUserAndBook(Integer userId, Integer bookId, Connection conn) throws SQLException;
+    
     // 新增：按用户列出全部借阅
     List<BorrowRecord> listByUser(String userId, Connection conn) throws SQLException;
     

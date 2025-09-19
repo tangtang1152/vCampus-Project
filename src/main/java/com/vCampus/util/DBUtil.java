@@ -6,20 +6,35 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Properties;
 
+import com.vCampus.common.ConfigManager;
+
 public class DBUtil {
     
-    // 数据库文件相对于项目根目录的路径
-    private static final String DB_RELATIVE_PATH = "src\\main\\resources\\database\\vCampus.accdb";
+    // 默认数据库文件相对于项目根目录的路径（可被 application.properties 覆盖）
+    private static final String DEFAULT_DB_RELATIVE_PATH = "src\\main\\resources\\database\\vCampus.accdb";
     private static String connectionString;
     private static Properties connectionProperties;
 
     // 静态初始化块，在类加载时执行一次
     static {
         try {
-            // 1. 动态获取项目在当前电脑上的绝对路径
+            // 0. 优先从配置读取数据库路径，可为绝对路径/UNC 网络共享路径/相对路径
+            String configuredPath = null;
+            try { configuredPath = ConfigManager.getDatabasePath(); } catch (Throwable ignored) {}
+
+            // 1. 解析最终数据库路径
             String projectRootPath = System.getProperty("user.dir");
-            // 2. 拼接出数据库文件的绝对路径
-            String dbAbsolutePath = projectRootPath + File.separator + DB_RELATIVE_PATH;
+            String dbAbsolutePath;
+            if (configuredPath != null && !configuredPath.trim().isEmpty()) {
+                String p = configuredPath.trim();
+                // 绝对或 UNC 路径：如 C:\... 或 \\192.168.1.2\share\vCampus.accdb
+                boolean isAbsolute = new File(p).isAbsolute() || p.startsWith("\\\\") || p.startsWith("/") || p.matches("^[A-Za-z]:.*");
+                dbAbsolutePath = isAbsolute ? p : (projectRootPath + File.separator + p);
+                System.out.println("使用配置的数据库路径: " + dbAbsolutePath);
+            } else {
+                dbAbsolutePath = projectRootPath + File.separator + DEFAULT_DB_RELATIVE_PATH;
+                System.out.println("使用默认数据库路径: " + dbAbsolutePath);
+            }
             
             // 3. 打印最终路径，这是调试的关键！
             System.out.println("尝试从以下路径连接数据库: " + dbAbsolutePath);

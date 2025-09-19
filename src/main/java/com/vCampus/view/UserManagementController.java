@@ -487,8 +487,99 @@ public class UserManagementController extends BaseController {
             if (okUser && okRole) { showInformation("提示", "保存成功"); refresh(); } else { showError("保存失败"); }
         });
     }
-    @FXML private void onImport() { showInformation("导入", "占位：实现Excel/CSV导入"); }
-    @FXML private void onExport() { showInformation("导出", "占位：实现Excel/CSV导出"); }
+    @FXML private void onImport() {
+        if (!showConfirmation("批量导入", "将从Excel导入用户并按角色创建明细，是否继续？")) return;
+        javafx.stage.FileChooser fc = new javafx.stage.FileChooser();
+        fc.setTitle("选择Excel文件(.xlsx)");
+        fc.getExtensionFilters().add(new javafx.stage.FileChooser.ExtensionFilter("Excel", "*.xlsx"));
+        java.io.File f = fc.showOpenDialog(table.getScene().getWindow());
+        if (f == null) return;
+        new Thread(() -> doImportExcel(f)).start();
+    }
+
+    private void doImportExcel(java.io.File file) {
+        try {
+            var rows = com.vCampus.util.ExcelUserIO.importUsers(file.getAbsolutePath());
+            int ok = 0, fail = 0;
+            StringBuilder sb = new StringBuilder();
+            for (var pr : rows) {
+                try {
+                    if (pr.error != null) { fail++; sb.append("行解析失败: ").append(pr.error).append("\n"); continue; }
+                    // 注册主用户（选择一个主角色优先级：STUDENT>TEACHER>ADMIN）
+                    User created;
+                    if (pr.student != null) created = registerUser(pr.student);
+                    else if (pr.teacher != null) created = registerUser(pr.teacher);
+                    else if (pr.admin != null) created = registerUser(pr.admin);
+                    else { fail++; sb.append("缺少任何角色信息: ").append(pr.base.getUsername()).append("\n"); continue; }
+                    if (created == null) { fail++; continue; }
+                    int uid = created.getUserId();
+
+                    // 收集多角色并更新主表（压缩在 User.setRoleSet 完成）
+                    java.util.LinkedHashSet<String> roles = new java.util.LinkedHashSet<>();
+                    if (pr.student != null) roles.add("STUDENT");
+                    if (pr.teacher != null) roles.add("TEACHER");
+                    if (pr.admin != null) roles.add("ADMIN");
+                    created.setRoleSet(roles);
+                    userService.update(created);
+
+                    // 明细表：存在即跳过，不存在则新增
+                    if (pr.student != null) {
+                        var ex = studentService.getByUserId(uid);
+                        if (ex == null) {
+                            Student s = new Student(); s.setUserId(uid);
+                            s.setStudentId(pr.student.getStudentId()); s.setStudentName(pr.student.getStudentName()); s.setClassName(pr.student.getClassName());
+                            studentService.add(s);
+                        }
+                    }
+                    if (pr.teacher != null) {
+                        var ex = teacherService.getByUserId(uid);
+                        if (ex == null) {
+                            Teacher t = new Teacher(); t.setUserId(uid);
+                            t.setTeacherId(pr.teacher.getTeacherId()); t.setTeacherName(pr.teacher.getTeacherName()); t.setSex(pr.teacher.getSex()); t.setTechnical(pr.teacher.getTechnical()); t.setDepartmentId(pr.teacher.getDepartmentId());
+                            teacherService.add(t);
+                        }
+                    }
+                    if (pr.admin != null) {
+                        var ex = adminService.getByUserId(uid);
+                        if (ex == null) {
+                            Admin a = new Admin(); a.setUserId(uid);
+                            a.setAdminId(pr.admin.getAdminId()); a.setAdminName(pr.admin.getAdminName());
+                            adminService.add(a);
+                        }
+                    }
+                    ok++;
+                } catch (Exception rowEx) {
+                    fail++;
+                    sb.append("导入失败: ").append(rowEx.getMessage()).append("\n");
+                }
+            }
+            String summary = "导入完成：成功 " + ok + " 条，失败 " + fail + " 条\n" + sb;
+            com.vCampus.util.TransactionManager.runLaterSafe(() -> { showInformation("批量导入", summary); refresh(); });
+        } catch (Exception e) {
+            com.vCampus.util.TransactionManager.runLaterSafe(() -> showError("导入失败: " + e.getMessage()));
+        }
+    }
+
+    private User registerUser(User u) {
+        var res = userService.register(u);
+        if (res != IUserService.RegisterResult.SUCCESS) return null;
+        return userService.getByUsername(u.getUsername());
+    }
+
+    @FXML private void onExport() {
+        javafx.stage.FileChooser fc = new javafx.stage.FileChooser();
+        fc.setTitle("保存Excel模板(.xlsx)");
+        fc.getExtensionFilters().add(new javafx.stage.FileChooser.ExtensionFilter("Excel", "*.xlsx"));
+        fc.setInitialFileName("users-template.xlsx");
+        java.io.File f = fc.showSaveDialog(table.getScene().getWindow());
+        if (f == null) return;
+        try {
+            com.vCampus.util.ExcelUserIO.exportTemplate(f.getAbsolutePath());
+            showInformation("导出模板", "模板已保存到:\n" + f.getAbsolutePath());
+        } catch (Exception e) {
+            showError("导出失败: " + e.getMessage());
+        }
+    }
 
     private boolean uidEquals(Integer a, Integer b) {
         if (a == null && b == null) return true;
