@@ -98,7 +98,14 @@ public class ChooseController extends BaseController {
 
     private void loadMy() {
         try {
-            String request = "GET_MY_SUBJECTS:" + getCurrentStudentId();
+            String studentId = getCurrentStudentId();
+            if (studentId == null) {
+                // 如果无法获取学生ID，清空我的课程列表
+                mySubjects.clear();
+                return;
+            }
+            
+            String request = "GET_MY_SUBJECTS:" + studentId;
             String response = SocketClient.sendRequest(request);
             
             if (response != null && response.startsWith("SUCCESS:SUBJECTS:")) {
@@ -119,8 +126,13 @@ public class ChooseController extends BaseController {
         Subject sel = subjectTable.getSelectionModel().getSelectedItem();
         if (sel == null) { showWarning("请选择要选的课程"); return; }
         
+        String studentId = getCurrentStudentId();
+        if (studentId == null) {
+            return; // 错误信息已在 getCurrentStudentId 中显示
+        }
+        
         try {
-            String request = "CHOOSE_SUBJECT:" + getCurrentStudentId() + ":" + sel.getSubjectId();
+            String request = "CHOOSE_SUBJECT:" + studentId + ":" + sel.getSubjectId();
             String response = SocketClient.sendRequest(request);
             
             if (response != null && response.startsWith("SUCCESS:CHOOSE:")) {
@@ -141,8 +153,13 @@ public class ChooseController extends BaseController {
         Subject sel = myTable.getSelectionModel().getSelectedItem();
         if (sel == null) { showWarning("请选择要退的课程"); return; }
         
+        String studentId = getCurrentStudentId();
+        if (studentId == null) {
+            return; // 错误信息已在 getCurrentStudentId 中显示
+        }
+        
         try {
-            String request = "DROP_SUBJECT:" + getCurrentStudentId() + ":" + sel.getSubjectId();
+            String request = "DROP_SUBJECT:" + studentId + ":" + sel.getSubjectId();
             String response = SocketClient.sendRequest(request);
             
             if (response != null && response.startsWith("SUCCESS:DROP:")) {
@@ -165,22 +182,49 @@ public class ChooseController extends BaseController {
 
     private String getCurrentStudentId() {
         var u = SessionContext.getCurrentUser();
-        if (u == null) return "";
+        if (u == null) {
+            showError("用户未登录，请重新登录");
+            return null;
+        }
+        
+        // 如果是学生，直接返回学号
         if (u instanceof com.vCampus.entity.Student s) {
             return s.getStudentId();
         }
+        
+        // 如果是管理员，显示提示信息
+        if (u instanceof com.vCampus.entity.Admin) {
+            showWarning("管理员无法使用选课功能，请以学生身份登录");
+            return null;
+        }
+        
+        // 如果是教师，显示提示信息
+        if (u instanceof com.vCampus.entity.Teacher) {
+            showWarning("教师无法使用选课功能，请以学生身份登录");
+            return null;
+        }
+        
         // 兼容：登录保存的是通用 User 时，根据 userId 反查学生学号
         try {
             String request = "GET_STUDENT_BY_USER_ID:" + u.getUserId();
             String response = SocketClient.sendRequest(request);
             if (response != null && response.startsWith("SUCCESS:STUDENT:")) {
                 String[] parts = response.split(":");
-                return parts.length > 2 ? parts[2] : "";
+                String studentId = parts.length > 2 ? parts[2] : null;
+                if (studentId != null && !studentId.trim().isEmpty()) {
+                    return studentId;
+                }
+            } else if (response != null && response.startsWith("ERROR:")) {
+                // 服务器返回了明确的错误信息
+                showError("获取学生信息失败: " + response.substring(6)); // 去掉 "ERROR:" 前缀
+                return null;
             }
         } catch (Exception e) {
-            // 忽略错误
+            System.err.println("获取学生信息失败: " + e.getMessage());
         }
-        return "";
+        
+        showError("当前用户没有学生身份，无法使用选课功能。请使用学生账号登录。");
+        return null;
     }
 
     /**
@@ -195,19 +239,18 @@ public class ChooseController extends BaseController {
                     String[] subjectStrings = data.split("\\|");
                     for (String subjectString : subjectStrings) {
                         String[] fields = subjectString.split(",");
-                        if (fields.length >= 8) {
+                        if (fields.length >= 10) {
                             Subject subject = new Subject();
                             subject.setSubjectId(fields[0]);
                             subject.setSubjectName(fields[1]);
-                            subject.setSubjectNum(Integer.parseInt(fields[2]));
-                            subject.setCredit(Double.parseDouble(fields[3]));
-                            subject.setTeacherId(fields[4]);
-                            subject.setWeekRange(fields[5]);
-                            subject.setWeekType(fields[6]);
-                            subject.setClassTime(fields[7]);
-                            if (fields.length > 8) {
-                                subject.setClassroom(fields[8]);
-                            }
+                            // 跳过 subjectDate (fields[2])
+                            subject.setSubjectNum(Integer.parseInt(fields[3]));
+                            subject.setCredit(Double.parseDouble(fields[4]));
+                            subject.setTeacherId(fields[5]);
+                            subject.setWeekRange(fields[6]);
+                            subject.setWeekType(fields[7]);
+                            subject.setClassTime(fields[8]);
+                            subject.setClassroom(fields[9]);
                             subjects.add(subject);
                         }
                     }

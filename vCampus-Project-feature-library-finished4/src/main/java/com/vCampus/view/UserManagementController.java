@@ -79,6 +79,28 @@ public class UserManagementController extends BaseController {
         return typeInfoByUserId.getOrDefault(u.getUserId(), "");
     }
 
+    /**
+     * 新建用户后立即更新缓存，避免等待refresh()
+     */
+    private void updateUserCacheAfterCreate(boolean isStudent, boolean isTeacher, boolean isAdmin,
+                                          String studentName, String teacherName, String adminName,
+                                          String className, String departmentId, String adminId,
+                                          int userId) {
+        if (isStudent && !studentName.isEmpty()) {
+            realNameByUserId.put(userId, studentName);
+            typeInfoByUserId.put(userId, "班级:" + className);
+            System.out.println("[UserMgmt] 立即更新学生缓存: userId=" + userId + ", name=" + studentName + ", class=" + className);
+        } else if (isTeacher && !teacherName.isEmpty()) {
+            realNameByUserId.put(userId, teacherName);
+            typeInfoByUserId.put(userId, "部门:" + departmentId);
+            System.out.println("[UserMgmt] 立即更新教师缓存: userId=" + userId + ", name=" + teacherName + ", dept=" + departmentId);
+        } else if (isAdmin && !adminName.isEmpty()) {
+            realNameByUserId.put(userId, adminName);
+            typeInfoByUserId.put(userId, "工号:" + adminId);
+            System.out.println("[UserMgmt] 立即更新管理员缓存: userId=" + userId + ", name=" + adminName + ", id=" + adminId);
+        }
+    }
+
     @FXML private void onSearch() { refresh(); }
     @FXML private void onRefresh() { refresh(); }
     @FXML private void onClose() { ((Stage) table.getScene().getWindow()).close(); }
@@ -89,47 +111,94 @@ public class UserManagementController extends BaseController {
             String response = SocketClient.sendRequest("GET_ALL_USERS");
             if (response != null && response.startsWith("SUCCESS:USERS:")) {
                 all = parseUsersFromResponse(response);
+                System.out.println("[UserMgmt] 成功获取用户列表，共 " + all.size() + " 个用户");
+            } else {
+                System.err.println("[UserMgmt] 获取用户列表失败，响应: " + response);
+                showError("获取用户列表失败: " + response);
+                return;
             }
         } catch (Exception e) {
+            System.err.println("[UserMgmt] 获取用户列表异常: " + e.getMessage());
+            e.printStackTrace();
             showError("获取用户列表失败: " + e.getMessage());
+            return;
         }
 
         // 一次性加载三类详情，构建缓存，避免单元格重复触发数据库
-        realNameByUserId.clear();
-        typeInfoByUserId.clear();
+        // 注意：不清空缓存，保留可能已经更新的数据
+        // realNameByUserId.clear();
+        // typeInfoByUserId.clear();
+        
+        // 为所有用户初始化空的姓名和类型信息，确保新增用户也能显示
+        for (User user : all) {
+            // 只有当缓存中没有该用户信息时才初始化为空
+            if (!realNameByUserId.containsKey(user.getUserId())) {
+                realNameByUserId.put(user.getUserId(), "");
+            }
+            if (!typeInfoByUserId.containsKey(user.getUserId())) {
+                typeInfoByUserId.put(user.getUserId(), "");
+            }
+        }
+        System.out.println("[UserMgmt] 初始化用户缓存，共 " + all.size() + " 个用户，缓存大小: " + realNameByUserId.size());
+        
+        // 获取学生信息
         try {
-            // 通过 SocketClient 获取学生信息
             String studentResponse = SocketClient.sendRequest("GET_ALL_STUDENTS");
             if (studentResponse != null && studentResponse.startsWith("SUCCESS:STUDENTS:")) {
                 List<Student> studs = parseStudentsFromResponse(studentResponse);
+                System.out.println("[UserMgmt] 成功获取学生信息，共 " + studs.size() + " 个学生");
                 for (Student s : studs) {
-                    realNameByUserId.put(s.getUserId(), s.getStudentName() == null ? "" : s.getStudentName());
-                    typeInfoByUserId.put(s.getUserId(), "班级:" + (s.getClassName() == null ? "" : s.getClassName()));
+                    String studentName = s.getStudentName() == null ? "" : s.getStudentName();
+                    String className = s.getClassName() == null ? "" : s.getClassName();
+                    realNameByUserId.put(s.getUserId(), studentName);
+                    typeInfoByUserId.put(s.getUserId(), "班级:" + className);
+                    System.out.println("[UserMgmt] 更新学生缓存: userId=" + s.getUserId() + ", name=" + studentName + ", class=" + className);
                 }
+            } else {
+                System.err.println("[UserMgmt] 获取学生信息失败，响应: " + studentResponse);
             }
-        } catch (Exception ignored) {}
+        } catch (Exception e) {
+            System.err.println("[UserMgmt] 获取学生信息异常: " + e.getMessage());
+            e.printStackTrace();
+        }
+        
+        // 获取教师信息
         try {
-            // 通过 SocketClient 获取教师信息
             String teacherResponse = SocketClient.sendRequest("GET_ALL_TEACHERS");
             if (teacherResponse != null && teacherResponse.startsWith("SUCCESS:TEACHERS:")) {
                 List<Teacher> tchs = parseTeachersFromResponse(teacherResponse);
+                System.out.println("[UserMgmt] 成功获取教师信息，共 " + tchs.size() + " 个教师");
                 for (Teacher t : tchs) {
                     realNameByUserId.put(t.getUserId(), t.getTeacherName() == null ? "" : t.getTeacherName());
                     typeInfoByUserId.put(t.getUserId(), "部门:" + (t.getDepartmentId() == null ? "" : t.getDepartmentId()));
                 }
+            } else {
+                System.err.println("[UserMgmt] 获取教师信息失败，响应: " + teacherResponse);
             }
-        } catch (Exception ignored) {}
+        } catch (Exception e) {
+            System.err.println("[UserMgmt] 获取教师信息异常: " + e.getMessage());
+            e.printStackTrace();
+        }
+        
+        // 获取管理员信息
         try {
-            // 通过 SocketClient 获取管理员信息
             String adminResponse = SocketClient.sendRequest("GET_ALL_ADMINS");
             if (adminResponse != null && adminResponse.startsWith("SUCCESS:ADMINS:")) {
                 List<Admin> adms = parseAdminsFromResponse(adminResponse);
+                System.out.println("[UserMgmt] 成功获取管理员信息，共 " + adms.size() + " 个管理员");
                 for (Admin a : adms) {
                     realNameByUserId.put(a.getUserId(), a.getAdminName() == null ? "" : a.getAdminName());
                     typeInfoByUserId.put(a.getUserId(), "工号:" + (a.getAdminId() == null ? "" : a.getAdminId()));
                 }
+            } else {
+                System.err.println("[UserMgmt] 获取管理员信息失败，响应: " + adminResponse);
             }
-        } catch (Exception ignored) {}
+        } catch (Exception e) {
+            System.err.println("[UserMgmt] 获取管理员信息异常: " + e.getMessage());
+            e.printStackTrace();
+        }
+        
+        // 应用过滤条件
         String kw = keywordField == null ? "" : keywordField.getText().trim().toLowerCase();
         boolean fStu = cbStudent == null || cbStudent.isSelected();
         boolean fTch = cbTeacher == null || cbTeacher.isSelected();
@@ -148,6 +217,20 @@ public class UserManagementController extends BaseController {
 
         data.setAll(filtered);
         if (lblCount != null) lblCount.setText(String.valueOf(filtered.size()));
+        
+        // 重新绑定表格列，确保显示最新的缓存数据
+        colRealName.setCellValueFactory(c -> {
+            String name = realNameByUserId.getOrDefault(c.getValue().getUserId(), "");
+            System.out.println("[UserMgmt] 绑定姓名列: userId=" + c.getValue().getUserId() + ", name=" + name);
+            return new SimpleStringProperty(name);
+        });
+        colTypeInfo.setCellValueFactory(c -> {
+            String typeInfo = typeInfoByUserId.getOrDefault(c.getValue().getUserId(), "");
+            System.out.println("[UserMgmt] 绑定类型列: userId=" + c.getValue().getUserId() + ", typeInfo=" + typeInfo);
+            return new SimpleStringProperty(typeInfo);
+        });
+        
+        System.out.println("[UserMgmt] 数据刷新完成，显示 " + filtered.size() + " 个用户");
     }
 
     @FXML private void onAdd() { openUserForm(null); }
@@ -160,28 +243,50 @@ public class UserManagementController extends BaseController {
         User sel = table.getSelectionModel().getSelectedItem();
         if (sel == null) { showWarning("请选择要删除的用户"); return; }
         if (!showConfirmation("删除用户", "确定删除用户 " + sel.getUsername() + " ? 此操作不可恢复")) return;
+        
         // 按角色删除对应记录并级联删除 tbl_user
         boolean ok = false;
+        String errorMessage = "";
         Set<String> rs = sel.getRoleSet().stream().map(String::toUpperCase).collect(java.util.stream.Collectors.toSet());
+        
         try {
+            String response = null;
             if (rs.contains("STUDENT")) {
                 // 通过 SocketClient 删除学生
-                String response = SocketClient.sendRequest("DELETE_STUDENT:" + sel.getUserId());
+                System.out.println("[UserMgmt] 尝试删除学生，用户ID: " + sel.getUserId());
+                response = SocketClient.sendRequest("DELETE_STUDENT:" + sel.getUserId());
+                System.out.println("[UserMgmt] 删除学生响应: " + response);
                 ok = response != null && response.startsWith("SUCCESS:DELETE:");
             } else if (rs.contains("TEACHER")) {
                 // 通过 SocketClient 删除教师
-                String response = SocketClient.sendRequest("DELETE_TEACHER:" + sel.getUserId());
+                System.out.println("[UserMgmt] 尝试删除教师，用户ID: " + sel.getUserId());
+                response = SocketClient.sendRequest("DELETE_TEACHER:" + sel.getUserId());
+                System.out.println("[UserMgmt] 删除教师响应: " + response);
                 ok = response != null && response.startsWith("SUCCESS:DELETE:");
             } else if (rs.contains("ADMIN")) {
                 // 通过 SocketClient 删除管理员
-                String response = SocketClient.sendRequest("DELETE_ADMIN:" + sel.getUserId());
+                System.out.println("[UserMgmt] 尝试删除管理员，用户ID: " + sel.getUserId());
+                response = SocketClient.sendRequest("DELETE_ADMIN:" + sel.getUserId());
+                System.out.println("[UserMgmt] 删除管理员响应: " + response);
                 ok = response != null && response.startsWith("SUCCESS:DELETE:");
             }
+            
+            if (!ok && response != null) {
+                errorMessage = response;
+            }
         } catch (Exception e) {
-            showError("删除失败：可能存在外键引用，请先清理相关数据\n" + e.getMessage());
+            System.err.println("[UserMgmt] 删除用户异常: " + e.getMessage());
+            e.printStackTrace();
+            errorMessage = "删除失败：可能存在外键引用，请先清理相关数据\n" + e.getMessage();
             ok = false;
         }
-        if (ok) { showInformation("提示", "删除成功"); refresh(); } else { showError("删除失败，可能关联信息不存在"); }
+        
+        if (ok) { 
+            showInformation("提示", "删除成功"); 
+            refresh(); 
+        } else { 
+            showError("删除失败: " + errorMessage); 
+        }
     }
 
     private void openUserForm(User originUser) {
@@ -365,9 +470,35 @@ public class UserManagementController extends BaseController {
                     s.setStudentId(tfStuId.getText().trim());
                     s.setStudentName(tfStuName.getText().trim());
                     s.setClassName(tfClass.getText().trim());
+                    // 设置默认值
+                    s.setSex("男");
+                    s.setEmail("test@example.com");
+                    s.setIdCard("123456789012345678");
+                    s.setStatus("正常");
                     try {
                         String response = SocketClient.sendRequest("REGISTER:" + s.getUsername() + ":" + s.getPassword() + ":" + s.getRole() + ":" + s.getStudentId() + ":" + s.getStudentName() + ":" + s.getClassName() + ":" + s.getSex() + ":" + s.getEmail() + ":" + s.getIdCard() + ":" + s.getStatus());
                         if (response == null || !response.startsWith("SUCCESS:REGISTER:")) { showError("新增学生失败: " + response); return; }
+                        
+                        // 解析注册响应，获取新创建用户的userId
+                        System.out.println("[UserMgmt] 注册响应: " + response);
+                        String[] responseParts = response.split(":");
+                        System.out.println("[UserMgmt] 响应分割后长度: " + responseParts.length);
+                        if (responseParts.length >= 4) {
+                            try {
+                                int newUserId = Integer.parseInt(responseParts[3]);
+                                System.out.println("[UserMgmt] 解析到新用户ID: " + newUserId);
+                                // 立即更新缓存，避免等待refresh()
+                                updateUserCacheAfterCreate(true, false, false, 
+                                    tfStuName.getText().trim(), "", "",
+                                    tfClass.getText().trim(), "", "",
+                                    newUserId);
+                                System.out.println("[UserMgmt] 缓存更新完成，当前缓存大小: " + realNameByUserId.size());
+                            } catch (NumberFormatException e) {
+                                System.err.println("[UserMgmt] 解析新用户ID失败: " + e.getMessage());
+                            }
+                        } else {
+                            System.err.println("[UserMgmt] 响应格式不正确，期望至少4个部分，实际: " + responseParts.length);
+                        }
                     } catch (Exception e) {
                         showError("新增学生失败: " + e.getMessage());
                         return;
@@ -385,6 +516,21 @@ public class UserManagementController extends BaseController {
                     try {
                         String response = SocketClient.sendRequest("REGISTER:" + t.getUsername() + ":" + t.getPassword() + ":" + t.getRole() + ":" + t.getTeacherId() + ":" + t.getTeacherName() + ":" + t.getSex() + ":" + t.getTechnical() + ":" + t.getDepartmentId());
                         if (response == null || !response.startsWith("SUCCESS:REGISTER:")) { showError("新增教师失败: " + response); return; }
+                        
+                        // 解析注册响应，获取新创建用户的userId
+                        String[] responseParts = response.split(":");
+                        if (responseParts.length >= 4) {
+                            try {
+                                int newUserId = Integer.parseInt(responseParts[3]);
+                                // 立即更新缓存，避免等待refresh()
+                                updateUserCacheAfterCreate(false, true, false, 
+                                    "", tfTchName.getText().trim(), "",
+                                    "", tfDept.getText().trim(), "",
+                                    newUserId);
+                            } catch (NumberFormatException e) {
+                                System.err.println("[UserMgmt] 解析新用户ID失败: " + e.getMessage());
+                            }
+                        }
                     } catch (Exception e) {
                         showError("新增教师失败: " + e.getMessage());
                         return;
@@ -399,12 +545,36 @@ public class UserManagementController extends BaseController {
                     try {
                         String response = SocketClient.sendRequest("REGISTER:" + a.getUsername() + ":" + a.getPassword() + ":" + a.getRole() + ":" + a.getAdminId() + ":" + a.getAdminName());
                         if (response == null || !response.startsWith("SUCCESS:REGISTER:")) { showError("新增管理员失败: " + response); return; }
+                        
+                        // 解析注册响应，获取新创建用户的userId
+                        String[] responseParts = response.split(":");
+                        if (responseParts.length >= 4) {
+                            try {
+                                int newUserId = Integer.parseInt(responseParts[3]);
+                                // 立即更新缓存，避免等待refresh()
+                                updateUserCacheAfterCreate(false, false, true, 
+                                    "", "", tfAdmName.getText().trim(),
+                                    "", "", tfAdmId.getText().trim(),
+                                    newUserId);
+                            } catch (NumberFormatException e) {
+                                System.err.println("[UserMgmt] 解析新用户ID失败: " + e.getMessage());
+                            }
+                        }
                     } catch (Exception e) {
                         showError("新增管理员失败: " + e.getMessage());
                         return;
                     }
                 }
-                showInformation("提示", "新增成功"); refresh();
+                
+                showInformation("提示", "新增成功"); 
+                refresh();
+                // 强制刷新表格显示
+                table.refresh();
+                // 强制刷新列绑定，确保显示最新的缓存数据
+                colRealName.setCellValueFactory(c -> new SimpleStringProperty(
+                    realNameByUserId.getOrDefault(c.getValue().getUserId(), "")));
+                colTypeInfo.setCellValueFactory(c -> new SimpleStringProperty(
+                    typeInfoByUserId.getOrDefault(c.getValue().getUserId(), "")));
                 return;
             }
 
@@ -430,13 +600,13 @@ public class UserManagementController extends BaseController {
             boolean okRole = false;
             try {
                 if (rbStu.isSelected()) {
-                    String response = SocketClient.sendRequest("UPDATE_STUDENT:" + originUser.getUserId() + ":" + tfStuName.getText().trim() + ":" + tfClass.getText().trim() + ":" + "男" + ":" + "test@example.com" + ":" + "123456" + ":" + "正常");
+                    String response = SocketClient.sendRequest("UPDATE_STUDENT:" + tfStuId.getText().trim() + ":" + tfStuName.getText().trim() + ":" + tfClass.getText().trim() + ":" + "男" + ":" + "test@example.com" + ":" + "123456" + ":" + "正常");
                     okRole = response != null && response.startsWith("SUCCESS:UPDATE:");
                 } else if (rbTch.isSelected()) {
-                    String response = SocketClient.sendRequest("UPDATE_TEACHER:" + originUser.getUserId() + ":" + tfTchName.getText().trim() + ":" + cbSex.getValue() + ":" + tfTech.getText().trim() + ":" + tfDept.getText().trim());
+                    String response = SocketClient.sendRequest("UPDATE_TEACHER:" + tfTchId.getText().trim() + ":" + tfTchName.getText().trim() + ":" + cbSex.getValue() + ":" + tfTech.getText().trim() + ":" + tfDept.getText().trim());
                     okRole = response != null && response.startsWith("SUCCESS:UPDATE:");
                 } else {
-                    String response = SocketClient.sendRequest("UPDATE_ADMIN:" + originUser.getUserId() + ":" + tfAdmName.getText().trim());
+                    String response = SocketClient.sendRequest("UPDATE_ADMIN:" + tfAdmId.getText().trim() + ":" + tfAdmName.getText().trim());
                     okRole = response != null && response.startsWith("SUCCESS:UPDATE:");
                 }
             } catch (Exception ex) {
@@ -460,6 +630,7 @@ public class UserManagementController extends BaseController {
                 if (!data.isEmpty()) {
                     String[] userStrings = data.split("\\|");
                     for (String userString : userStrings) {
+                        if (userString.trim().isEmpty()) continue;
                         String[] fields = userString.split(",");
                         if (fields.length >= 3) {
                             User user = new User();
@@ -467,12 +638,17 @@ public class UserManagementController extends BaseController {
                             user.setUsername(fields[1]);
                             user.setRole(fields[2]);
                             users.add(user);
+                        } else {
+                            System.err.println("[UserMgmt] 用户数据字段不足: " + userString);
                         }
                     }
                 }
+            } else {
+                System.err.println("[UserMgmt] 用户数据响应格式错误: " + response);
             }
         } catch (Exception e) {
-            System.err.println("解析用户数据异常: " + e.getMessage());
+            System.err.println("[UserMgmt] 解析用户数据异常: " + e.getMessage());
+            e.printStackTrace();
         }
         return users;
     }
@@ -488,22 +664,32 @@ public class UserManagementController extends BaseController {
                 if (!data.isEmpty()) {
                     String[] studentStrings = data.split("\\|");
                     for (String studentString : studentStrings) {
+                        if (studentString.trim().isEmpty()) continue;
+                        System.out.println("[UserMgmt] 解析学生数据: " + studentString);
                         String[] fields = studentString.split(",");
-                        if (fields.length >= 6) {
+                        System.out.println("[UserMgmt] 字段数量: " + fields.length + ", 字段内容: " + java.util.Arrays.toString(fields));
+                        if (fields.length >= 4) {
                             Student student = new Student();
                             student.setStudentId(fields[0]);
                             student.setStudentName(fields[1]);
                             student.setUserId(Integer.parseInt(fields[2]));
                             student.setClassName(fields[3]);
-                            student.setSex(fields[4]);
-                            student.setEmail(fields[5]);
+                            // 安全地处理可能缺失的字段
+                            student.setSex(fields.length > 4 ? fields[4] : "");
+                            student.setEmail(fields.length > 5 ? fields[5] : "");
+                            System.out.println("[UserMgmt] 解析结果: userId=" + student.getUserId() + ", name=" + student.getStudentName() + ", class=" + student.getClassName());
                             students.add(student);
+                        } else {
+                            System.err.println("[UserMgmt] 学生数据字段不足: " + studentString);
                         }
                     }
                 }
+            } else {
+                System.err.println("[UserMgmt] 学生数据响应格式错误: " + response);
             }
         } catch (Exception e) {
-            System.err.println("解析学生数据异常: " + e.getMessage());
+            System.err.println("[UserMgmt] 解析学生数据异常: " + e.getMessage());
+            e.printStackTrace();
         }
         return students;
     }
@@ -535,6 +721,7 @@ public class UserManagementController extends BaseController {
             }
         } catch (Exception e) {
             System.err.println("解析教师数据异常: " + e.getMessage());
+            e.printStackTrace(); // 添加详细错误信息
         }
         return teachers;
     }
@@ -550,6 +737,7 @@ public class UserManagementController extends BaseController {
                 if (!data.isEmpty()) {
                     String[] adminStrings = data.split("\\|");
                     for (String adminString : adminStrings) {
+                        if (adminString.trim().isEmpty()) continue;
                         String[] fields = adminString.split(",");
                         if (fields.length >= 3) {
                             Admin admin = new Admin();
@@ -557,12 +745,17 @@ public class UserManagementController extends BaseController {
                             admin.setAdminName(fields[1]);
                             admin.setUserId(Integer.parseInt(fields[2]));
                             admins.add(admin);
+                        } else {
+                            System.err.println("[UserMgmt] 管理员数据字段不足: " + adminString);
                         }
                     }
                 }
+            } else {
+                System.err.println("[UserMgmt] 管理员数据响应格式错误: " + response);
             }
         } catch (Exception e) {
-            System.err.println("解析管理员数据异常: " + e.getMessage());
+            System.err.println("[UserMgmt] 解析管理员数据异常: " + e.getMessage());
+            e.printStackTrace();
         }
         return admins;
     }

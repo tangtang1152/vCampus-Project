@@ -190,8 +190,20 @@ public class ClientThread extends Thread {
                     return handleGetAllTeachers(parts);
                 case "GET_ALL_ADMINS":
                     return handleGetAllAdmins(parts);
+                case "UPDATE_USER":
+                    return handleUpdateUser(parts);
                 case "UPDATE_STUDENT":
                     return handleUpdateStudent(parts);
+                case "UPDATE_TEACHER":
+                    return handleUpdateTeacher(parts);
+                case "UPDATE_ADMIN":
+                    return handleUpdateAdmin(parts);
+                case "DELETE_STUDENT":
+                    return handleDeleteStudent(parts);
+                case "DELETE_TEACHER":
+                    return handleDeleteTeacher(parts);
+                case "DELETE_ADMIN":
+                    return handleDeleteAdmin(parts);
                 default:
                     return "ERROR: 未知的操作类型: " + action;
             }
@@ -219,7 +231,7 @@ public class ClientThread extends Thread {
             
             if (user != null) {
                 String selfId = getSelfIdFromUser(user);
-                return "SUCCESS:LOGIN:" + user.getRole() + ":" + selfId;
+                return "SUCCESS:LOGIN:" + user.getRole() + ":" + selfId + ":" + user.getUserId();
             } else {
                 return "ERROR: 用户名或密码错误";
             }
@@ -254,9 +266,14 @@ public class ClientThread extends Thread {
                         student.setUsername(username);
                         student.setPassword(password);
                         student.setRole("STUDENT");
-                        student.setStudentName(parts[4]);
-                        student.setClassName(parts[5]);
-                        student.setStudentId(parts[6]);
+                        student.setStudentId(parts[4]);
+                        student.setStudentName(parts[5]);
+                        student.setClassName(parts[6]);
+                        // 处理额外的字段
+                        if (parts.length > 7) student.setSex(parts[7]);
+                        if (parts.length > 8) student.setEmail(parts[8]);
+                        if (parts.length > 9) student.setIdCard(parts[9]);
+                        if (parts.length > 10) student.setStatus(parts[10]);
                         user = student;
                     } else {
                         return "ERROR: 学生注册信息不完整";
@@ -299,7 +316,13 @@ public class ClientThread extends Thread {
             
             switch (result) {
                 case SUCCESS:
-                    return "SUCCESS:REGISTER:注册成功";
+                    // 注册成功后，重新查询用户以获取userId
+                    User createdUser = userService.getByUsername(username);
+                    if (createdUser != null) {
+                        return "SUCCESS:REGISTER:" + createdUser.getUserId();
+                    } else {
+                    return "SUCCESS:REGISTER:0";
+                    }
                 case USERNAME_EXISTS:
                     return "ERROR: 用户名已存在";
                 case STUDENT_ID_EXISTS:
@@ -1037,7 +1060,31 @@ public class ClientThread extends Thread {
         } else if (user instanceof Admin) {
             return ((Admin) user).getAdminId();
         } else {
-            return String.valueOf(user.getUserId());
+            // 如果是通用User类型，根据角色查询具体的ID
+            try {
+                String role = user.getRole();
+                Integer userId = user.getUserId();
+                
+                switch (role.toUpperCase()) {
+                    case "STUDENT":
+                        IStudentService studentService = ServiceFactory.getStudentService();
+                        Student student = studentService.getByUserId(userId);
+                        return student != null ? student.getStudentId() : String.valueOf(userId);
+                    case "TEACHER":
+                        ITeacherService teacherService = ServiceFactory.getTeacherService();
+                        Teacher teacher = teacherService.getByUserId(userId);
+                        return teacher != null ? teacher.getTeacherId() : String.valueOf(userId);
+                    case "ADMIN":
+                        IAdminService adminService = ServiceFactory.getAdminService();
+                        Admin admin = adminService.getByUserId(userId);
+                        return admin != null ? admin.getAdminId() : String.valueOf(userId);
+                    default:
+                        return String.valueOf(userId);
+                }
+            } catch (Exception e) {
+                System.err.println("获取用户具体ID失败: " + e.getMessage());
+                return String.valueOf(user.getUserId());
+            }
         }
     }
 
@@ -1049,11 +1096,9 @@ public class ClientThread extends Thread {
      */
     private String handleGetSubjectsByName(String[] parts) {
         try {
-            if (parts.length < 2) {
-                return "ERROR: 搜索课程请求参数不足";
-            }
+            // 允许空关键词，用于获取所有课程
+            String keyword = parts.length > 1 ? parts[1] : "";
             
-            String keyword = parts[1];
             ISubjectService subjectService = ServiceFactory.getSubjectService();
             List<Subject> subjects = subjectService.getSubjectsByName(keyword);
             
@@ -1061,6 +1106,7 @@ public class ClientThread extends Thread {
             for (Subject subject : subjects) {
                 response.append(subject.getSubjectId()).append(",")
                        .append(subject.getSubjectName()).append(",")
+                       .append(subject.getSubjectDate() != null ? subject.getSubjectDate().toString() : "").append(",")
                        .append(subject.getSubjectNum()).append(",")
                        .append(subject.getCredit()).append(",")
                        .append(subject.getTeacherId()).append(",")
@@ -1105,7 +1151,7 @@ public class ClientThread extends Thread {
 
     /**
      * 处理验证课程信息请求
-     * 格式: VALIDATE_SUBJECT:课程ID,课程名称,教师ID,周次范围,单双周,上课时间,教室
+     * 格式: VALIDATE_SUBJECT:课程ID,课程名称,教师ID,周次范围,单双周,上课时间,教室,学时数,学分
      */
     private String handleValidateSubject(String[] parts) {
         try {
@@ -1114,7 +1160,7 @@ public class ClientThread extends Thread {
             }
             
             String[] fields = parts[1].split(",");
-            if (fields.length < 7) {
+            if (fields.length < 9) {
                 return "ERROR: 课程信息不完整";
             }
             
@@ -1126,6 +1172,8 @@ public class ClientThread extends Thread {
             subject.setWeekType(fields[4]);
             subject.setClassTime(fields[5]);
             subject.setClassroom(fields[6]);
+            subject.setSubjectNum(Integer.parseInt(fields[7]));
+            subject.setCredit(Double.parseDouble(fields[8]));
             
             ISubjectService subjectService = ServiceFactory.getSubjectService();
             boolean valid = subjectService.validateSubject(subject);
@@ -1232,6 +1280,7 @@ public class ClientThread extends Thread {
             for (Subject subject : subjects) {
                 response.append(subject.getSubjectId()).append(",")
                        .append(subject.getSubjectName()).append(",")
+                       .append(subject.getSubjectDate() != null ? subject.getSubjectDate().toString() : "").append(",")
                        .append(subject.getSubjectNum()).append(",")
                        .append(subject.getCredit()).append(",")
                        .append(subject.getTeacherId()).append(",")
@@ -1610,12 +1659,12 @@ public class ClientThread extends Thread {
             
             StringBuilder response = new StringBuilder("SUCCESS:STUDENTS:");
             for (Student student : students) {
-                response.append(student.getStudentId()).append(",")
-                       .append(student.getStudentName()).append(",")
+                response.append(student.getStudentId() != null ? student.getStudentId() : "").append(",")
+                       .append(student.getStudentName() != null ? student.getStudentName() : "").append(",")
                        .append(student.getUserId()).append(",")
-                       .append(student.getClassName()).append(",")
-                       .append(student.getSex()).append(",")
-                       .append(student.getEmail()).append("|");
+                       .append(student.getClassName() != null ? student.getClassName() : "").append(",")
+                       .append(student.getSex() != null ? student.getSex() : "").append(",")
+                       .append(student.getEmail() != null ? student.getEmail() : "").append("|");
             }
             
             return response.toString();
@@ -1638,6 +1687,8 @@ public class ClientThread extends Thread {
                 response.append(teacher.getTeacherId()).append(",")
                        .append(teacher.getTeacherName()).append(",")
                        .append(teacher.getUserId()).append(",")
+                       .append(teacher.getSex()).append(",")
+                       .append(teacher.getTechnical()).append(",")
                        .append(teacher.getDepartmentId()).append("|");
             }
             
@@ -1729,7 +1780,7 @@ public class ClientThread extends Thread {
             
             IStudentService studentService = ServiceFactory.getStudentService();
             
-            // 先获取现有学生信息
+            // 先根据studentId获取现有学生信息
             Student existingStudent = studentService.getBySelfId(studentId);
             if (existingStudent == null) {
                 return "ERROR: 学生不存在";
@@ -1752,6 +1803,265 @@ public class ClientThread extends Thread {
             }
         } catch (Exception e) {
             return "ERROR: 更新学生信息失败: " + e.getMessage();
+        }
+    }
+
+    /**
+     * 处理删除学生请求
+     * 格式: DELETE_STUDENT:用户ID
+     */
+    private String handleDeleteStudent(String[] parts) {
+        try {
+            if (parts.length < 2) {
+                return "ERROR: 删除学生请求参数不足";
+            }
+            
+            Integer userId = Integer.parseInt(parts[1]);
+            IStudentService studentService = ServiceFactory.getStudentService();
+            
+            // 先根据userId找到学生信息
+            Student student = studentService.getByUserId(userId);
+            if (student != null) {
+                // 如果找到学生信息，正常删除
+                boolean success = studentService.delete(student.getStudentId());
+                if (success) {
+                    return "SUCCESS:DELETE:学生删除成功";
+                } else {
+                    return "ERROR: 学生删除失败";
+                }
+            } else {
+                // 如果找不到学生信息，但用户角色是STUDENT，直接删除用户
+                IUserService userService = ServiceFactory.getUserService();
+                User user = userService.getBySelfId(userId);
+                if (user != null && "STUDENT".equalsIgnoreCase(user.getRole())) {
+                    boolean success = userService.delete(userId);
+                    if (success) {
+                        return "SUCCESS:DELETE:用户删除成功（学生信息缺失）";
+                    } else {
+                        return "ERROR: 用户删除失败";
+                    }
+                } else {
+                    return "ERROR: 未找到对应的学生信息";
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("[SERVER] 删除学生异常: " + e.getMessage());
+            e.printStackTrace();
+            return "ERROR: 删除学生失败: " + e.getMessage();
+        }
+    }
+
+    /**
+     * 处理删除教师请求
+     * 格式: DELETE_TEACHER:用户ID
+     */
+    private String handleDeleteTeacher(String[] parts) {
+        try {
+            if (parts.length < 2) {
+                return "ERROR: 删除教师请求参数不足";
+            }
+            
+            Integer userId = Integer.parseInt(parts[1]);
+            ITeacherService teacherService = ServiceFactory.getTeacherService();
+            
+            // 先根据userId找到教师信息
+            Teacher teacher = teacherService.getByUserId(userId);
+            if (teacher != null) {
+                // 如果找到教师信息，正常删除
+                boolean success = teacherService.delete(teacher.getTeacherId());
+                if (success) {
+                    return "SUCCESS:DELETE:教师删除成功";
+                } else {
+                    return "ERROR: 教师删除失败";
+                }
+            } else {
+                // 如果找不到教师信息，但用户角色是TEACHER，直接删除用户
+                IUserService userService = ServiceFactory.getUserService();
+                User user = userService.getBySelfId(userId);
+                if (user != null && "TEACHER".equalsIgnoreCase(user.getRole())) {
+                    boolean success = userService.delete(userId);
+                    if (success) {
+                        return "SUCCESS:DELETE:用户删除成功（教师信息缺失）";
+                    } else {
+                        return "ERROR: 用户删除失败";
+                    }
+                } else {
+                    return "ERROR: 未找到对应的教师信息";
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("[SERVER] 删除教师异常: " + e.getMessage());
+            e.printStackTrace();
+            return "ERROR: 删除教师失败: " + e.getMessage();
+        }
+    }
+
+    /**
+     * 处理删除管理员请求
+     * 格式: DELETE_ADMIN:用户ID
+     */
+    private String handleDeleteAdmin(String[] parts) {
+        try {
+            if (parts.length < 2) {
+                return "ERROR: 删除管理员请求参数不足";
+            }
+            
+            Integer userId = Integer.parseInt(parts[1]);
+            IAdminService adminService = ServiceFactory.getAdminService();
+            
+            // 先根据userId找到管理员信息
+            Admin admin = adminService.getByUserId(userId);
+            if (admin != null) {
+                // 如果找到管理员信息，正常删除
+                boolean success = adminService.delete(admin.getAdminId());
+                if (success) {
+                    return "SUCCESS:DELETE:管理员删除成功";
+                } else {
+                    return "ERROR: 管理员删除失败";
+                }
+            } else {
+                // 如果找不到管理员信息，但用户角色是ADMIN，直接删除用户
+                IUserService userService = ServiceFactory.getUserService();
+                User user = userService.getBySelfId(userId);
+                if (user != null && "ADMIN".equalsIgnoreCase(user.getRole())) {
+                    boolean success = userService.delete(userId);
+                    if (success) {
+                        return "SUCCESS:DELETE:用户删除成功（管理员信息缺失）";
+                    } else {
+                        return "ERROR: 用户删除失败";
+                    }
+                } else {
+                    return "ERROR: 未找到对应的管理员信息";
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("[SERVER] 删除管理员异常: " + e.getMessage());
+            e.printStackTrace();
+            return "ERROR: 删除管理员失败: " + e.getMessage();
+        }
+    }
+
+    /**
+     * 处理更新教师请求
+     * 格式: UPDATE_TEACHER:教师编号:姓名:性别:职称:部门ID
+     */
+    private String handleUpdateTeacher(String[] parts) {
+        try {
+            if (parts.length < 6) {
+                return "ERROR: 更新教师请求参数不足";
+            }
+            
+            String teacherId = parts[1];
+            String teacherName = parts[2];
+            String sex = parts[3];
+            String technical = parts[4];
+            String departmentId = parts[5];
+            
+            ITeacherService teacherService = ServiceFactory.getTeacherService();
+            
+            // 先根据teacherId找到教师信息
+            Teacher teacher = teacherService.getBySelfId(teacherId);
+            if (teacher == null) {
+                return "ERROR: 未找到对应的教师信息";
+            }
+            
+            // 更新教师信息
+            teacher.setTeacherName(teacherName);
+            teacher.setSex(sex);
+            teacher.setTechnical(technical);
+            teacher.setDepartmentId(departmentId);
+            
+            boolean success = teacherService.update(teacher);
+            
+            if (success) {
+                return "SUCCESS:UPDATE:教师信息更新成功";
+            } else {
+                return "ERROR: 教师信息更新失败";
+            }
+        } catch (Exception e) {
+            System.err.println("[SERVER] 更新教师异常: " + e.getMessage());
+            e.printStackTrace();
+            return "ERROR: 更新教师信息失败: " + e.getMessage();
+        }
+    }
+
+    /**
+     * 处理更新管理员请求
+     * 格式: UPDATE_ADMIN:管理员工号:姓名
+     */
+    private String handleUpdateAdmin(String[] parts) {
+        try {
+            if (parts.length < 3) {
+                return "ERROR: 更新管理员请求参数不足";
+            }
+            
+            String adminId = parts[1];
+            String adminName = parts[2];
+            
+            IAdminService adminService = ServiceFactory.getAdminService();
+            
+            // 先根据adminId找到管理员信息
+            Admin admin = adminService.getBySelfId(adminId);
+            if (admin == null) {
+                return "ERROR: 未找到对应的管理员信息";
+            }
+            
+            // 更新管理员信息
+            admin.setAdminName(adminName);
+            
+            boolean success = adminService.update(admin);
+            
+            if (success) {
+                return "SUCCESS:UPDATE:管理员信息更新成功";
+            } else {
+                return "ERROR: 管理员信息更新失败";
+            }
+        } catch (Exception e) {
+            System.err.println("[SERVER] 更新管理员异常: " + e.getMessage());
+            e.printStackTrace();
+            return "ERROR: 更新管理员信息失败: " + e.getMessage();
+        }
+    }
+
+    /**
+     * 处理更新用户基本信息请求
+     * 格式: UPDATE_USER:用户ID:用户名:密码:角色
+     */
+    private String handleUpdateUser(String[] parts) {
+        try {
+            if (parts.length < 5) {
+                return "ERROR: 更新用户请求参数不足";
+            }
+            
+            Integer userId = Integer.parseInt(parts[1]);
+            String username = parts[2];
+            String password = parts[3];
+            String role = parts[4];
+            
+            IUserService userService = ServiceFactory.getUserService();
+            
+            // 先根据userId获取现有用户信息
+            User existingUser = userService.getBySelfId(userId);
+            if (existingUser == null) {
+                return "ERROR: 用户不存在";
+            }
+            
+            // 更新用户信息
+            existingUser.setUsername(username);
+            existingUser.setPassword(password);
+            existingUser.setRole(role);
+            
+            boolean success = userService.update(existingUser);
+            
+            if (success) {
+                return "SUCCESS:UPDATE:用户信息更新成功";
+            } else {
+                return "ERROR: 用户信息更新失败";
+            }
+        } catch (Exception e) {
+            System.err.println("[SERVER] 更新用户异常: " + e.getMessage());
+            e.printStackTrace();
+            return "ERROR: 更新用户信息失败: " + e.getMessage();
         }
     }
 }

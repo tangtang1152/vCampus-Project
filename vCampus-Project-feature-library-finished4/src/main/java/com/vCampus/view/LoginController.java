@@ -64,12 +64,13 @@ public class LoginController extends BaseController {
             // 解析响应
             if (response != null && response.startsWith("SUCCESS:LOGIN:")) {
                 String[] parts = response.split(":");
-                if (parts.length >= 4) {
+                if (parts.length >= 5) {
                     String role = parts[2];
                     String selfId = parts[3];
+                    String userId = parts[4];
                     
                     // 创建用户对象
-                    User user = createUserFromLogin(role, username, selfId);
+                    User user = createUserFromLogin(role, username, selfId, userId);
                     if (user != null) {
                         SessionContext.setCurrentUser(user);
                         showSuccess("登录成功！欢迎 " + user.getUsername());
@@ -131,32 +132,47 @@ public class LoginController extends BaseController {
     /**
      * 根据登录响应创建用户对象
      */
-    private User createUserFromLogin(String role, String username, String selfId) {
-        switch (role.toUpperCase()) {
-            case "STUDENT":
-                Student student = new Student();
-                student.setUsername(username);
-                student.setRole("STUDENT");
-                student.setStudentId(selfId);
-                return student;
-            case "TEACHER":
-                Teacher teacher = new Teacher();
-                teacher.setUsername(username);
-                teacher.setRole("TEACHER");
-                teacher.setTeacherId(selfId);
-                return teacher;
-            case "ADMIN":
-                Admin admin = new Admin();
-                admin.setUsername(username);
-                admin.setRole("ADMIN");
-                admin.setAdminId(selfId);
-                return admin;
-            default:
-                // 创建通用用户对象
-                User user = new User();
-                user.setUsername(username);
-                user.setRole(role);
-                return user;
+    private User createUserFromLogin(String role, String username, String selfId, String userId) {
+        try {
+            Integer userIdInt = Integer.parseInt(userId);
+            
+            switch (role.toUpperCase()) {
+                case "STUDENT":
+                    Student student = new Student();
+                    student.setUserId(userIdInt);
+                    student.setUsername(username);
+                    student.setRole("STUDENT");
+                    student.setStudentId(selfId);
+                    return student;
+                case "TEACHER":
+                    Teacher teacher = new Teacher();
+                    teacher.setUserId(userIdInt);
+                    teacher.setUsername(username);
+                    teacher.setRole("TEACHER");
+                    teacher.setTeacherId(selfId);
+                    return teacher;
+                case "ADMIN":
+                    Admin admin = new Admin();
+                    admin.setUserId(userIdInt);
+                    admin.setUsername(username);
+                    admin.setRole("ADMIN");
+                    admin.setAdminId(selfId);
+                    return admin;
+                default:
+                    // 创建通用用户对象
+                    User user = new User();
+                    user.setUserId(userIdInt);
+                    user.setUsername(username);
+                    user.setRole(role);
+                    return user;
+            }
+        } catch (NumberFormatException e) {
+            System.err.println("解析userId失败: " + userId);
+            // 如果解析失败，创建没有userId的用户对象
+            User user = new User();
+            user.setUsername(username);
+            user.setRole(role);
+            return user;
         }
     }
 }

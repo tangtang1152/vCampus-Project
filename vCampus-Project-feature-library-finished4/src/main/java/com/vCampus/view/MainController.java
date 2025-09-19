@@ -128,13 +128,15 @@ public class MainController extends BaseController {
     }
 
     /**
-     * 选课系统菜单点击（合并分支：使用RBAC判定学生或管理员可访问）
+     * 选课系统菜单点击（只有学生可以访问）
      */
     @FXML
     private void onChoose() {
         var user = SessionContext.getCurrentUser();
-        boolean allowed = RBACUtil.isStudent(user) || RBACUtil.isAdmin(user);
-        if (!allowed) { showWarning("需要学生或管理员权限"); return; }
+        if (!RBACUtil.isStudent(user)) {
+            showWarning("选课系统仅对学生开放，请以学生身份登录");
+            return;
+        }
         loadContent("choose-view.fxml");
         statusLabel.setText("选课系统");
     }

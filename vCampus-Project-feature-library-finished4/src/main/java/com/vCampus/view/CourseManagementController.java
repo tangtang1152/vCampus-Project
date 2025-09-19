@@ -139,19 +139,28 @@ public class CourseManagementController extends BaseController {
     private void refresh() {
         try {
             String kw = keywordField == null ? "" : keywordField.getText();
+            if (kw == null) kw = "";
+            
+            // 确保请求格式正确：GET_SUBJECTS_BY_NAME:关键词
             String request = "GET_SUBJECTS_BY_NAME:" + kw;
+            System.out.println("[CourseMgmt] 发送请求: " + request);
             String response = SocketClient.sendRequest(request);
+            System.out.println("[CourseMgmt] 收到响应: " + response);
             
             if (response != null && response.startsWith("SUCCESS:SUBJECTS:")) {
                 List<Subject> list = parseSubjectsFromResponse(response);
+                System.out.println("[CourseMgmt] 解析到 " + list.size() + " 门课程");
                 data.setAll(list);
+                System.out.println("[CourseMgmt] 表格数据已更新，当前显示 " + data.size() + " 门课程");
             } else {
+                System.err.println("[CourseMgmt] 获取课程列表失败: " + response);
                 showError("获取课程列表失败: " + response);
                 data.clear();
             }
         } catch (Exception e) {
-            showError("网络连接失败: " + e.getMessage());
+            System.err.println("[CourseMgmt] 网络连接失败: " + e.getMessage());
             e.printStackTrace();
+            showError("网络连接失败: " + e.getMessage());
         }
     }
 
@@ -387,7 +396,7 @@ public class CourseManagementController extends BaseController {
 
                 try {
                     // 验证课程信息
-                    String validateRequest = "VALIDATE_SUBJECT:" + id + "," + name + "," + teacher + "," + range + "," + type + "," + time + "," + room;
+                    String validateRequest = "VALIDATE_SUBJECT:" + id + "," + name + "," + teacher + "," + range + "," + type + "," + time + "," + room + "," + numValue + "," + creditValue;
                     String validateResponse = SocketClient.sendRequest(validateRequest);
                     if (validateResponse == null || !validateResponse.startsWith("SUCCESS:VALIDATE:")) {
                         showError("课程信息验证失败，请检查输入！");
@@ -414,7 +423,7 @@ public class CourseManagementController extends BaseController {
                         saveRequest = "UPDATE_SUBJECT:" + id + "," + name + "," + dateValue + "," + numValue + "," + creditValue + "," + teacher + "," + range + "," + type + "," + time + "," + room;
                     }
                     String saveResponse = SocketClient.sendRequest(saveRequest);
-                    if (saveResponse != null && (saveResponse.startsWith("SUCCESS:ADD:") || saveResponse.startsWith("SUCCESS:UPDATE:"))) {
+                    if (saveResponse != null && (saveResponse.startsWith("SUCCESS:ADD_SUBJECT:") || saveResponse.startsWith("SUCCESS:UPDATE_SUBJECT:"))) {
                         showInformation("提示", origin == null ? "新增成功" : "保存成功");
                         refresh();
                     } else {
@@ -519,26 +528,28 @@ public class CourseManagementController extends BaseController {
                     String[] subjectStrings = data.split("\\|");
                     for (String subjectString : subjectStrings) {
                         String[] fields = subjectString.split(",");
-                        if (fields.length >= 8) {
+                        if (fields.length >= 10) {
                             Subject subject = new Subject();
                             subject.setSubjectId(fields[0]);
                             subject.setSubjectName(fields[1]);
-                            subject.setSubjectNum(Integer.parseInt(fields[2]));
-                            subject.setCredit(Double.parseDouble(fields[3]));
-                            subject.setTeacherId(fields[4]);
-                            subject.setWeekRange(fields[5]);
-                            subject.setWeekType(fields[6]);
-                            subject.setClassTime(fields[7]);
-                            if (fields.length > 8) {
-                                subject.setClassroom(fields[8]);
-                            }
+                            // 跳过 subjectDate (fields[2]) - 开课日期
+                            subject.setSubjectNum(Integer.parseInt(fields[3]));
+                            subject.setCredit(Double.parseDouble(fields[4]));
+                            subject.setTeacherId(fields[5]);
+                            subject.setWeekRange(fields[6]);
+                            subject.setWeekType(fields[7]);
+                            subject.setClassTime(fields[8]);
+                            subject.setClassroom(fields[9]);
                             subjects.add(subject);
+                        } else {
+                            System.err.println("[CourseMgmt] 课程数据字段不足: " + subjectString + " (期望10个字段，实际" + fields.length + "个)");
                         }
                     }
                 }
             }
         } catch (Exception e) {
-            System.err.println("解析课程数据异常: " + e.getMessage());
+            System.err.println("[CourseMgmt] 解析课程数据异常: " + e.getMessage());
+            e.printStackTrace();
         }
         return subjects;
     }

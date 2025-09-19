@@ -298,10 +298,30 @@ public class LibraryController extends BaseController {
 
     @FXML private void onRefreshBorrows() { loadMyBorrows(); }
 
-    // 从 BaseController 或登录上下文获取当前用户ID，这里先占位实现
+    // 从 BaseController 或登录上下文获取当前用户ID
     private String getCurrentUserId() {
-        Integer uid = com.vCampus.common.SessionContext.requireCurrentUserId();
-        return uid == null ? "48" : String.valueOf(uid);
+        var user = com.vCampus.common.SessionContext.getCurrentUser();
+        if (user == null) {
+            showError("用户未登录，请重新登录");
+            return null;
+        }
+        
+        // 如果用户有userId且不为0，直接使用
+        if (user.getUserId() > 0) {
+            return String.valueOf(user.getUserId());
+        }
+        
+        // 如果没有userId，根据角色类型获取对应的ID
+        if (user instanceof com.vCampus.entity.Student) {
+            return ((com.vCampus.entity.Student) user).getStudentId();
+        } else if (user instanceof com.vCampus.entity.Teacher) {
+            return ((com.vCampus.entity.Teacher) user).getTeacherId();
+        } else if (user instanceof com.vCampus.entity.Admin) {
+            return ((com.vCampus.entity.Admin) user).getAdminId();
+        }
+        
+        // 如果都没有，返回默认值（临时解决方案）
+        return "48";
     }
 
     private int askDays(String title, int defVal) {
