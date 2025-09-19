@@ -21,10 +21,10 @@
                     <MenuItem text="学籍管理" fx:id="miStudentMgmt" onAction="#onStudentManagement"/>
                     <MenuItem text="课程管理" fx:id="miCourseMgmt" onAction="#onCourseManagement"/>
                     <MenuItem text="图书馆" fx:id="miLibrary" onAction="#onLibrary"/>
-                    <MenuItem text="商店" onAction="#onShop"/>
-                    <MenuItem text="商店管理" onAction="#onShopAdmin"/>
+                    <MenuItem text="商店" fx:id="miShop" onAction="#onShop"/>
+                    <MenuItem text="商店管理" fx:id="miShopAdmin" onAction="#onShopAdmin"/>
                     <MenuItem text="图书维护(管理员)" fx:id="miLibraryAdmin" onAction="#onLibraryAdmin"/>
-                    <MenuItem text="选课系统" onAction="#onChoose"/>
+                    <MenuItem text="选课系统" fx:id="miChoose" onAction="#onChoose"/>
                 </Menu>
                 <Menu text="帮助">
   <MenuItem text="关于" onAction="#onAbout"/>
@@ -48,14 +48,14 @@
         <VBox spacing="10" style="-fx-background-color: #f8f9fa; -fx-padding: 15; -fx-min-width: 200;">
             <Label text="功能导航" style="-fx-font-weight: bold; -fx-font-size: 14;"/>
             <Separator/>
-            <Button text="用户管理" onAction="#onUserManagement" style="-fx-min-width: 150;"/>
-            <Button text="学籍管理" onAction="#onStudentManagement" style="-fx-min-width: 150;"/>
-            <Button text="课程管理" onAction="#onCourseManagement" style="-fx-min-width: 150;"/>
-            <Button text="图书馆" onAction="#onLibrary" style="-fx-min-width: 150;"/>
-            <Button text="商店" onAction="#onShop" style="-fx-min-width: 150;"/>
-            <Button text="商店管理" onAction="#onShopAdmin" style="-fx-min-width: 150;"/>
-            <Button text="图书维护(管理员)" onAction="#onLibraryAdmin" style="-fx-min-width: 150;"/>
-            <Button text="选课系统" onAction="#onChoose" style="-fx-min-width: 150;"/>
+            <Button fx:id="btnUserMgmt" text="用户管理" onAction="#onUserManagement" style="-fx-min-width: 150;"/>
+            <Button fx:id="btnStudentMgmt" text="学籍管理" onAction="#onStudentManagement" style="-fx-min-width: 150;"/>
+            <Button fx:id="btnCourseMgmt" text="课程管理" onAction="#onCourseManagement" style="-fx-min-width: 150;"/>
+            <Button fx:id="btnLibrary" text="图书馆" onAction="#onLibrary" style="-fx-min-width: 150;"/>
+            <Button fx:id="btnShop" text="商店" onAction="#onShop" style="-fx-min-width: 150;"/>
+            <Button fx:id="btnShopAdmin" text="商店管理" onAction="#onShopAdmin" style="-fx-min-width: 150;"/>
+            <Button fx:id="btnLibraryAdmin" text="图书维护(管理员)" onAction="#onLibraryAdmin" style="-fx-min-width: 150;"/>
+            <Button fx:id="btnChoose" text="选课系统" onAction="#onChoose" style="-fx-min-width: 150;"/>
             <Region VBox.vgrow="ALWAYS"/>
             <Button text="退出系统" onAction="#onExit" style="-fx-background-color: #dc3545; -fx-text-fill: white; -fx-min-width: 150;"/>
         </VBox>

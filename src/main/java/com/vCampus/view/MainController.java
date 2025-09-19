@@ -9,6 +9,8 @@ import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.Button;
+import javafx.scene.Node;
 import javafx.scene.layout.BorderPane;
 
 import java.net.URL;
@@ -29,7 +31,18 @@ public class MainController extends BaseController {
     @FXML private MenuItem miCourseMgmt;
     @FXML private MenuItem miLibrary;
     @FXML private MenuItem miLibraryAdmin;
+    @FXML private MenuItem miShop;
+    @FXML private MenuItem miShopAdmin;
+    @FXML private MenuItem miChoose;
     @FXML private ComboBox<String> roleSwitcher;
+    @FXML private Button btnUserMgmt;
+    @FXML private Button btnStudentMgmt;
+    @FXML private Button btnCourseMgmt;
+    @FXML private Button btnLibrary;
+    @FXML private Button btnShop;
+    @FXML private Button btnShopAdmin;
+    @FXML private Button btnLibraryAdmin;
+    @FXML private Button btnChoose;
     
     // 当前用户信息
     private String currentUsername;
@@ -223,11 +236,33 @@ public class MainController extends BaseController {
         boolean canCourse = RBACUtil.canManageCourses(user);
         boolean canLibrary = RBACUtil.canUseLibrary(user);
         boolean canLibraryAdmin = RBACUtil.canMaintainLibrary(user);
+        boolean isAdmin = RBACUtil.isAdmin(user);
+        boolean canChoose = RBACUtil.isStudent(user) || isAdmin;
 
         if (miUserMgmt != null) miUserMgmt.setDisable(!canUserMgmt);
         if (miStudentMgmt != null) miStudentMgmt.setDisable(!(canCourse || canUserMgmt));
         if (miCourseMgmt != null) miCourseMgmt.setDisable(!canCourse);
         if (miLibrary != null) miLibrary.setDisable(!canLibrary);
         if (miLibraryAdmin != null) miLibraryAdmin.setDisable(!canLibraryAdmin);
+        if (miShop != null) miShop.setDisable(false);
+        if (miShopAdmin != null) miShopAdmin.setDisable(!isAdmin);
+        if (miChoose != null) miChoose.setDisable(!canChoose);
+
+        // 左侧功能导航：根据角色显示/隐藏并释放布局空间
+        setNodeVisible(btnUserMgmt, canUserMgmt);
+        setNodeVisible(btnStudentMgmt, (canCourse || canUserMgmt));
+        setNodeVisible(btnCourseMgmt, canCourse);
+        setNodeVisible(btnLibrary, canLibrary);
+        setNodeVisible(btnLibraryAdmin, canLibraryAdmin);
+        setNodeVisible(btnShop, true);
+        setNodeVisible(btnShopAdmin, isAdmin);
+        setNodeVisible(btnChoose, canChoose);
+    }
+
+    private void setNodeVisible(Node node, boolean visible) {
+        if (node != null) {
+            node.setVisible(visible);
+            node.setManaged(visible);
+        }
     }
 }
