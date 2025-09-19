@@ -18,6 +18,7 @@
                 </Menu>
                 <Menu text="管理" fx:id="menuManage">
                     <MenuItem text="用户管理" fx:id="miUserMgmt" onAction="#onUserManagement"/>
+                    <MenuItem text="学籍管理" fx:id="miStudentMgmt" onAction="#onStudentManagement"/>
                     <MenuItem text="课程管理" fx:id="miCourseMgmt" onAction="#onCourseManagement"/>
                     <MenuItem text="图书馆" fx:id="miLibrary" onAction="#onLibrary"/>
                     <MenuItem text="图书维护(管理员)" fx:id="miLibraryAdmin" onAction="#onLibraryAdmin"/>
@@ -46,6 +47,7 @@
             <Label text="功能导航" style="-fx-font-weight: bold; -fx-font-size: 14;"/>
             <Separator/>
             <Button text="用户管理" onAction="#onUserManagement" style="-fx-min-width: 150;"/>
+            <Button text="学籍管理" onAction="#onStudentManagement" style="-fx-min-width: 150;"/>
             <Button text="课程管理" onAction="#onCourseManagement" style="-fx-min-width: 150;"/>
             <Button text="图书馆" onAction="#onLibrary" style="-fx-min-width: 150;"/>
             <Button text="图书维护(管理员)" onAction="#onLibraryAdmin" style="-fx-min-width: 150;"/>

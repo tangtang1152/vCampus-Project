@@ -73,7 +73,7 @@ public class MainController extends BaseController {
     @FXML
     private void onStudentManagement() {
         loadContent("student-management-view.fxml");
-        statusLabel.setText("学生管理模块");
+        statusLabel.setText("学籍管理模块");
     }
     
     /**

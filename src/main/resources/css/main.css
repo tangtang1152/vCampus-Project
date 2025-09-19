@@ -38,7 +38,19 @@
 }
 
 .table-row-cell:selected {
-    -fx-background-color: #667eea;
+    -fx-background-color: #4c6ef5; /* 更深蓝，提升对比 */
+    -fx-text-fill: white;
+}
+
+/* 防止 hover 状态覆盖选中样式导致文字不可见 */
+.table-row-cell:selected:hover {
+    -fx-background-color: #3b5bdb;
+    -fx-text-fill: white;
+}
+
+/* 同时设置单元格文本颜色，确保在选中时保持可见 */
+.table-row-cell:selected .text,
+.table-row-cell:selected .table-cell {
     -fx-text-fill: white;
 }
 

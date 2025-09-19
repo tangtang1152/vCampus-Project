@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.geometry.Insets?>
+
+<BorderPane xmlns:fx="http://javafx.com/fxml" fx:controller="com.vCampus.view.StudentDetailController">
+    <center>
+        <GridPane hgap="12" vgap="10" style="-fx-padding: 16;">
+            <columnConstraints>
+                <ColumnConstraints prefWidth="120" />
+                <ColumnConstraints hgrow="ALWAYS" />
+            </columnConstraints>
+
+            <Label text="学号" GridPane.rowIndex="0" GridPane.columnIndex="0" />
+            <Label fx:id="lbStudentId" GridPane.rowIndex="0" GridPane.columnIndex="1" />
+
+            <Label text="姓名" GridPane.rowIndex="1" GridPane.columnIndex="0" />
+            <Label fx:id="lbStudentName" GridPane.rowIndex="1" GridPane.columnIndex="1" />
+
+            <Label text="班级" GridPane.rowIndex="2" GridPane.columnIndex="0" />
+            <Label fx:id="lbClassName" GridPane.rowIndex="2" GridPane.columnIndex="1" />
+
+            <Label text="性别" GridPane.rowIndex="3" GridPane.columnIndex="0" />
+            <Label fx:id="lbSex" GridPane.rowIndex="3" GridPane.columnIndex="1" />
+
+            <Label text="入学日期" GridPane.rowIndex="4" GridPane.columnIndex="0" />
+            <Label fx:id="lbEnrollDate" GridPane.rowIndex="4" GridPane.columnIndex="1" />
+
+            <Label text="邮箱" GridPane.rowIndex="5" GridPane.columnIndex="0" />
+            <Label fx:id="lbEmail" GridPane.rowIndex="5" GridPane.columnIndex="1" />
+
+            <Label text="身份证" GridPane.rowIndex="6" GridPane.columnIndex="0" />
+            <Label fx:id="lbIdCard" GridPane.rowIndex="6" GridPane.columnIndex="1" />
+
+            <Label text="学籍状态" GridPane.rowIndex="7" GridPane.columnIndex="0" />
+            <Label fx:id="lbStatus" GridPane.rowIndex="7" GridPane.columnIndex="1" />
+        </GridPane>
+    </center>
+    <bottom>
+        <HBox spacing="10" style="-fx-padding: 10; -fx-alignment: CENTER_RIGHT;">
+            <Button text="关闭" onAction="#onClose" />
+        </HBox>
+    </bottom>
+
+    <padding>
+        <Insets top="10" right="10" bottom="10" left="10" />
+    </padding>
+</BorderPane>
+
+
