@@ -34,6 +34,7 @@ public class LibraryAdminController extends BaseController {
 
     private final LibraryService service = new LibraryService();
     private final ObservableList<Book> data = FXCollections.observableArrayList();
+    private final com.vCampus.dao.IBorrowRecordDao borrowDao = new com.vCampus.dao.BorrowRecordDao();
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
@@ -55,6 +56,7 @@ public class LibraryAdminController extends BaseController {
         statusCol.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getStatus()));
 
         table.setItems(data);
+        installContextMenu();
         refresh();
     }
 
@@ -88,6 +90,88 @@ public class LibraryAdminController extends BaseController {
         if (sel == null) { showWarning("请选择图书"); return; }
         boolean ok = delta > 0 ? service.increaseStock(sel.getBookId(), delta) : service.decreaseStock(sel.getBookId(), -delta);
         if (ok) { showInformation("提示", "库存已更新"); refresh(); } else { showError("库存更新失败"); }
+    }
+
+    private void installContextMenu() {
+        MenuItem viewBorrow = new MenuItem("查看借阅情况");
+        viewBorrow.setOnAction(e -> showBorrowDialog());
+        ContextMenu menu = new ContextMenu(viewBorrow);
+        table.setRowFactory(tv -> {
+            TableRow<Book> row = new TableRow<>();
+            row.setContextMenu(menu);
+            return row;
+        });
+    }
+
+    private void showBorrowDialog() {
+        Book sel = table.getSelectionModel().getSelectedItem();
+        if (sel == null) { showWarning("请先选择一本图书"); return; }
+        try {
+            java.util.List<com.vCampus.entity.BorrowRecord> records = com.vCampus.util.TransactionManager.executeInTransaction(conn ->
+                borrowDao.listByBook(sel.getBookId(), conn)
+            );
+            int total = com.vCampus.util.TransactionManager.executeInTransaction(conn ->
+                borrowDao.countTotalByBook(sel.getBookId(), conn)
+            );
+            java.time.LocalDate now = java.time.LocalDate.now();
+            int month = com.vCampus.util.TransactionManager.executeInTransaction(conn ->
+                borrowDao.countMonthlyByBook(sel.getBookId(), java.sql.Date.valueOf(now.withDayOfMonth(1)), java.sql.Date.valueOf(now.withDayOfMonth(1).plusMonths(1)), conn)
+            );
+            int current = com.vCampus.util.TransactionManager.executeInTransaction(conn ->
+                borrowDao.countCurrentBorrowedByBook(sel.getBookId(), conn)
+            );
+
+            Dialog<Void> dlg = new Dialog<>();
+            dlg.setTitle("借阅情况 - 《" + sel.getTitle() + "》");
+
+            TableView<com.vCampus.entity.BorrowRecord> tv = new TableView<>();
+            TableColumn<com.vCampus.entity.BorrowRecord, Number> cId = new TableColumn<>("记录ID");
+            cId.setCellValueFactory(x -> new SimpleIntegerProperty(x.getValue().getRecordId()==null?0:x.getValue().getRecordId()));
+            TableColumn<com.vCampus.entity.BorrowRecord, Number> cUser = new TableColumn<>("用户ID");
+            cUser.setCellValueFactory(x -> new SimpleIntegerProperty(x.getValue().getUserId()==null?0:x.getValue().getUserId()));
+            TableColumn<com.vCampus.entity.BorrowRecord, String> cUserName = new TableColumn<>("用户名");
+            cUserName.setCellValueFactory(x -> new SimpleStringProperty(resolveUsername(x.getValue().getUserId())));
+            TableColumn<com.vCampus.entity.BorrowRecord, String> cBorrow = new TableColumn<>("借出");
+            cBorrow.setCellValueFactory(x -> new SimpleStringProperty(String.valueOf(x.getValue().getBorrowDate())));
+            TableColumn<com.vCampus.entity.BorrowRecord, String> cDue = new TableColumn<>("到期");
+            cDue.setCellValueFactory(x -> new SimpleStringProperty(String.valueOf(x.getValue().getDueDate())));
+            TableColumn<com.vCampus.entity.BorrowRecord, String> cReturn = new TableColumn<>("归还");
+            cReturn.setCellValueFactory(x -> new SimpleStringProperty(String.valueOf(x.getValue().getReturnDate())));
+            TableColumn<com.vCampus.entity.BorrowRecord, String> cStatus = new TableColumn<>("状态");
+            cStatus.setCellValueFactory(x -> new SimpleStringProperty(x.getValue().getStatus()));
+            tv.getColumns().addAll(cId, cUser, cUserName, cBorrow, cDue, cReturn, cStatus);
+            tv.setItems(FXCollections.observableArrayList(records));
+
+            Label summary = new Label("总借阅: " + total + "    本月: " + month + "    当前借出: " + current);
+            summary.setStyle("-fx-font-weight: bold;");
+
+            javafx.scene.layout.VBox box = new javafx.scene.layout.VBox(10, summary, tv);
+            box.setPadding(new javafx.geometry.Insets(10));
+            dlg.getDialogPane().setContent(box);
+            dlg.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
+            dlg.showAndWait();
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            showError("加载借阅情况失败: " + ex.getMessage());
+        }
+    }
+
+    // 简单用户名缓存，避免重复查询
+    private final java.util.Map<Integer,String> userNameCache = new java.util.HashMap<>();
+    private String resolveUsername(Integer userId) {
+        if (userId == null) return "";
+        if (userNameCache.containsKey(userId)) return userNameCache.get(userId);
+        try {
+            String name = com.vCampus.util.TransactionManager.executeInTransaction(conn -> {
+                com.vCampus.dao.IUserDao ud = new com.vCampus.dao.UserDaoImpl();
+                com.vCampus.entity.User u = ud.findById(userId, conn);
+                return u == null ? String.valueOf(userId) : u.getUsername();
+            });
+            userNameCache.put(userId, name);
+            return name;
+        } catch (Exception e) {
+            return String.valueOf(userId);
+        }
     }
 
     @FXML private void onSetStatus() {

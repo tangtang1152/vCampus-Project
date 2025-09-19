@@ -29,6 +29,9 @@ public interface IBorrowRecordDao extends IBaseDao<BorrowRecord, Integer> {
     int countMonthlyByBook(Integer bookId, java.sql.Date monthStart, java.sql.Date nextMonthStart, Connection conn) throws SQLException;
     // 统计：某书当前借出数量
     int countCurrentBorrowedByBook(Integer bookId, Connection conn) throws SQLException;
+
+    // 新增：按书ID列出全部借阅记录（按借出日期倒序）
+    java.util.List<com.vCampus.entity.BorrowRecord> listByBook(Integer bookId, Connection conn) throws SQLException;
 }
 
 
