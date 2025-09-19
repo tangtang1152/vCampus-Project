@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.DatePicker?>
+
+<BorderPane xmlns:fx="http://javafx.com/fxml" fx:controller="com.vCampus.view.StudentFormController">
+    <center>
+        <ScrollPane fitToWidth="true" prefViewportHeight="420">
+            <content>
+                <VBox spacing="12" style="-fx-padding: 16;">
+                    <Label text="学生信息" style="-fx-font-size: 16; -fx-font-weight: bold;" />
+                    <GridPane hgap="12" vgap="10">
+                        <columnConstraints>
+                            <ColumnConstraints prefWidth="120" />
+                            <ColumnConstraints hgrow="ALWAYS" />
+                        </columnConstraints>
+
+                        <Label text="学号" GridPane.rowIndex="0" GridPane.columnIndex="0" />
+                        <TextField fx:id="tfStudentId" promptText="例如 S20240101" GridPane.rowIndex="0" GridPane.columnIndex="1" />
+
+                        <Label text="姓名" GridPane.rowIndex="1" GridPane.columnIndex="0" />
+                        <TextField fx:id="tfStudentName" GridPane.rowIndex="1" GridPane.columnIndex="1" />
+
+                        <Label text="班级" GridPane.rowIndex="2" GridPane.columnIndex="0" />
+                        <TextField fx:id="tfClassName" GridPane.rowIndex="2" GridPane.columnIndex="1" />
+
+                        <Label text="性别" GridPane.rowIndex="3" GridPane.columnIndex="0" />
+                        <ComboBox fx:id="cbSex" GridPane.rowIndex="3" GridPane.columnIndex="1" />
+
+                        <Label text="入学日期" GridPane.rowIndex="4" GridPane.columnIndex="0" />
+                        <DatePicker fx:id="dpEnrollDate" GridPane.rowIndex="4" GridPane.columnIndex="1" />
+
+                        <Label text="邮箱" GridPane.rowIndex="5" GridPane.columnIndex="0" />
+                        <TextField fx:id="tfEmail" GridPane.rowIndex="5" GridPane.columnIndex="1" />
+
+                        <Label text="身份证" GridPane.rowIndex="6" GridPane.columnIndex="0" />
+                        <TextField fx:id="tfIdCard" GridPane.rowIndex="6" GridPane.columnIndex="1" />
+
+                        <Label text="学籍状态" GridPane.rowIndex="7" GridPane.columnIndex="0" />
+                        <ComboBox fx:id="cbStatus" GridPane.rowIndex="7" GridPane.columnIndex="1" />
+                    </GridPane>
+                </VBox>
+            </content>
+        </ScrollPane>
+    </center>
+
+    <bottom>
+        <HBox spacing="10" style="-fx-padding: 10; -fx-alignment: CENTER_RIGHT;">
+            <Button text="确定" onAction="#onOk" />
+            <Button text="取消" onAction="#onCancel" />
+        </HBox>
+    </bottom>
+
+    <padding>
+        <Insets top="10" right="10" bottom="10" left="10" />
+    </padding>
+</BorderPane>
+
+

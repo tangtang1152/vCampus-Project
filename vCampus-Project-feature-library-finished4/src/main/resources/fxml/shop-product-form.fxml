@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.geometry.Insets?>
+
+<BorderPane xmlns:fx="http://javafx.com/fxml" fx:controller="com.vCampus.view.ShopProductFormController">
+    <center>
+        <GridPane hgap="10" vgap="10" style="-fx-padding:16;">
+            <columnConstraints>
+                <ColumnConstraints prefWidth="120"/>
+                <ColumnConstraints hgrow="ALWAYS"/>
+            </columnConstraints>
+            <Label text="商品编号" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
+            <TextField fx:id="tfId" GridPane.rowIndex="0" GridPane.columnIndex="1"/>
+            <Label text="名称" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
+            <TextField fx:id="tfName" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
+            <Label text="价格" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
+            <TextField fx:id="tfPrice" GridPane.rowIndex="2" GridPane.columnIndex="1"/>
+            <Label text="库存" GridPane.rowIndex="3" GridPane.columnIndex="0"/>
+            <TextField fx:id="tfStock" GridPane.rowIndex="3" GridPane.columnIndex="1"/>
+            <Label text="分类" GridPane.rowIndex="4" GridPane.columnIndex="0"/>
+            <TextField fx:id="tfCategory" GridPane.rowIndex="4" GridPane.columnIndex="1"/>
+            <Label text="描述" GridPane.rowIndex="5" GridPane.columnIndex="0"/>
+            <TextArea fx:id="taDesc" prefRowCount="4" GridPane.rowIndex="5" GridPane.columnIndex="1"/>
+        </GridPane>
+    </center>
+    <bottom>
+        <HBox spacing="10" style="-fx-padding:10; -fx-alignment:CENTER_RIGHT;">
+            <Button text="取消" onAction="#onCancel"/>
+            <Button text="保存" onAction="#onSave"/>
+        </HBox>
+    </bottom>
+</BorderPane>
+
+

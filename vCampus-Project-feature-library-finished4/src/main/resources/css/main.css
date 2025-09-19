@@ -1,0 +1,70 @@
+/* 主界面样式 */
+.root {
+    -fx-font-family: "Microsoft YaHei", "Segoe UI", sans-serif;
+}
+
+/* 按钮样式 */
+.button {
+    -fx-background-radius: 5;
+    -fx-border-radius: 5;
+    -fx-cursor: hand;
+    -fx-font-size: 14px;
+    -fx-padding: 5 10 5 10;
+}
+
+.button:hover {
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.2), 10, 0, 0, 2);
+    -fx-opacity: 0.9;
+}
+
+/* 菜单样式 */
+.menu-bar {
+    -fx-background-color: #2c3e50;
+}
+
+.menu {
+    -fx-text-fill: white;
+}
+
+.menu-item {
+    -fx-text-fill: #2c3e50;
+}
+
+/* 表格样式 */
+.table-view {
+    -fx-background-color: white;
+    -fx-border-color: #ddd;
+    -fx-font-size: 14px;
+}
+
+.table-row-cell:selected {
+    -fx-background-color: #4c6ef5; /* 更深蓝，提升对比 */
+    -fx-text-fill: white;
+}
+
+/* 防止 hover 状态覆盖选中样式导致文字不可见 */
+.table-row-cell:selected:hover {
+    -fx-background-color: #3b5bdb;
+    -fx-text-fill: white;
+}
+
+/* 同时设置单元格文本颜色，确保在选中时保持可见 */
+.table-row-cell:selected .text,
+.table-row-cell:selected .table-cell {
+    -fx-text-fill: white;
+}
+
+.table-row-cell:hover {
+    -fx-background-color: #f5f5f5;
+}
+
+/* 输入框样式 */
+.text-field, .password-field, .text-area {
+    -fx-background-radius: 3;
+    -fx-border-radius: 3;
+    -fx-border-color: #ddd;
+}
+
+.text-field:focused, .password-field:focused {
+    -fx-border-color: #667eea;
+}
