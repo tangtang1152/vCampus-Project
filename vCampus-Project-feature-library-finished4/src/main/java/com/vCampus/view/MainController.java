@@ -5,6 +5,7 @@ import com.vCampus.common.NavigationUtil;
 import com.vCampus.common.SessionContext;
 import com.vCampus.util.RBACUtil;
 import javafx.fxml.FXML;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
@@ -72,6 +73,17 @@ public class MainController extends BaseController {
      */
     @FXML
     private void onStudentManagement() {
+        var user = SessionContext.getCurrentUser();
+        if (user == null || !RBACUtil.canManageUsers(user)) {
+            // 显示权限不足的警告弹窗
+            Alert alert = new Alert(Alert.AlertType.WARNING);
+            alert.setTitle("警告");
+            alert.setHeaderText(null);
+            alert.setContentText("需要管理员权限");
+            alert.showAndWait();
+            return;
+        }
+        
         loadContent("student-management-view.fxml");
         statusLabel.setText("学籍管理模块");
     }
@@ -227,7 +239,7 @@ public class MainController extends BaseController {
         boolean canLibraryAdmin = RBACUtil.canMaintainLibrary(user);
 
         if (miUserMgmt != null) miUserMgmt.setDisable(!canUserMgmt);
-        if (miStudentMgmt != null) miStudentMgmt.setDisable(!(canCourse || canUserMgmt));
+        if (miStudentMgmt != null) miStudentMgmt.setDisable(!canUserMgmt); // 学籍管理只有管理员能访问
         if (miCourseMgmt != null) miCourseMgmt.setDisable(!canCourse);
         if (miLibrary != null) miLibrary.setDisable(!canLibrary);
         if (miLibraryAdmin != null) miLibraryAdmin.setDisable(!canLibraryAdmin);
