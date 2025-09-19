@@ -64,8 +64,7 @@ public class CourseManagementController extends BaseController {
     public void initialize(URL location, ResourceBundle resources) {
         // 权限校验：确保只有管理员和教师角色能访问课程维护页 (MainController已经做了一次，这里可以再加一层保险)
         var user = SessionContext.getCurrentUser();
-        if (user == null || user.getRole() == null ||
-            (!user.getRole().toLowerCase().contains("admin") && !user.getRole().toLowerCase().contains("teacher"))) {
+        if (!com.vCampus.util.RBACUtil.canManageCourses(user)) {
             // 如果通过其他方式直接访问此Fxml，可以在这里做一次提示或跳转。
             // 为了简化，这里假设通过MainController的权限检查。
             System.out.println("警告: 非管理员或教师尝试访问课程管理。");
@@ -112,7 +111,7 @@ public class CourseManagementController extends BaseController {
         assistChooseItem.setOnAction(event -> onAdminAssistChoose());
         
         var user = SessionContext.getCurrentUser();
-        if (user != null && "ADMIN".equalsIgnoreCase(user.getRole())) {
+        if (com.vCampus.util.RBACUtil.isAdmin(user)) {
             contextMenu.getItems().addAll(viewStudentsItem, assistChooseItem);
         } else {
             // 教师或普通用户只能查看已选学生
@@ -209,7 +208,7 @@ public class CourseManagementController extends BaseController {
     private void onAdminAssistChoose() {
         // 权限检查：确保只有管理员能执行此操作
         var user = SessionContext.getCurrentUser();
-        if (user == null || !"ADMIN".equalsIgnoreCase(user.getRole())) {
+        if (!com.vCampus.util.RBACUtil.isAdmin(user)) {
             showWarning("您没有权限执行此操作，只有管理员可以代选课程。");
             return;
         }

@@ -95,8 +95,8 @@ public class MainController extends BaseController {
     @FXML
     private void onCourseManagement() {
         var user = SessionContext.getCurrentUser();
-        if (user == null || user.getRole() == null || (!user.getRole().toLowerCase().contains("admin") && !user.getRole().contains("管理员"))) {
-            showWarning("需要管理员权限");
+        if (!RBACUtil.canManageCourses(user)) {
+            showWarning("需要教师或管理员权限");
             return;
         }
         loadContent("course-management-view.fxml");
@@ -232,12 +232,16 @@ public class MainController extends BaseController {
 
     private void applyPermissions() {
         var user = SessionContext.getCurrentUser();
-        boolean canUserMgmt = RBACUtil.canManageUsers(user);
-        boolean canCourse = RBACUtil.canManageCourses(user);
-        boolean canLibrary = RBACUtil.canUseLibrary(user);
-        boolean canLibraryAdmin = RBACUtil.canMaintainLibrary(user);
-        boolean isAdmin = RBACUtil.isAdmin(user);
-        boolean canChoose = RBACUtil.isStudent(user) || isAdmin;
+        String active = SessionContext.getActiveRole();
+        boolean isAdmin = active != null && active.equalsIgnoreCase("ADMIN");
+        boolean isTeacher = active != null && active.equalsIgnoreCase("TEACHER");
+        boolean isStudent = active != null && active.equalsIgnoreCase("STUDENT");
+
+        boolean canUserMgmt = isAdmin;
+        boolean canCourse = isTeacher || isAdmin;
+        boolean canLibrary = isStudent || isTeacher || isAdmin;
+        boolean canLibraryAdmin = isAdmin;
+        boolean canChoose = isStudent || isAdmin;
 
         if (miUserMgmt != null) miUserMgmt.setDisable(!canUserMgmt);
         if (miStudentMgmt != null) miStudentMgmt.setDisable(!(canCourse || canUserMgmt));

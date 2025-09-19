@@ -183,19 +183,23 @@ public class UserManagementController extends BaseController {
         PasswordField pfPassword = new PasswordField();
         if (isEdit) pfPassword.setPromptText("留空则不修改");
 
-        // 角色单选
-        ToggleGroup roleGroup = new ToggleGroup();
-        RadioButton rbStu = new RadioButton("学生"); rbStu.setToggleGroup(roleGroup);
-        RadioButton rbTch = new RadioButton("教师"); rbTch.setToggleGroup(roleGroup);
-        RadioButton rbAdm = new RadioButton("管理员"); rbAdm.setToggleGroup(roleGroup);
-        var roleRow = new javafx.scene.layout.HBox(12, rbStu, rbTch, rbAdm);
+        // 角色多选
+        CheckBox cbRoleStu = new CheckBox("学生");
+        CheckBox cbRoleTch = new CheckBox("教师");
+        CheckBox cbRoleAdm = new CheckBox("管理员");
+        var roleRow = new javafx.scene.layout.HBox(12, cbRoleStu, cbRoleTch, cbRoleAdm);
         roleRow.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
 
-        String existingRole = isEdit ? originUser.getRoleSet().stream().findFirst().orElse("") : "";
-        if (existingRole.equalsIgnoreCase("STUDENT")) rbStu.setSelected(true);
-        else if (existingRole.equalsIgnoreCase("TEACHER")) rbTch.setSelected(true);
-        else if (existingRole.equalsIgnoreCase("ADMIN")) rbAdm.setSelected(true);
-        else rbStu.setSelected(!isEdit); // 新增默认学生
+        java.util.Set<String> existingRoles = isEdit
+            ? originUser.getRoleSet().stream().map(String::toUpperCase).collect(java.util.stream.Collectors.toSet())
+            : java.util.Collections.emptySet();
+        if (isEdit) {
+            cbRoleStu.setSelected(existingRoles.contains("STUDENT"));
+            cbRoleTch.setSelected(existingRoles.contains("TEACHER"));
+            cbRoleAdm.setSelected(existingRoles.contains("ADMIN"));
+        } else {
+            cbRoleStu.setSelected(true); // 新增默认勾选学生
+        }
 
         // 学生字段
         TextField tfStuId = new TextField(); tfStuId.setPromptText("学号");
@@ -234,29 +238,28 @@ public class UserManagementController extends BaseController {
 
         // 若编辑，回填明细
         if (isEdit) {
-            Set<String> rs = originUser.getRoleSet();
+            Set<String> rs = originUser.getRoleSet().stream().map(String::toUpperCase).collect(java.util.stream.Collectors.toSet());
             if (rs.contains("STUDENT")) {
                 Student s = studentService.getByUserId(originUser.getUserId());
                 if (s != null) {
                     tfStuId.setText(s.getStudentId()); tfStuId.setEditable(false);
                     tfStuName.setText(s.getStudentName()); tfClass.setText(s.getClassName());
                 }
-                rbStu.setSelected(true);
-            } else if (rs.contains("TEACHER")) {
+            }
+            if (rs.contains("TEACHER")) {
                 Teacher t = teacherService.getByUserId(originUser.getUserId());
                 if (t != null) {
                     tfTchId.setText(t.getTeacherId()); tfTchId.setEditable(false);
                     tfTchName.setText(t.getTeacherName()); cbSex.setValue(t.getSex());
                     tfTech.setText(t.getTechnical()); tfDept.setText(t.getDepartmentId());
                 }
-                rbTch.setSelected(true);
-            } else if (rs.contains("ADMIN")) {
+            }
+            if (rs.contains("ADMIN")) {
                 Admin a = adminService.getByUserId(originUser.getUserId());
                 if (a != null) {
                     tfAdmId.setText(a.getAdminId()); tfAdmId.setEditable(false);
                     tfAdmName.setText(a.getAdminName());
                 }
-                rbAdm.setSelected(true);
             }
         }
 
@@ -270,21 +273,20 @@ public class UserManagementController extends BaseController {
             groupAdm
         );
 
-        // 角色切换联动（可见性 + 调试输出）
-        java.util.function.Consumer<String> applyRoleVisibility = role -> {
-            boolean s = "STUDENT".equalsIgnoreCase(role);
-            boolean t = "TEACHER".equalsIgnoreCase(role);
-            boolean a = "ADMIN".equalsIgnoreCase(role);
+        // 角色切换联动（多选可见性 + 调试输出）
+        Runnable updateRoleVisibility = () -> {
+            boolean s = cbRoleStu.isSelected();
+            boolean t = cbRoleTch.isSelected();
+            boolean a = cbRoleAdm.isSelected();
             groupStu.setManaged(s); groupStu.setVisible(s);
             groupTch.setManaged(t); groupTch.setVisible(t);
             groupAdm.setManaged(a); groupAdm.setVisible(a);
-            System.out.println("[UserMgmt] 角色区域切换 => " + role);
+            System.out.println("[UserMgmt] 角色区域切换 => S=" + s + ", T=" + t + ", A=" + a);
         };
-        String initRole = rbStu.isSelected()?"STUDENT":rbTch.isSelected()?"TEACHER":"ADMIN";
-        applyRoleVisibility.accept(initRole);
-        rbStu.setOnAction(e -> applyRoleVisibility.accept("STUDENT"));
-        rbTch.setOnAction(e -> applyRoleVisibility.accept("TEACHER"));
-        rbAdm.setOnAction(e -> applyRoleVisibility.accept("ADMIN"));
+        updateRoleVisibility.run();
+        cbRoleStu.setOnAction(e -> updateRoleVisibility.run());
+        cbRoleTch.setOnAction(e -> updateRoleVisibility.run());
+        cbRoleAdm.setOnAction(e -> updateRoleVisibility.run());
 
         // 放入可滚动容器并允许调整大小
         var sp = new javafx.scene.control.ScrollPane(form);
@@ -302,25 +304,31 @@ public class UserManagementController extends BaseController {
             if (bt != ButtonType.OK) return;
             String username = tfUsername.getText().trim();
             String password = pfPassword.getText();
-            boolean chooseStu = rbStu.isSelected();
-            boolean chooseTch = rbTch.isSelected();
-            boolean chooseAdm = rbAdm.isSelected();
             if (username.isEmpty()) { showError("用户名不能为空"); return; }
 
             if (!isEdit) {
-                // 新增
+                // 新增（支持多角色）：至少选择一个角色
+                boolean chooseStu = cbRoleStu.isSelected();
+                boolean chooseTch = cbRoleTch.isSelected();
+                boolean chooseAdm = cbRoleAdm.isSelected();
+                if (!chooseStu && !chooseTch && !chooseAdm) { showError("请至少选择一个角色"); return; }
+
+                // 针对选择的角色进行字段校验
+                if (chooseStu && (tfStuId.getText().trim().isEmpty() || tfStuName.getText().trim().isEmpty())) { showError("请填写学号与姓名"); return; }
+                if (chooseTch && (tfTchId.getText().trim().isEmpty() || tfTchName.getText().trim().isEmpty())) { showError("请填写教师编号与姓名"); return; }
+                if (chooseAdm && (tfAdmId.getText().trim().isEmpty() || tfAdmName.getText().trim().isEmpty())) { showError("请填写管理员工号与姓名"); return; }
+
+                // 先用一个“主角色”完成用户主表插入
+                IUserService.RegisterResult res;
                 if (chooseStu) {
-                    if (tfStuId.getText().trim().isEmpty() || tfStuName.getText().trim().isEmpty()) { showError("请填写学号与姓名"); return; }
                     Student s = new Student();
                     s.setUsername(username); s.setPassword(password.isEmpty()?"123456":password);
                     s.setRole("student");
                     s.setStudentId(tfStuId.getText().trim());
                     s.setStudentName(tfStuName.getText().trim());
                     s.setClassName(tfClass.getText().trim());
-                    var res = userService.register(s);
-                    if (res != IUserService.RegisterResult.SUCCESS) { showError("新增学生失败: " + res); return; }
+                    res = userService.register(s);
                 } else if (chooseTch) {
-                    if (tfTchId.getText().trim().isEmpty() || tfTchName.getText().trim().isEmpty()) { showError("请填写教师编号与姓名"); return; }
                     Teacher t = new Teacher();
                     t.setUsername(username); t.setPassword(password.isEmpty()?"123456":password);
                     t.setRole("teacher");
@@ -329,72 +337,148 @@ public class UserManagementController extends BaseController {
                     t.setSex(cbSex.getValue());
                     t.setTechnical(tfTech.getText().trim());
                     t.setDepartmentId(tfDept.getText().trim());
-                    var res = userService.register(t);
-                    if (res != IUserService.RegisterResult.SUCCESS) { showError("新增教师失败: " + res); return; }
-                } else if (chooseAdm) {
-                    if (tfAdmId.getText().trim().isEmpty() || tfAdmName.getText().trim().isEmpty()) { showError("请填写管理员工号与姓名"); return; }
+                    res = userService.register(t);
+                } else {
                     Admin a = new Admin();
                     a.setUsername(username); a.setPassword(password.isEmpty()?"123456":password);
                     a.setRole("admin");
                     a.setAdminId(tfAdmId.getText().trim());
                     a.setAdminName(tfAdmName.getText().trim());
-                    var res = userService.register(a);
-                    if (res != IUserService.RegisterResult.SUCCESS) { showError("新增管理员失败: " + res); return; }
+                    res = userService.register(a);
                 }
+                if (res != IUserService.RegisterResult.SUCCESS) { showError("新增失败: " + res); return; }
+
+                // 获取刚创建的用户，并写入多角色集合
+                User created = userService.getByUsername(username);
+                if (created == null) { showError("新增失败：未找到新建用户"); return; }
+                java.util.LinkedHashSet<String> rolesUpper = new java.util.LinkedHashSet<>();
+                if (chooseStu) rolesUpper.add("STUDENT");
+                if (chooseTch) rolesUpper.add("TEACHER");
+                if (chooseAdm) rolesUpper.add("ADMIN");
+                created.setRoleSet(rolesUpper);
+                boolean okUpdateUser = userService.update(created);
+                if (!okUpdateUser) { showError("新增失败：更新用户角色集失败"); return; }
+
+                // 为额外角色补充明细记录
+                boolean okDetails = true;
+                int uid = created.getUserId();
+                // 唯一性预检查：避免主键或唯一索引冲突
+                if (chooseStu) {
+                    Student existByStuId = studentService.getBySelfId(tfStuId.getText().trim());
+                    if (existByStuId != null && !uidEquals(existByStuId.getUserId(), uid)) { showError("学号已被其他用户占用"); return; }
+                }
+                if (chooseTch) {
+                    Teacher existByTchId = teacherService.getBySelfId(tfTchId.getText().trim());
+                    if (existByTchId != null && !uidEquals(existByTchId.getUserId(), uid)) { showError("教师编号已被其他用户占用"); return; }
+                }
+                if (chooseAdm) {
+                    Admin existByAdmId = adminService.getBySelfId(tfAdmId.getText().trim());
+                    if (existByAdmId != null && !uidEquals(existByAdmId.getUserId(), uid)) { showError("管理员工号已被其他用户占用"); return; }
+                }
+                if (chooseStu) {
+                    Student s = studentService.getByUserId(uid);
+                    if (s == null) { s = new Student(); s.setUserId(uid); s.setStudentId(tfStuId.getText().trim()); s.setStudentName(tfStuName.getText().trim()); s.setClassName(tfClass.getText().trim()); okDetails &= studentService.add(s); }
+                }
+                if (chooseTch) {
+                    Teacher t = teacherService.getByUserId(uid);
+                    if (t == null) { t = new Teacher(); t.setUserId(uid); t.setTeacherId(tfTchId.getText().trim()); t.setTeacherName(tfTchName.getText().trim()); t.setSex(cbSex.getValue()); t.setTechnical(tfTech.getText().trim()); t.setDepartmentId(tfDept.getText().trim()); okDetails &= teacherService.add(t); }
+                }
+                if (chooseAdm) {
+                    Admin a = adminService.getByUserId(uid);
+                    if (a == null) { a = new Admin(); a.setUserId(uid); a.setAdminId(tfAdmId.getText().trim()); a.setAdminName(tfAdmName.getText().trim()); okDetails &= adminService.add(a); }
+                }
+
+                if (!okDetails) { showError("新增失败：角色明细保存出错"); return; }
                 showInformation("提示", "新增成功"); refresh();
                 return;
             }
 
-            // 编辑：允许切换角色并迁移明细
-            // 更新用户核心信息（若密码留空则不改）
+            // 编辑：允许切换为多角色，并按选择增删改对应明细
             originUser.setUsername(username);
             if (!password.isEmpty()) originUser.setPassword(password);
 
-            String targetRole = (rbStu.isSelected()?"student":rbTch.isSelected()?"teacher":"admin");
-            String oldRole = (existingRole == null?"":existingRole).toLowerCase();
-            originUser.setRole(targetRole);
+            java.util.LinkedHashSet<String> selectedRoles = new java.util.LinkedHashSet<>();
+            if (cbRoleStu.isSelected()) selectedRoles.add("STUDENT");
+            if (cbRoleTch.isSelected()) selectedRoles.add("TEACHER");
+            if (cbRoleAdm.isSelected()) selectedRoles.add("ADMIN");
+            if (selectedRoles.isEmpty()) { showError("至少选择一个角色"); return; }
+
+            // 计算角色变化集
+            java.util.Set<String> oldRoles = existingRoles;
+            java.util.Set<String> toAdd = new java.util.LinkedHashSet<>(selectedRoles); toAdd.removeAll(oldRoles);
+            java.util.Set<String> toRemove = new java.util.LinkedHashSet<>(oldRoles); toRemove.removeAll(selectedRoles);
+
+            // 唯一性预检查：对于新增的角色，验证自增ID/工号未被其他用户占用
+            if (toAdd.contains("STUDENT")) {
+                if (tfStuId.getText().trim().isEmpty() || tfStuName.getText().trim().isEmpty()) { showError("请填写学号与姓名"); return; }
+                Student existByStuId = studentService.getBySelfId(tfStuId.getText().trim());
+                if (existByStuId != null && !uidEquals(existByStuId.getUserId(), originUser.getUserId())) { showError("学号已被其他用户占用"); return; }
+            }
+            if (toAdd.contains("TEACHER")) {
+                if (tfTchId.getText().trim().isEmpty() || tfTchName.getText().trim().isEmpty()) { showError("请填写教师编号与姓名"); return; }
+                Teacher existByTchId = teacherService.getBySelfId(tfTchId.getText().trim());
+                if (existByTchId != null && !uidEquals(existByTchId.getUserId(), originUser.getUserId())) { showError("教师编号已被其他用户占用"); return; }
+            }
+            if (toAdd.contains("ADMIN")) {
+                if (tfAdmId.getText().trim().isEmpty() || tfAdmName.getText().trim().isEmpty()) { showError("请填写管理员工号与姓名"); return; }
+                Admin existByAdmId = adminService.getBySelfId(tfAdmId.getText().trim());
+                if (existByAdmId != null && !uidEquals(existByAdmId.getUserId(), originUser.getUserId())) { showError("管理员工号已被其他用户占用"); return; }
+            }
+
+            // 预检通过后再更新用户角色集
+            originUser.setRoleSet(selectedRoles);
             boolean okUser = userService.update(originUser);
 
             boolean okRole = true;
             try {
-                if (!targetRole.equalsIgnoreCase(oldRole)) {
-                    // 删除旧角色明细
-                    if ("student".equals(oldRole)) {
-                        Student sOld = studentService.getByUserId(originUser.getUserId());
-                        if (sOld != null) studentService.deleteStudentOnly(sOld.getStudentId());
-                    } else if ("teacher".equals(oldRole)) {
-                        Teacher tOld = teacherService.getByUserId(originUser.getUserId());
-                        if (tOld != null) teacherService.deleteTeacherOnly(tOld.getTeacherId());
-                    } else if ("admin".equals(oldRole)) {
-                        Admin aOld = adminService.getByUserId(originUser.getUserId());
-                        if (aOld != null) adminService.deleteAdminOnly(aOld.getAdminId());
-                    }
-                    // 新建目标角色明细
-                    if (rbStu.isSelected()) {
-                        Student s = new Student(); s.setUserId(originUser.getUserId());
-                        s.setStudentId(tfStuId.getText().trim()); s.setStudentName(tfStuName.getText().trim()); s.setClassName(tfClass.getText().trim());
-                        okRole = studentService.add(s);
-                    } else if (rbTch.isSelected()) {
-                        Teacher t = new Teacher(); t.setUserId(originUser.getUserId());
-                        t.setTeacherId(tfTchId.getText().trim()); t.setTeacherName(tfTchName.getText().trim()); t.setSex(cbSex.getValue()); t.setTechnical(tfTech.getText().trim()); t.setDepartmentId(tfDept.getText().trim());
-                        okRole = teacherService.add(t);
-                    } else {
-                        Admin a = new Admin(); a.setUserId(originUser.getUserId());
-                        a.setAdminId(tfAdmId.getText().trim()); a.setAdminName(tfAdmName.getText().trim());
-                        okRole = adminService.add(a);
-                    }
-                } else {
-                    // 角色未变，更新现有明细
-                    if (rbStu.isSelected()) {
-                        Student s = studentService.getByUserId(originUser.getUserId());
-                        if (s != null) { s.setStudentName(tfStuName.getText().trim()); s.setClassName(tfClass.getText().trim()); okRole = studentService.updateStudentOnly(s); }
-                    } else if (rbTch.isSelected()) {
-                        Teacher t = teacherService.getByUserId(originUser.getUserId());
-                        if (t != null) { t.setTeacherName(tfTchName.getText().trim()); t.setSex(cbSex.getValue()); t.setTechnical(tfTech.getText().trim()); t.setDepartmentId(tfDept.getText().trim()); okRole = teacherService.updateTeacherOnly(t); }
-                    } else {
-                        Admin a = adminService.getByUserId(originUser.getUserId());
-                        if (a != null) { a.setAdminName(tfAdmName.getText().trim()); okRole = adminService.updateAdminOnly(a); }
-                    }
+                // 已有 toAdd/toRemove
+
+                // 删除未选中的旧角色明细
+                if (toRemove.contains("STUDENT")) {
+                    Student sOld = studentService.getByUserId(originUser.getUserId());
+                    if (sOld != null) okRole &= studentService.deleteStudentOnly(sOld.getStudentId());
+                }
+                if (toRemove.contains("TEACHER")) {
+                    Teacher tOld = teacherService.getByUserId(originUser.getUserId());
+                    if (tOld != null) okRole &= teacherService.deleteTeacherOnly(tOld.getTeacherId());
+                }
+                if (toRemove.contains("ADMIN")) {
+                    Admin aOld = adminService.getByUserId(originUser.getUserId());
+                    if (aOld != null) okRole &= adminService.deleteAdminOnly(aOld.getAdminId());
+                }
+
+                // 新增选中的新角色明细
+                if (toAdd.contains("STUDENT")) {
+                    if (tfStuId.getText().trim().isEmpty() || tfStuName.getText().trim().isEmpty()) { showError("请填写学号与姓名"); return; }
+                    Student s = new Student(); s.setUserId(originUser.getUserId());
+                    s.setStudentId(tfStuId.getText().trim()); s.setStudentName(tfStuName.getText().trim()); s.setClassName(tfClass.getText().trim());
+                    okRole &= studentService.add(s);
+                }
+                if (toAdd.contains("TEACHER")) {
+                    if (tfTchId.getText().trim().isEmpty() || tfTchName.getText().trim().isEmpty()) { showError("请填写教师编号与姓名"); return; }
+                    Teacher t = new Teacher(); t.setUserId(originUser.getUserId());
+                    t.setTeacherId(tfTchId.getText().trim()); t.setTeacherName(tfTchName.getText().trim()); t.setSex(cbSex.getValue()); t.setTechnical(tfTech.getText().trim()); t.setDepartmentId(tfDept.getText().trim());
+                    okRole &= teacherService.add(t);
+                }
+                if (toAdd.contains("ADMIN")) {
+                    if (tfAdmId.getText().trim().isEmpty() || tfAdmName.getText().trim().isEmpty()) { showError("请填写管理员工号与姓名"); return; }
+                    Admin a = new Admin(); a.setUserId(originUser.getUserId());
+                    a.setAdminId(tfAdmId.getText().trim()); a.setAdminName(tfAdmName.getText().trim());
+                    okRole &= adminService.add(a);
+                }
+
+                // 更新现有角色明细
+                if (selectedRoles.contains("STUDENT") && oldRoles.contains("STUDENT")) {
+                    Student s = studentService.getByUserId(originUser.getUserId());
+                    if (s != null) { s.setStudentName(tfStuName.getText().trim()); s.setClassName(tfClass.getText().trim()); okRole &= studentService.updateStudentOnly(s); }
+                }
+                if (selectedRoles.contains("TEACHER") && oldRoles.contains("TEACHER")) {
+                    Teacher t = teacherService.getByUserId(originUser.getUserId());
+                    if (t != null) { t.setTeacherName(tfTchName.getText().trim()); t.setSex(cbSex.getValue()); t.setTechnical(tfTech.getText().trim()); t.setDepartmentId(tfDept.getText().trim()); okRole &= teacherService.updateTeacherOnly(t); }
+                }
+                if (selectedRoles.contains("ADMIN") && oldRoles.contains("ADMIN")) {
+                    Admin a = adminService.getByUserId(originUser.getUserId());
+                    if (a != null) { a.setAdminName(tfAdmName.getText().trim()); okRole &= adminService.updateAdminOnly(a); }
                 }
             } catch (Exception ex) {
                 System.err.println("[UserMgmt] 编辑保存失败: " + ex.getMessage());
@@ -405,6 +489,12 @@ public class UserManagementController extends BaseController {
     }
     @FXML private void onImport() { showInformation("导入", "占位：实现Excel/CSV导入"); }
     @FXML private void onExport() { showInformation("导出", "占位：实现Excel/CSV导出"); }
+
+    private boolean uidEquals(Integer a, Integer b) {
+        if (a == null && b == null) return true;
+        if (a == null || b == null) return false;
+        return a.intValue() == b.intValue();
+    }
 }
 
 

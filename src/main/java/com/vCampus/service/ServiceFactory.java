@@ -14,6 +14,7 @@ public class ServiceFactory {
     private static volatile ISubjectService subjectService;
     private static volatile IShopService shopService;
     private static volatile IProductService productService;
+    private static volatile LibraryService libraryService;
     
     public static IUserService getUserService() {
         if (userService == null) {
@@ -101,5 +102,16 @@ public class ServiceFactory {
             }
         }
         return productService;
+    }
+
+    public static LibraryService getLibraryService() {
+        if (libraryService == null) {
+            synchronized (ServiceFactory.class) {
+                if (libraryService == null) {
+                    libraryService = new LibraryService(); // 未来可替换为远程实现
+                }
+            }
+        }
+        return libraryService;
     }
 }

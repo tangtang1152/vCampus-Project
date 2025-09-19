@@ -67,7 +67,15 @@ public class User {
         for (String part : parts) {
             if (part == null) continue;
             String token = part.trim();
-            if (!token.isEmpty()) roles.add(token);
+            if (token.isEmpty()) continue;
+            String normalized = token.toUpperCase(java.util.Locale.ROOT);
+            // 兼容：既支持短码 S/T/A，也支持全称 STUDENT/TEACHER/ADMIN
+            switch (normalized) {
+                case "S": roles.add("STUDENT"); break;
+                case "T": roles.add("TEACHER"); break;
+                case "A": roles.add("ADMIN"); break;
+                default: roles.add(normalized);
+            }
         }
         return roles;
     }
@@ -80,13 +88,19 @@ public class User {
             this.role = null;
             return;
         }
-        LinkedHashSet<String> norm = new LinkedHashSet<>();
+        // 存储压缩为短码（S/T/A），避免超出数据库列长度
+        LinkedHashSet<String> codes = new LinkedHashSet<>();
         for (String r : roles) {
             if (r == null) continue;
             String token = r.trim();
-            if (!token.isEmpty()) norm.add(token);
+            if (token.isEmpty()) continue;
+            String upper = token.toUpperCase(java.util.Locale.ROOT);
+            if ("STUDENT".equals(upper) || "S".equals(upper)) codes.add("S");
+            else if ("TEACHER".equals(upper) || "T".equals(upper)) codes.add("T");
+            else if ("ADMIN".equals(upper) || "A".equals(upper)) codes.add("A");
+            else codes.add(upper); // 兼容未知自定义角色
         }
-        this.role = String.join(",", norm);
+        this.role = String.join(",", codes);
     }
 
     /**

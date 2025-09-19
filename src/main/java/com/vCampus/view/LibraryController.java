@@ -4,6 +4,9 @@ import com.vCampus.common.BaseController;
 import com.vCampus.entity.Book;
 import com.vCampus.entity.BorrowRecord;
 import com.vCampus.service.LibraryService;
+import com.vCampus.service.ServiceFactory;
+import com.vCampus.common.LibrarySession;
+import com.vCampus.util.TransactionManager;
 import com.vCampus.util.LibraryUserRules;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -45,7 +48,7 @@ public class LibraryController extends BaseController {
     @FXML private Button btnRenew;
     @FXML private Button btnReturn;
 
-    private final LibraryService libraryService = new LibraryService();
+    private final LibraryService libraryService = ServiceFactory.getLibraryService();
     private final ObservableList<Book> data = FXCollections.observableArrayList();
     private int page = 1;
     private final int pageSize = 10;
@@ -114,12 +117,12 @@ public class LibraryController extends BaseController {
         boolean canMaintain = com.vCampus.util.RBACUtil.canMaintainLibrary(user);
         if (btnRenew != null) btnRenew.setDisable(!canUse);
         if (btnReturn != null) btnReturn.setDisable(!canUse);
-        loadPage();
+        asyncLoadPage();
         pagination.currentPageIndexProperty().addListener((obs, o, n) -> {
             page = n.intValue() + 1;
-            loadPage();
+            asyncLoadPage();
         });
-        loadMyBorrows();
+        asyncLoadMyBorrows();
         // 恢复行样式设置
         setupBorrowTableRowFactory();
     }
@@ -127,25 +130,43 @@ public class LibraryController extends BaseController {
     @FXML
     private void onSearch() {
         page = 1;
-        loadPage();
+        asyncLoadPage();
     }
 
-    private void loadPage() {
+    private void asyncLoadPage() {
         String kw = keywordField == null ? "" : keywordField.getText();
         String st = bookStatusBox == null ? "全部" : String.valueOf(bookStatusBox.getValue());
         String sort = sortBox == null ? "默认(最新)" : String.valueOf(sortBox.getValue());
-        List<Book> list = libraryService.searchBooksAdvanced(kw, st, sort, page, pageSize);
-        data.setAll(list);
-        infoLabel.setText("共 " + data.size() + " 条（本页）");
+        int curPage = page;
+        int size = pageSize;
+        LibrarySession.setKeyword(kw);
+        LibrarySession.setBookStatusFilter(st);
+        LibrarySession.setSortOption(sort);
+        LibrarySession.setCurrentPage(curPage);
+        LibrarySession.setPageSize(size);
+
+        new Thread(() -> {
+            List<Book> list = libraryService.searchBooksAdvanced(kw, st, sort, curPage, size);
+            TransactionManager.runLaterSafe(() -> {
+                data.setAll(list);
+                infoLabel.setText("共 " + data.size() + " 条（本页）");
+                LibrarySession.setLastRefreshMillis(System.currentTimeMillis());
+            });
+        }, "lib-loadPage").start();
     }
 
-    private void loadMyBorrows() {
+    private void asyncLoadMyBorrows() {
         String status = statusFilter == null ? "借出" : statusFilter.getValue();
-        var list = libraryService.listMyBorrowsByStatus(getCurrentUserId(), status);
-        // 这里只显示在借记录
-        if (borrowTable != null) {
-            borrowTable.getItems().setAll(list);
-        }
+        LibrarySession.setBorrowStatus(status);
+        String uid = getCurrentUserId();
+        new Thread(() -> {
+            var list = libraryService.listMyBorrowsByStatus(uid, status);
+            TransactionManager.runLaterSafe(() -> {
+                if (borrowTable != null) {
+                    borrowTable.getItems().setAll(list);
+                }
+            });
+        }, "lib-loadMyBorrows").start();
     }
 
     // 顶部筛选按钮已移除，这里不再需要 onFilter
@@ -170,16 +191,26 @@ public class LibraryController extends BaseController {
         Book sel = bookTable.getSelectionModel().getSelectedItem();
         if (sel == null) { showWarning("请先选择一本书"); return; }
         int days = askDays("借书时长（天）", 30);
-        var res = libraryService.borrowBookWithReason(getCurrentUserId(), sel.getBookId(), days);
-        if (res.isSuccess()) { showInformation("提示", res.getMessage()); loadPage(); } else { showError(res.getMessage()); }
+        new Thread(() -> {
+            var res = libraryService.borrowBookWithReason(getCurrentUserId(), sel.getBookId(), days);
+            TransactionManager.runLaterSafe(() -> {
+                if (res.isSuccess()) { showInformation("提示", res.getMessage()); asyncLoadPage(); asyncLoadMyBorrows(); }
+                else { showError(res.getMessage()); }
+            });
+        }, "lib-borrow").start();
     }
 
     @FXML
     private void onReserve() {
         Book sel = bookTable.getSelectionModel().getSelectedItem();
         if (sel == null) { showWarning("请先选择一本书"); return; }
-        var res = libraryService.reserveBookWithReason(getCurrentUserId(), sel.getBookId());
-        if (res.isSuccess()) { showInformation("提示", res.getMessage()); } else { showError(res.getMessage()); }
+        new Thread(() -> {
+            var res = libraryService.reserveBookWithReason(getCurrentUserId(), sel.getBookId());
+            TransactionManager.runLaterSafe(() -> {
+                if (res.isSuccess()) { showInformation("提示", res.getMessage()); }
+                else { showError(res.getMessage()); }
+            });
+        }, "lib-reserve").start();
     }
 
     @FXML private void onRenew() {
@@ -188,20 +219,28 @@ public class LibraryController extends BaseController {
         
         int days = askDays("续借时长（天）", 30);
         // maxTimes 由服务层按角色判断，这里传1不再生效，但保持参数兼容
-        var res = libraryService.renewBorrowWithReason(getCurrentUserId(), sel.getRecordId(), days, 1);
-        if (res.isSuccess()) { showInformation("提示", res.getMessage()); loadMyBorrows(); }
-        else { showError(res.getMessage()); }
+        new Thread(() -> {
+            var res = libraryService.renewBorrowWithReason(getCurrentUserId(), sel.getRecordId(), days, 1);
+            TransactionManager.runLaterSafe(() -> {
+                if (res.isSuccess()) { showInformation("提示", res.getMessage()); asyncLoadMyBorrows(); }
+                else { showError(res.getMessage()); }
+            });
+        }, "lib-renew").start();
     }
 
     @FXML private void onReturn() {
         var sel = borrowTable.getSelectionModel().getSelectedItem();
         if (sel == null) { showWarning("请选择要归还的记录"); return; }
-        var res = libraryService.returnBookWithReason(getCurrentUserId(), sel.getRecordId(), sel.getBookId());
-        if (res.isSuccess()) { showInformation("提示", res.getMessage()); loadMyBorrows(); loadPage(); }
-        else { showError(res.getMessage()); }
+        new Thread(() -> {
+            var res = libraryService.returnBookWithReason(getCurrentUserId(), sel.getRecordId(), sel.getBookId());
+            TransactionManager.runLaterSafe(() -> {
+                if (res.isSuccess()) { showInformation("提示", res.getMessage()); asyncLoadMyBorrows(); asyncLoadPage(); }
+                else { showError(res.getMessage()); }
+            });
+        }, "lib-return").start();
     }
 
-    @FXML private void onRefreshBorrows() { loadMyBorrows(); }
+    @FXML private void onRefreshBorrows() { asyncLoadMyBorrows(); }
 
     // 从 BaseController 或登录上下文获取当前用户ID，这里先占位实现
     private String getCurrentUserId() {

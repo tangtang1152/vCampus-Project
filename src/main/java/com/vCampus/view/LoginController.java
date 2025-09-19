@@ -59,43 +59,30 @@ public class LoginController extends BaseController {
 
         try {
             IUserService userService = ServiceFactory.getUserService();
-            User genericUser = userService.login(username, password); // 获取通用 User 对象
+            User genericUser = userService.login(username, password); // 获取通用 User 对象（支持多角色）
 
             if (genericUser != null) {
-                // 根据通用 User 对象的角色，获取对应的具体子类对象
-                User specificUser = null; // 用于存储具体的学生/教师/管理员对象
+                // 将通用 User 放入会话，并设置激活角色为主角色（在 SessionContext 内部完成）
+                SessionContext.setCurrentUser(genericUser);
+                // 可选：预加载主角色对应的详情（不改变会话对象类型）
+                try {
+                    String primary = genericUser.getPrimaryRole();
+                    if ("STUDENT".equalsIgnoreCase(primary)) {
+                        ServiceFactory.getStudentService().getByUserId(genericUser.getUserId());
+                    } else if ("TEACHER".equalsIgnoreCase(primary)) {
+                        ServiceFactory.getTeacherService().getByUserId(genericUser.getUserId());
+                    } else if ("ADMIN".equalsIgnoreCase(primary)) {
+                        ServiceFactory.getAdminService().getByUserId(genericUser.getUserId());
+                    }
+                } catch (Exception ignored) {}
 
-                switch (genericUser.getRole()) {
-  case "STUDENT":
-  specificUser = ServiceFactory.getStudentService().getByUserId(genericUser.getUserId());
-  break;
-  case "TEACHER":
-  specificUser = ServiceFactory.getTeacherService().getByUserId(genericUser.getUserId());
-  break;
-  case "ADMIN":
-  specificUser = ServiceFactory.getAdminService().getByUserId(genericUser.getUserId());
-  break;
-  default:
-  // 如果角色未知或没有对应的子类，则仍然使用通用 User
-  specificUser = genericUser;
-                }
+                showSuccess("登录成功！欢迎 " + genericUser.getUsername());
 
-                if (specificUser != null) {
-  SessionContext.setCurrentUser(specificUser); // 将具体的子类对象存入 SessionContext
-  showSuccess("登录成功！欢迎 " + specificUser.getUsername());
-
-  NavigationUtil.navigateTo(
-  getCurrentStage(),
-  "main-view.fxml",
-  "vCampus主界面 - " + specificUser.getUsername()
-  );
-                } else {
-  // 登录成功但无法获取具体的角色信息，可能是数据不一致
-  showError("登录失败: 无法获取完整的用户角色信息");
-  passwordField.clear();
-  passwordField.requestFocus();
-                }
-
+                NavigationUtil.navigateTo(
+                    getCurrentStage(),
+                    "main-view.fxml",
+                    "vCampus主界面 - " + genericUser.getUsername()
+                );
             } else {
                 showError("用户名或密码错误");
                 passwordField.clear();
