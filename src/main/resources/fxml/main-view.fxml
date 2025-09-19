@@ -21,6 +21,8 @@
                     <MenuItem text="学籍管理" fx:id="miStudentMgmt" onAction="#onStudentManagement"/>
                     <MenuItem text="课程管理" fx:id="miCourseMgmt" onAction="#onCourseManagement"/>
                     <MenuItem text="图书馆" fx:id="miLibrary" onAction="#onLibrary"/>
+                    <MenuItem text="商店" onAction="#onShop"/>
+                    <MenuItem text="商店管理" onAction="#onShopAdmin"/>
                     <MenuItem text="图书维护(管理员)" fx:id="miLibraryAdmin" onAction="#onLibraryAdmin"/>
                     <MenuItem text="选课系统" onAction="#onChoose"/>
                 </Menu>
@@ -50,6 +52,8 @@
             <Button text="学籍管理" onAction="#onStudentManagement" style="-fx-min-width: 150;"/>
             <Button text="课程管理" onAction="#onCourseManagement" style="-fx-min-width: 150;"/>
             <Button text="图书馆" onAction="#onLibrary" style="-fx-min-width: 150;"/>
+            <Button text="商店" onAction="#onShop" style="-fx-min-width: 150;"/>
+            <Button text="商店管理" onAction="#onShopAdmin" style="-fx-min-width: 150;"/>
             <Button text="图书维护(管理员)" onAction="#onLibraryAdmin" style="-fx-min-width: 150;"/>
             <Button text="选课系统" onAction="#onChoose" style="-fx-min-width: 150;"/>
             <Region VBox.vgrow="ALWAYS"/>

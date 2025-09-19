@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.geometry.Insets?>
+
+<BorderPane xmlns:fx="http://javafx.com/fxml" fx:controller="com.vCampus.view.ShopAdminController">
+    <top>
+        <ToolBar>
+            <Label text="分类"/>
+            <ComboBox fx:id="cbCategory" prefWidth="150"/>
+            <Separator/>
+            <TextField fx:id="tfKeyword" promptText="商品名关键字" prefWidth="220"/>
+            <Button text="搜索" onAction="#onSearch"/>
+            <Region HBox.hgrow="ALWAYS"/>
+            <Button text="新增" onAction="#onAdd"/>
+            <Button text="编辑" onAction="#onEdit"/>
+            <Button text="删除" onAction="#onDelete"/>
+            <Button text="调价/改库存" onAction="#onAdjust"/>
+        </ToolBar>
+    </top>
+    <center>
+        <TableView fx:id="table">
+            <columns>
+                <TableColumn fx:id="colId" text="编号" prefWidth="120"/>
+                <TableColumn fx:id="colName" text="名称" prefWidth="200"/>
+                <TableColumn fx:id="colPrice" text="价格" prefWidth="100"/>
+                <TableColumn fx:id="colStock" text="库存" prefWidth="100"/>
+                <TableColumn fx:id="colCategory" text="分类" prefWidth="150"/>
+                <TableColumn fx:id="colDesc" text="描述" prefWidth="300"/>
+            </columns>
+        </TableView>
+    </center>
+    <padding>
+        <Insets top="8" right="8" bottom="8" left="8"/>
+    </padding>
+</BorderPane>
+
+

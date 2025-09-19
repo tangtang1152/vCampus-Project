@@ -12,6 +12,8 @@ public class ServiceFactory {
     private static volatile IAdminService adminService;
     private static volatile IChooseService chooseService;
     private static volatile ISubjectService subjectService;
+    private static volatile IShopService shopService;
+    private static volatile IProductService productService;
     
     public static IUserService getUserService() {
         if (userService == null) {
@@ -77,5 +79,27 @@ public class ServiceFactory {
             }
         }
         return subjectService;
+    }
+
+    public static IShopService getShopService() {
+        if (shopService == null) {
+            synchronized (ServiceFactory.class) {
+                if (shopService == null) {
+                    shopService = new ShopServiceImpl();
+                }
+            }
+        }
+        return shopService;
+    }
+
+    public static IProductService getProductService() {
+        if (productService == null) {
+            synchronized (ServiceFactory.class) {
+                if (productService == null) {
+                    productService = new ProductServiceImpl();
+                }
+            }
+        }
+        return productService;
     }
 }

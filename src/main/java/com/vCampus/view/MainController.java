@@ -113,6 +113,20 @@ public class MainController extends BaseController {
         statusLabel.setText("图书馆模块");
     }
 
+    @FXML
+    private void onShop() {
+        loadContent("shop-view.fxml");
+        statusLabel.setText("商店");
+    }
+
+    @FXML
+    private void onShopAdmin() {
+        var user = SessionContext.getCurrentUser();
+        if (!com.vCampus.util.RBACUtil.isAdmin(user)) { showWarning("需要管理员权限"); return; }
+        loadContent("shop-admin-view.fxml");
+        statusLabel.setText("商店管理");
+    }
+
     /**
      * 选课系统菜单点击（合并分支：使用RBAC判定学生或管理员可访问）
      */
