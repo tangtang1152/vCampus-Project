@@ -190,6 +190,19 @@ public class BorrowRecordDao implements IBorrowRecordDao {
     }
 
     @Override
+    public List<BorrowRecord> listActiveByBook(Integer bookId, Connection conn) throws SQLException {
+        String sql = "SELECT * FROM tbl_borrow_record WHERE bookId=? AND borrowStatus='借出' ORDER BY borrowDate DESC";
+        List<BorrowRecord> list = new ArrayList<>();
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, bookId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) list.add(mapRow(rs));
+            }
+        }
+        return list;
+    }
+
+    @Override
     public boolean existsActiveByUserAndBook(Integer userId, Integer bookId, Connection conn) throws SQLException {
         String sql = "SELECT 1 FROM tbl_borrow_record WHERE userId=? AND bookId=? AND borrowStatus='借出' FETCH FIRST 1 ROWS ONLY";
         try (PreparedStatement ps = conn.prepareStatement(sql)) {

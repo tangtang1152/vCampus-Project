@@ -33,12 +33,29 @@ public class SubjectDaoImpl extends AbstractBaseDaoImpl<Subject, String> impleme
         subject.setSubjectNum(rs.getInt("subjectNum"));
         subject.setCredit(rs.getDouble("credit"));
         subject.setTeacherId(rs.getString("teacherId"));
-        // 新增字段映射（从数据库结果集中读取）
-        subject.setWeekRange(rs.getString("weekRange"));
-        subject.setWeekType(rs.getString("weekType"));
-        subject.setClassTime(rs.getString("classTime"));
-        subject.setClassroom(rs.getString("classroom"));
+        // 新增字段映射（从数据库结果集中读取）- 兼容旧库：不存在时跳过，保留实体默认值
+        if (hasColumn(rs, "weekRange")) {
+            subject.setWeekRange(rs.getString("weekRange"));
+        }
+        if (hasColumn(rs, "weekType")) {
+            subject.setWeekType(rs.getString("weekType"));
+        }
+        if (hasColumn(rs, "classTime")) {
+            subject.setClassTime(rs.getString("classTime"));
+        }
+        if (hasColumn(rs, "classroom")) {
+            subject.setClassroom(rs.getString("classroom"));
+        }
         return subject;
+    }
+
+    private boolean hasColumn(ResultSet rs, String columnLabel) {
+        try {
+            rs.findColumn(columnLabel);
+            return true;
+        } catch (SQLException e) {
+            return false;
+        }
     }
 
     @Override
@@ -145,5 +162,24 @@ public class SubjectDaoImpl extends AbstractBaseDaoImpl<Subject, String> impleme
 
     public Subject findBySubjectId(String subjectId, Connection conn) throws SQLException {
         return findById(subjectId, conn);
+    }
+
+    // 抢课并发：原子扣减剩余名额（subjectNum 视为剩余名额）
+    @Override
+    public boolean decreaseSlotIfAvailable(String subjectId, Connection conn) throws SQLException {
+        String sql = "UPDATE tbl_subject SET subjectNum = subjectNum - 1 WHERE subjectId = ? AND subjectNum > 0";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, subjectId);
+            return ps.executeUpdate() > 0;
+        }
+    }
+
+    @Override
+    public boolean increaseSlot(String subjectId, Connection conn) throws SQLException {
+        String sql = "UPDATE tbl_subject SET subjectNum = subjectNum + 1 WHERE subjectId = ?";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, subjectId);
+            return ps.executeUpdate() > 0;
+        }
     }
 }

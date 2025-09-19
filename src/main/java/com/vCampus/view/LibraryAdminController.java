@@ -34,7 +34,6 @@ public class LibraryAdminController extends BaseController {
 
     private final LibraryService service = new LibraryService();
     private final ObservableList<Book> data = FXCollections.observableArrayList();
-    private final com.vCampus.dao.IBorrowRecordDao borrowDao = new com.vCampus.dao.BorrowRecordDao();
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
@@ -56,7 +55,22 @@ public class LibraryAdminController extends BaseController {
         statusCol.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getStatus()));
 
         table.setItems(data);
-        installContextMenu();
+        // 行右键：查看借阅详情
+        table.setRowFactory(tv -> {
+            TableRow<Book> row = new TableRow<>();
+            MenuItem viewBorrowers = new MenuItem("查看借阅详情");
+            viewBorrowers.setOnAction(e -> {
+                Book book = row.getItem();
+                if (book != null) showBorrowersDialog(book);
+            });
+            ContextMenu menu = new ContextMenu(viewBorrowers);
+            row.contextMenuProperty().bind(
+                javafx.beans.binding.Bindings.when(row.emptyProperty())
+                    .then((ContextMenu) null)
+                    .otherwise(menu)
+            );
+            return row;
+        });
         refresh();
     }
 
@@ -90,88 +104,6 @@ public class LibraryAdminController extends BaseController {
         if (sel == null) { showWarning("请选择图书"); return; }
         boolean ok = delta > 0 ? service.increaseStock(sel.getBookId(), delta) : service.decreaseStock(sel.getBookId(), -delta);
         if (ok) { showInformation("提示", "库存已更新"); refresh(); } else { showError("库存更新失败"); }
-    }
-
-    private void installContextMenu() {
-        MenuItem viewBorrow = new MenuItem("查看借阅情况");
-        viewBorrow.setOnAction(e -> showBorrowDialog());
-        ContextMenu menu = new ContextMenu(viewBorrow);
-        table.setRowFactory(tv -> {
-            TableRow<Book> row = new TableRow<>();
-            row.setContextMenu(menu);
-            return row;
-        });
-    }
-
-    private void showBorrowDialog() {
-        Book sel = table.getSelectionModel().getSelectedItem();
-        if (sel == null) { showWarning("请先选择一本图书"); return; }
-        try {
-            java.util.List<com.vCampus.entity.BorrowRecord> records = com.vCampus.util.TransactionManager.executeInTransaction(conn ->
-                borrowDao.listByBook(sel.getBookId(), conn)
-            );
-            int total = com.vCampus.util.TransactionManager.executeInTransaction(conn ->
-                borrowDao.countTotalByBook(sel.getBookId(), conn)
-            );
-            java.time.LocalDate now = java.time.LocalDate.now();
-            int month = com.vCampus.util.TransactionManager.executeInTransaction(conn ->
-                borrowDao.countMonthlyByBook(sel.getBookId(), java.sql.Date.valueOf(now.withDayOfMonth(1)), java.sql.Date.valueOf(now.withDayOfMonth(1).plusMonths(1)), conn)
-            );
-            int current = com.vCampus.util.TransactionManager.executeInTransaction(conn ->
-                borrowDao.countCurrentBorrowedByBook(sel.getBookId(), conn)
-            );
-
-            Dialog<Void> dlg = new Dialog<>();
-            dlg.setTitle("借阅情况 - 《" + sel.getTitle() + "》");
-
-            TableView<com.vCampus.entity.BorrowRecord> tv = new TableView<>();
-            TableColumn<com.vCampus.entity.BorrowRecord, Number> cId = new TableColumn<>("记录ID");
-            cId.setCellValueFactory(x -> new SimpleIntegerProperty(x.getValue().getRecordId()==null?0:x.getValue().getRecordId()));
-            TableColumn<com.vCampus.entity.BorrowRecord, Number> cUser = new TableColumn<>("用户ID");
-            cUser.setCellValueFactory(x -> new SimpleIntegerProperty(x.getValue().getUserId()==null?0:x.getValue().getUserId()));
-            TableColumn<com.vCampus.entity.BorrowRecord, String> cUserName = new TableColumn<>("用户名");
-            cUserName.setCellValueFactory(x -> new SimpleStringProperty(resolveUsername(x.getValue().getUserId())));
-            TableColumn<com.vCampus.entity.BorrowRecord, String> cBorrow = new TableColumn<>("借出");
-            cBorrow.setCellValueFactory(x -> new SimpleStringProperty(String.valueOf(x.getValue().getBorrowDate())));
-            TableColumn<com.vCampus.entity.BorrowRecord, String> cDue = new TableColumn<>("到期");
-            cDue.setCellValueFactory(x -> new SimpleStringProperty(String.valueOf(x.getValue().getDueDate())));
-            TableColumn<com.vCampus.entity.BorrowRecord, String> cReturn = new TableColumn<>("归还");
-            cReturn.setCellValueFactory(x -> new SimpleStringProperty(String.valueOf(x.getValue().getReturnDate())));
-            TableColumn<com.vCampus.entity.BorrowRecord, String> cStatus = new TableColumn<>("状态");
-            cStatus.setCellValueFactory(x -> new SimpleStringProperty(x.getValue().getStatus()));
-            tv.getColumns().addAll(cId, cUser, cUserName, cBorrow, cDue, cReturn, cStatus);
-            tv.setItems(FXCollections.observableArrayList(records));
-
-            Label summary = new Label("总借阅: " + total + "    本月: " + month + "    当前借出: " + current);
-            summary.setStyle("-fx-font-weight: bold;");
-
-            javafx.scene.layout.VBox box = new javafx.scene.layout.VBox(10, summary, tv);
-            box.setPadding(new javafx.geometry.Insets(10));
-            dlg.getDialogPane().setContent(box);
-            dlg.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
-            dlg.showAndWait();
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            showError("加载借阅情况失败: " + ex.getMessage());
-        }
-    }
-
-    // 简单用户名缓存，避免重复查询
-    private final java.util.Map<Integer,String> userNameCache = new java.util.HashMap<>();
-    private String resolveUsername(Integer userId) {
-        if (userId == null) return "";
-        if (userNameCache.containsKey(userId)) return userNameCache.get(userId);
-        try {
-            String name = com.vCampus.util.TransactionManager.executeInTransaction(conn -> {
-                com.vCampus.dao.IUserDao ud = new com.vCampus.dao.UserDaoImpl();
-                com.vCampus.entity.User u = ud.findById(userId, conn);
-                return u == null ? String.valueOf(userId) : u.getUsername();
-            });
-            userNameCache.put(userId, name);
-            return name;
-        } catch (Exception e) {
-            return String.valueOf(userId);
-        }
     }
 
     @FXML private void onSetStatus() {
@@ -231,6 +163,60 @@ public class LibraryAdminController extends BaseController {
                 if (ok) { showInformation("提示", origin==null?"新增成功":"保存成功"); refresh(); } else { showError("保存失败"); }
             }
         });
+    }
+
+    private void showBorrowersDialog(Book book) {
+        Dialog<ButtonType> dlg = new Dialog<>();
+        dlg.setTitle("借阅详情 - " + (book.getTitle()==null?"":book.getTitle()));
+        dlg.getDialogPane().getButtonTypes().addAll(ButtonType.CLOSE);
+
+        TabPane tabs = new TabPane();
+        Tab tabActive = new Tab("当前借出"); tabActive.setClosable(false);
+        Tab tabAll = new Tab("全部记录"); tabAll.setClosable(false);
+
+        TableView<com.vCampus.entity.BorrowRecord> tvActive = new TableView<>();
+        TableView<com.vCampus.entity.BorrowRecord> tvAll = new TableView<>();
+
+        // 公用列构造函数
+        java.util.function.Function<TableView<com.vCampus.entity.BorrowRecord>, Void> buildCols = tv -> {
+            TableColumn<com.vCampus.entity.BorrowRecord, Number> colRid = new TableColumn<>("记录ID");
+            colRid.setCellValueFactory(c -> new javafx.beans.property.SimpleIntegerProperty(
+                c.getValue().getRecordId()==null?0:c.getValue().getRecordId()));
+            TableColumn<com.vCampus.entity.BorrowRecord, Number> colUid = new TableColumn<>("用户ID");
+            colUid.setCellValueFactory(c -> new javafx.beans.property.SimpleIntegerProperty(
+                c.getValue().getUserId()==null?0:c.getValue().getUserId()));
+            TableColumn<com.vCampus.entity.BorrowRecord, String> colBorrow = new TableColumn<>("借出日");
+            colBorrow.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(
+                String.valueOf(c.getValue().getBorrowDate())));
+            TableColumn<com.vCampus.entity.BorrowRecord, String> colDue = new TableColumn<>("到期日");
+            colDue.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(
+                String.valueOf(c.getValue().getDueDate())));
+            TableColumn<com.vCampus.entity.BorrowRecord, String> colRet = new TableColumn<>("归还日");
+            colRet.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(
+                String.valueOf(c.getValue().getReturnDate())));
+            TableColumn<com.vCampus.entity.BorrowRecord, String> colStatus = new TableColumn<>("状态");
+            colStatus.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(
+                String.valueOf(c.getValue().getStatus())));
+            tv.getColumns().setAll(colRid, colUid, colBorrow, colDue, colRet, colStatus);
+            tv.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+            return null;
+        };
+
+        buildCols.apply(tvActive); buildCols.apply(tvAll);
+
+        tabActive.setContent(tvActive);
+        tabAll.setContent(tvAll);
+        tabs.getTabs().addAll(tabActive, tabAll);
+
+        dlg.getDialogPane().setContent(tabs);
+
+        // 加载数据
+        java.util.List<com.vCampus.entity.BorrowRecord> actives = service.listActiveBorrowsByBook(book.getBookId());
+        java.util.List<com.vCampus.entity.BorrowRecord> all = service.listBorrowsByBook(book.getBookId());
+        tvActive.setItems(FXCollections.observableArrayList(actives));
+        tvAll.setItems(FXCollections.observableArrayList(all));
+
+        dlg.showAndWait();
     }
 }
 

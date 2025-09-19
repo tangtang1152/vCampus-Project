@@ -148,8 +148,8 @@ public class MainController extends BaseController {
         var user = SessionContext.getCurrentUser();
         boolean allowed = RBACUtil.isStudent(user) || RBACUtil.isAdmin(user);
         if (!allowed) { showWarning("需要学生或管理员权限"); return; }
-        loadContent("choose-view.fxml");
-        statusLabel.setText("选课系统");
+        loadContent("flash-grab-view.fxml");
+        statusLabel.setText("抢课系统");
     }
     
     /**

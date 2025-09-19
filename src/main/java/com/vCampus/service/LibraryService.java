@@ -263,6 +263,17 @@ public class LibraryService {
         });
     }
 
+    /**
+     * 新增：按书目列出借阅记录（全部/仅当前借出）
+     */
+    public java.util.List<com.vCampus.entity.BorrowRecord> listBorrowsByBook(Integer bookId) {
+        return TransactionManager.executeInTransaction(conn -> borrowRecordDao.listByBook(bookId, conn));
+    }
+
+    public java.util.List<com.vCampus.entity.BorrowRecord> listActiveBorrowsByBook(Integer bookId) {
+        return TransactionManager.executeInTransaction(conn -> borrowRecordDao.listActiveByBook(bookId, conn));
+    }
+
     public boolean increaseStock(Integer bookId, int delta) {
         return TransactionManager.executeInTransaction(conn -> {
             if (delta <= 0) return false;

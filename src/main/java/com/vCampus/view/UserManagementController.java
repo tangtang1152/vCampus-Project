@@ -134,27 +134,33 @@ public class UserManagementController extends BaseController {
         User sel = table.getSelectionModel().getSelectedItem();
         if (sel == null) { showWarning("请选择要删除的用户"); return; }
         if (!showConfirmation("删除用户", "确定删除用户 " + sel.getUsername() + " ? 此操作不可恢复")) return;
-        // 按角色删除对应记录并级联删除 tbl_user
-        boolean ok = false;
+        // 先删除所有子表记录，再删除父表 tbl_user，避免外键约束错误（多角色场景）
+        boolean ok = true;
+        String errorMsg = null;
         Set<String> rs = sel.getRoleSet().stream().map(String::toUpperCase).collect(java.util.stream.Collectors.toSet());
         try {
+            // 学生
             if (rs.contains("STUDENT")) {
                 Student s = studentService.getByUserId(sel.getUserId());
-                // 先清理可能的外键引用（订单、借阅等）——这里演示：如有订单，给出阻断提示
-                // 实际可在 Service 层增加“级联清理”接口
-                ok = (s != null) && studentService.delete(s.getStudentId());
-            } else if (rs.contains("TEACHER")) {
-                Teacher t = teacherService.getByUserId(sel.getUserId());
-                ok = (t != null) && teacherService.delete(t.getTeacherId());
-            } else if (rs.contains("ADMIN")) {
-                Admin a = adminService.getByUserId(sel.getUserId());
-                ok = (a != null) && adminService.delete(a.getAdminId());
+                if (s != null) ok &= studentService.deleteStudentOnly(s.getStudentId());
             }
+            // 教师
+            if (rs.contains("TEACHER")) {
+                Teacher t = teacherService.getByUserId(sel.getUserId());
+                if (t != null) ok &= teacherService.deleteTeacherOnly(t.getTeacherId());
+            }
+            // 管理员
+            if (rs.contains("ADMIN")) {
+                Admin a = adminService.getByUserId(sel.getUserId());
+                if (a != null) ok &= adminService.deleteAdminOnly(a.getAdminId());
+            }
+            // 最后删除用户主表
+            if (ok) ok &= userService.delete(sel.getUserId());
         } catch (Exception e) {
-            showError("删除失败：可能存在外键引用，请先清理相关数据\n" + e.getMessage());
-            ok = false;
+            ok = false; errorMsg = e.getMessage();
         }
-        if (ok) { showInformation("提示", "删除成功"); refresh(); } else { showError("删除失败，可能关联信息不存在"); }
+        if (ok) { showInformation("提示", "删除成功"); refresh(); }
+        else { showError("删除失败：请检查外键引用或残留角色明细\n" + (errorMsg==null?"":errorMsg)); }
     }
 
     private void openUserForm(User originUser) {
@@ -435,49 +441,49 @@ public class UserManagementController extends BaseController {
 
                 // 删除未选中的旧角色明细
                 if (toRemove.contains("STUDENT")) {
-                    Student sOld = studentService.getByUserId(originUser.getUserId());
+                        Student sOld = studentService.getByUserId(originUser.getUserId());
                     if (sOld != null) okRole &= studentService.deleteStudentOnly(sOld.getStudentId());
                 }
                 if (toRemove.contains("TEACHER")) {
-                    Teacher tOld = teacherService.getByUserId(originUser.getUserId());
+                        Teacher tOld = teacherService.getByUserId(originUser.getUserId());
                     if (tOld != null) okRole &= teacherService.deleteTeacherOnly(tOld.getTeacherId());
                 }
                 if (toRemove.contains("ADMIN")) {
-                    Admin aOld = adminService.getByUserId(originUser.getUserId());
+                        Admin aOld = adminService.getByUserId(originUser.getUserId());
                     if (aOld != null) okRole &= adminService.deleteAdminOnly(aOld.getAdminId());
                 }
 
                 // 新增选中的新角色明细
                 if (toAdd.contains("STUDENT")) {
                     if (tfStuId.getText().trim().isEmpty() || tfStuName.getText().trim().isEmpty()) { showError("请填写学号与姓名"); return; }
-                    Student s = new Student(); s.setUserId(originUser.getUserId());
-                    s.setStudentId(tfStuId.getText().trim()); s.setStudentName(tfStuName.getText().trim()); s.setClassName(tfClass.getText().trim());
+                        Student s = new Student(); s.setUserId(originUser.getUserId());
+                        s.setStudentId(tfStuId.getText().trim()); s.setStudentName(tfStuName.getText().trim()); s.setClassName(tfClass.getText().trim());
                     okRole &= studentService.add(s);
                 }
                 if (toAdd.contains("TEACHER")) {
                     if (tfTchId.getText().trim().isEmpty() || tfTchName.getText().trim().isEmpty()) { showError("请填写教师编号与姓名"); return; }
-                    Teacher t = new Teacher(); t.setUserId(originUser.getUserId());
-                    t.setTeacherId(tfTchId.getText().trim()); t.setTeacherName(tfTchName.getText().trim()); t.setSex(cbSex.getValue()); t.setTechnical(tfTech.getText().trim()); t.setDepartmentId(tfDept.getText().trim());
+                        Teacher t = new Teacher(); t.setUserId(originUser.getUserId());
+                        t.setTeacherId(tfTchId.getText().trim()); t.setTeacherName(tfTchName.getText().trim()); t.setSex(cbSex.getValue()); t.setTechnical(tfTech.getText().trim()); t.setDepartmentId(tfDept.getText().trim());
                     okRole &= teacherService.add(t);
                 }
                 if (toAdd.contains("ADMIN")) {
                     if (tfAdmId.getText().trim().isEmpty() || tfAdmName.getText().trim().isEmpty()) { showError("请填写管理员工号与姓名"); return; }
-                    Admin a = new Admin(); a.setUserId(originUser.getUserId());
-                    a.setAdminId(tfAdmId.getText().trim()); a.setAdminName(tfAdmName.getText().trim());
+                        Admin a = new Admin(); a.setUserId(originUser.getUserId());
+                        a.setAdminId(tfAdmId.getText().trim()); a.setAdminName(tfAdmName.getText().trim());
                     okRole &= adminService.add(a);
                 }
 
                 // 更新现有角色明细
                 if (selectedRoles.contains("STUDENT") && oldRoles.contains("STUDENT")) {
-                    Student s = studentService.getByUserId(originUser.getUserId());
+                        Student s = studentService.getByUserId(originUser.getUserId());
                     if (s != null) { s.setStudentName(tfStuName.getText().trim()); s.setClassName(tfClass.getText().trim()); okRole &= studentService.updateStudentOnly(s); }
                 }
                 if (selectedRoles.contains("TEACHER") && oldRoles.contains("TEACHER")) {
-                    Teacher t = teacherService.getByUserId(originUser.getUserId());
+                        Teacher t = teacherService.getByUserId(originUser.getUserId());
                     if (t != null) { t.setTeacherName(tfTchName.getText().trim()); t.setSex(cbSex.getValue()); t.setTechnical(tfTech.getText().trim()); t.setDepartmentId(tfDept.getText().trim()); okRole &= teacherService.updateTeacherOnly(t); }
                 }
                 if (selectedRoles.contains("ADMIN") && oldRoles.contains("ADMIN")) {
-                    Admin a = adminService.getByUserId(originUser.getUserId());
+                        Admin a = adminService.getByUserId(originUser.getUserId());
                     if (a != null) { a.setAdminName(tfAdmName.getText().trim()); okRole &= adminService.updateAdminOnly(a); }
                 }
             } catch (Exception ex) {

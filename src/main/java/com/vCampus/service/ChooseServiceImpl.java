@@ -125,11 +125,10 @@ public class ChooseServiceImpl extends AbstractBaseServiceImpl<Choose, String> i
   return false;
                 }
 
-                // 4. 检查课程容量 (这个通常不应该跳过)
-                List<Choose> subjectChooses = chooseDao.findBySubjectId(subjectId, conn);
-                if (subjectChooses.size() >= subject.getSubjectNum()) {
-  System.out.println("选课失败: 课程已满，课程ID: " + subjectId);
-  return false;
+                // 4. 并发容量控制：原子扣减名额，失败则课程已满
+                if (!subjectDao.decreaseSlotIfAvailable(subjectId, conn)) {
+                    System.out.println("选课失败: 课程已满，课程ID: " + subjectId);
+                    return false;
                 }
 
                 // 5. 检查选课时间有效期 (根据参数决定是否跳过)
@@ -152,10 +151,13 @@ public class ChooseServiceImpl extends AbstractBaseServiceImpl<Choose, String> i
 
                 // 8. 插入选课记录
                 boolean success = chooseDao.insert(choose, conn);
-                if (success) {
-  System.out.println("选课成功，选课ID: " + choose.getSelectid());
+                if (!success) {
+                    // 插入失败，回滚名额
+                    subjectDao.increaseSlot(subjectId, conn);
+                    return false;
                 }
-                return success;
+                System.out.println("选课成功，选课ID: " + choose.getSelectid());
+                return true;
             });
         } catch (Exception e) {
             handleException("选课操作失败", e);
