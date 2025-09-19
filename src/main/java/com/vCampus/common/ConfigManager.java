@@ -31,6 +31,7 @@ public class ConfigManager {
         properties.setProperty("app.title", "vCampus系统");
         properties.setProperty("app.width", "1000");
         properties.setProperty("app.height", "700");
+        properties.setProperty("api.baseUrl", "http://127.0.0.1:8080/api/v1");
     }
     
     public static String getDatabasePath() {
@@ -47,5 +48,9 @@ public class ConfigManager {
     
     public static int getAppHeight() {
         return Integer.parseInt(properties.getProperty("app.height", "600"));
+    }
+
+    public static String getApiBaseUrl() {
+        return properties.getProperty("api.baseUrl", "http://127.0.0.1:8080/api/v1");
     }
 }

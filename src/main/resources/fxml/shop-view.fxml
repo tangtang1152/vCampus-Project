@@ -13,6 +13,7 @@
             <TextField fx:id="tfKeyword" promptText="搜索商品" prefWidth="220"/>
             <Button text="搜索" onAction="#onSearch"/>
             <Region HBox.hgrow="ALWAYS"/>
+            <Button text="连通测试" onAction="#onPing"/>
             <Button text="购物车" onAction="#onOpenCart"/>
         </ToolBar>
     </top>
