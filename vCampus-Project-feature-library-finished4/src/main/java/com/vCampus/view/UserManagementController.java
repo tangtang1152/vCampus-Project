@@ -581,7 +581,9 @@ public class UserManagementController extends BaseController {
             // 编辑：允许切换角色并迁移明细
             // 更新用户核心信息（若密码留空则不改）
             originUser.setUsername(username);
-            if (!password.isEmpty()) originUser.setPassword(password);
+            if (password != null && !password.isEmpty()) {
+                originUser.setPassword(password);
+            }
 
             String targetRole = (rbStu.isSelected()?"student":rbTch.isSelected()?"teacher":"admin");
             String oldRole = (existingRole == null?"":existingRole).toLowerCase();

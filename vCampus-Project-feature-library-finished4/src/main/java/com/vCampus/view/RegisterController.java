@@ -367,9 +367,9 @@ public class RegisterController {
         
         if (user instanceof Student) {
             Student student = (Student) user;
+            request.append(student.getStudentId()).append(":");
             request.append(student.getStudentName()).append(":");
-            request.append(student.getClassName()).append(":");
-            request.append(student.getStudentId());
+            request.append(student.getClassName());
         } else if (user instanceof Teacher) {
             Teacher teacher = (Teacher) user;
             request.append(teacher.getTeacherId()).append(":");
