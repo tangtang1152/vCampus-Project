@@ -16,6 +16,8 @@
             <ComboBox fx:id="sortBox" prefWidth="140"/>
             <Button text="搜索" onAction="#onSearch"/>
             <Label fx:id="infoLabel"/>
+            <Region HBox.hgrow="ALWAYS"/>
+            <Button text="连通测试" onAction="#onPing"/>
         </HBox>
     </top>
 

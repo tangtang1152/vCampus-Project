@@ -47,6 +47,29 @@ public class LibraryController extends BaseController {
     @FXML private ComboBox<String> sortBox;
     @FXML private Button btnRenew;
     @FXML private Button btnReturn;
+    
+    @FXML
+    private void onPing() {
+        String base = com.vCampus.common.ConfigManager.getApiBaseUrl();
+        String url = base + "/books";
+        javafx.concurrent.Task<String> task = new javafx.concurrent.Task<>() {
+            @Override protected String call() {
+                long t0 = System.currentTimeMillis();
+                try {
+                    var client = java.net.http.HttpClient.newBuilder().connectTimeout(java.time.Duration.ofSeconds(3)).build();
+                    var req = java.net.http.HttpRequest.newBuilder(java.net.URI.create(url)).timeout(java.time.Duration.ofSeconds(5)).GET().build();
+                    var resp = client.send(req, java.net.http.HttpResponse.BodyHandlers.discarding());
+                    long ms = System.currentTimeMillis() - t0;
+                    return resp.statusCode() == 200 ? ("OK " + ms + " ms") : ("HTTP " + resp.statusCode());
+                } catch (Exception e) {
+                    long ms = System.currentTimeMillis() - t0;
+                    return "FAIL (" + ms + " ms): " + e.getClass().getSimpleName();
+                }
+            }
+        };
+        task.setOnSucceeded(e -> showInformation("连通测试", "GET /books => " + task.getValue() + "\n服务器: " + base));
+        new Thread(task, "lib-ping").start();
+    }
 
     private final LibraryService libraryService = ServiceFactory.getLibraryService();
     private final ObservableList<Book> data = FXCollections.observableArrayList();
@@ -146,6 +169,48 @@ public class LibraryController extends BaseController {
         LibrarySession.setPageSize(size);
 
         new Thread(() -> {
+            try {
+                String base = com.vCampus.common.ConfigManager.getApiBaseUrl();
+                String url = base + "/books?keyword=" + java.net.URLEncoder.encode(kw, java.nio.charset.StandardCharsets.UTF_8)
+                        + "&status=" + java.net.URLEncoder.encode(st, java.nio.charset.StandardCharsets.UTF_8)
+                        + "&sort=" + java.net.URLEncoder.encode(sort, java.nio.charset.StandardCharsets.UTF_8)
+                        + "&page=" + curPage + "&size=" + size;
+                var client = java.net.http.HttpClient.newHttpClient();
+                var req = java.net.http.HttpRequest.newBuilder(java.net.URI.create(url)).GET().build();
+                var resp = client.send(req, java.net.http.HttpResponse.BodyHandlers.ofString());
+                if (resp.statusCode() == 200) {
+                    var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                    var root = mapper.readTree(resp.body());
+                    if (root.path("code").asInt() == 0) {
+                        java.util.List<Book> list = new java.util.ArrayList<>();
+                        for (var n : root.withArray("data")) {
+                            Book b = new Book();
+                            b.setBookId(n.path("bookId").asInt());
+                            b.setIsbn(n.path("isbn").asText());
+                            b.setTitle(n.path("title").asText());
+                            b.setAuthor(n.path("author").asText());
+                            b.setCategory(n.path("category").asText());
+                            b.setPublisher(n.path("publisher").asText());
+                            String pd = n.path("pubDate").asText(null);
+                            if (pd != null && !pd.isBlank()) {
+                                try { b.setPubDate(java.sql.Date.valueOf(pd)); } catch (Exception ignore) {}
+                            }
+                            if (!n.path("totalCopies").isNull()) b.setTotalCopies(n.path("totalCopies").asInt());
+                            if (!n.path("availableCopies").isNull()) b.setAvailableCopies(n.path("availableCopies").asInt());
+                            b.setLocation(n.path("location").asText());
+                            b.setStatus(n.path("status").asText(null));
+                            list.add(b);
+                        }
+                        TransactionManager.runLaterSafe(() -> {
+                            data.setAll(list);
+                            infoLabel.setText("共 " + data.size() + " 条（本页）");
+                            LibrarySession.setLastRefreshMillis(System.currentTimeMillis());
+                        });
+                        return;
+                    }
+                }
+            } catch (Exception ignored) {}
+            // 回退本地
             List<Book> list = libraryService.searchBooksAdvanced(kw, st, sort, curPage, size);
             TransactionManager.runLaterSafe(() -> {
                 data.setAll(list);
@@ -160,11 +225,44 @@ public class LibraryController extends BaseController {
         LibrarySession.setBorrowStatus(status);
         String uid = getCurrentUserId();
         new Thread(() -> {
+            try {
+                String base = com.vCampus.common.ConfigManager.getApiBaseUrl();
+                String url = base + "/library/my-borrows?userId=" + uid + "&status=" + java.net.URLEncoder.encode(status, java.nio.charset.StandardCharsets.UTF_8);
+                var client = java.net.http.HttpClient.newHttpClient();
+                var req = java.net.http.HttpRequest.newBuilder(java.net.URI.create(url)).GET().build();
+                var resp = client.send(req, java.net.http.HttpResponse.BodyHandlers.ofString());
+                if (resp.statusCode() == 200) {
+                    var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                    var root = mapper.readTree(resp.body());
+                    if (root.path("code").asInt() == 0) {
+                        java.util.List<BorrowRecord> list = new java.util.ArrayList<>();
+                        for (var n : root.withArray("data")) {
+                            BorrowRecord r = new BorrowRecord();
+                            r.setRecordId(n.path("recordId").asInt());
+                            r.setBookId(n.path("bookId").asInt());
+                            r.setUserId(n.path("userId").asInt());
+                            String bd = n.path("borrowDate").asText(null);
+                            String dd = n.path("dueDate").asText(null);
+                            String rd = n.path("returnDate").asText(null);
+                            if (bd != null) try { r.setBorrowDate(java.sql.Date.valueOf(bd)); } catch (Exception ignore) {}
+                            if (dd != null) try { r.setDueDate(java.sql.Date.valueOf(dd)); } catch (Exception ignore) {}
+                            if (rd != null && !rd.equals("null")) try { r.setReturnDate(java.sql.Date.valueOf(rd)); } catch (Exception ignore) {}
+                            r.setRenewTimes(n.path("renewTimes").isNull()?0:n.path("renewTimes").asInt());
+                            r.setFine(n.path("fine").isNull()?0:n.path("fine").asDouble());
+                            r.setStatus(n.path("status").asText());
+                            list.add(r);
+                        }
+                        TransactionManager.runLaterSafe(() -> {
+                            if (borrowTable != null) borrowTable.getItems().setAll(list);
+                        });
+                        return;
+                    }
+                }
+            } catch (Exception ignored) {}
+            // 回退本地
             var list = libraryService.listMyBorrowsByStatus(uid, status);
             TransactionManager.runLaterSafe(() -> {
-                if (borrowTable != null) {
-                    borrowTable.getItems().setAll(list);
-                }
+                if (borrowTable != null) borrowTable.getItems().setAll(list);
             });
         }, "lib-loadMyBorrows").start();
     }
@@ -192,11 +290,27 @@ public class LibraryController extends BaseController {
         if (sel == null) { showWarning("请先选择一本书"); return; }
         int days = askDays("借书时长（天）", 30);
         new Thread(() -> {
-            var res = libraryService.borrowBookWithReason(getCurrentUserId(), sel.getBookId(), days);
-            TransactionManager.runLaterSafe(() -> {
-                if (res.isSuccess()) { showInformation("提示", res.getMessage()); asyncLoadPage(); asyncLoadMyBorrows(); }
-                else { showError(res.getMessage()); }
-            });
+            try {
+                String base = com.vCampus.common.ConfigManager.getApiBaseUrl();
+                String url = base + "/library/borrow?userId=" + getCurrentUserId() + "&bookId=" + sel.getBookId() + "&days=" + days;
+                var client = java.net.http.HttpClient.newHttpClient();
+                var req = java.net.http.HttpRequest.newBuilder(java.net.URI.create(url)).POST(java.net.http.HttpRequest.BodyPublishers.noBody()).build();
+                var resp = client.send(req, java.net.http.HttpResponse.BodyHandlers.ofString());
+                if (resp.statusCode() == 200) {
+                    var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                    var root = mapper.readTree(resp.body());
+                    boolean ok = root.path("code").asInt() == 0;
+                    String msg = root.path("message").asText();
+                    TransactionManager.runLaterSafe(() -> {
+                        if (ok) { showInformation("提示", msg.isBlank()?"借书成功":msg); asyncLoadPage(); asyncLoadMyBorrows(); }
+                        else { showError(msg); }
+                    });
+                } else {
+                    TransactionManager.runLaterSafe(() -> showError("借书失败: HTTP " + resp.statusCode()));
+                }
+            } catch (Exception e) {
+                TransactionManager.runLaterSafe(() -> showError("借书失败: " + e.getMessage()));
+            }
         }, "lib-borrow").start();
     }
 
@@ -205,11 +319,31 @@ public class LibraryController extends BaseController {
         Book sel = bookTable.getSelectionModel().getSelectedItem();
         if (sel == null) { showWarning("请先选择一本书"); return; }
         new Thread(() -> {
-            var res = libraryService.reserveBookWithReason(getCurrentUserId(), sel.getBookId());
-            TransactionManager.runLaterSafe(() -> {
-                if (res.isSuccess()) { showInformation("提示", res.getMessage()); }
-                else { showError(res.getMessage()); }
-            });
+            try {
+                String base = com.vCampus.common.ConfigManager.getApiBaseUrl();
+                String url = base + "/library/reserve?userId=" + getCurrentUserId() + "&bookId=" + sel.getBookId();
+                var client = java.net.http.HttpClient.newHttpClient();
+                var req = java.net.http.HttpRequest.newBuilder(java.net.URI.create(url)).POST(java.net.http.HttpRequest.BodyPublishers.noBody()).build();
+                var resp = client.send(req, java.net.http.HttpResponse.BodyHandlers.ofString());
+                if (resp.statusCode() == 200) {
+                    var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                    var root = mapper.readTree(resp.body());
+                    boolean ok = root.path("code").asInt() == 0;
+                    String msg = root.path("message").asText();
+                    if (ok && root.path("data").has("queueOrder")) {
+                        msg = "预约成功，排队序号：" + root.path("data").path("queueOrder").asInt();
+                    }
+                    String finalMsg = msg;
+                    TransactionManager.runLaterSafe(() -> {
+                        if (ok) { showInformation("提示", finalMsg); }
+                        else { showError(finalMsg); }
+                    });
+                } else {
+                    TransactionManager.runLaterSafe(() -> showError("预约失败: HTTP " + resp.statusCode()));
+                }
+            } catch (Exception e) {
+                TransactionManager.runLaterSafe(() -> showError("预约失败: " + e.getMessage()));
+            }
         }, "lib-reserve").start();
     }
 
@@ -220,11 +354,27 @@ public class LibraryController extends BaseController {
         int days = askDays("续借时长（天）", 30);
         // maxTimes 由服务层按角色判断，这里传1不再生效，但保持参数兼容
         new Thread(() -> {
-            var res = libraryService.renewBorrowWithReason(getCurrentUserId(), sel.getRecordId(), days, 1);
-            TransactionManager.runLaterSafe(() -> {
-                if (res.isSuccess()) { showInformation("提示", res.getMessage()); asyncLoadMyBorrows(); }
-                else { showError(res.getMessage()); }
-            });
+            try {
+                String base = com.vCampus.common.ConfigManager.getApiBaseUrl();
+                String url = base + "/library/renew?userId=" + getCurrentUserId() + "&recordId=" + sel.getRecordId() + "&days=" + days;
+                var client = java.net.http.HttpClient.newHttpClient();
+                var req = java.net.http.HttpRequest.newBuilder(java.net.URI.create(url)).POST(java.net.http.HttpRequest.BodyPublishers.noBody()).build();
+                var resp = client.send(req, java.net.http.HttpResponse.BodyHandlers.ofString());
+                if (resp.statusCode() == 200) {
+                    var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                    var root = mapper.readTree(resp.body());
+                    boolean ok = root.path("code").asInt() == 0;
+                    String msg = root.path("message").asText();
+                    TransactionManager.runLaterSafe(() -> {
+                        if (ok) { showInformation("提示", msg.isBlank()?"续借成功":msg); asyncLoadMyBorrows(); }
+                        else { showError(msg); }
+                    });
+                } else {
+                    TransactionManager.runLaterSafe(() -> showError("续借失败: HTTP " + resp.statusCode()));
+                }
+            } catch (Exception e) {
+                TransactionManager.runLaterSafe(() -> showError("续借失败: " + e.getMessage()));
+            }
         }, "lib-renew").start();
     }
 
@@ -232,15 +382,58 @@ public class LibraryController extends BaseController {
         var sel = borrowTable.getSelectionModel().getSelectedItem();
         if (sel == null) { showWarning("请选择要归还的记录"); return; }
         new Thread(() -> {
-            var res = libraryService.returnBookWithReason(getCurrentUserId(), sel.getRecordId(), sel.getBookId());
-            TransactionManager.runLaterSafe(() -> {
-                if (res.isSuccess()) { showInformation("提示", res.getMessage()); asyncLoadMyBorrows(); asyncLoadPage(); }
-                else { showError(res.getMessage()); }
-            });
+            try {
+                String base = com.vCampus.common.ConfigManager.getApiBaseUrl();
+                String url = base + "/library/return?userId=" + getCurrentUserId() + "&recordId=" + sel.getRecordId() + "&bookId=" + sel.getBookId();
+                var client = java.net.http.HttpClient.newHttpClient();
+                var req = java.net.http.HttpRequest.newBuilder(java.net.URI.create(url)).POST(java.net.http.HttpRequest.BodyPublishers.noBody()).build();
+                var resp = client.send(req, java.net.http.HttpResponse.BodyHandlers.ofString());
+                if (resp.statusCode() == 200) {
+                    var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                    var root = mapper.readTree(resp.body());
+                    boolean ok = root.path("code").asInt() == 0;
+                    String msg = root.path("message").asText();
+                    TransactionManager.runLaterSafe(() -> {
+                        if (ok) { showInformation("提示", msg.isBlank()?"归还成功":msg); asyncLoadMyBorrows(); asyncLoadPage(); }
+                        else { showError(msg); }
+                    });
+                } else {
+                    TransactionManager.runLaterSafe(() -> showError("归还失败: HTTP " + resp.statusCode()));
+                }
+            } catch (Exception e) {
+                TransactionManager.runLaterSafe(() -> showError("归还失败: " + e.getMessage()));
+            }
         }, "lib-return").start();
     }
 
     @FXML private void onRefreshBorrows() { asyncLoadMyBorrows(); }
+    
+    // 可按需添加：取消预约按钮与调用
+    private void cancelReservation(int reservationId) {
+        new Thread(() -> {
+            try {
+                String base = com.vCampus.common.ConfigManager.getApiBaseUrl();
+                String url = base + "/library/reservations/" + reservationId + "/cancel";
+                var client = java.net.http.HttpClient.newHttpClient();
+                var req = java.net.http.HttpRequest.newBuilder(java.net.URI.create(url)).POST(java.net.http.HttpRequest.BodyPublishers.noBody()).build();
+                var resp = client.send(req, java.net.http.HttpResponse.BodyHandlers.ofString());
+                if (resp.statusCode() == 200) {
+                    var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                    var root = mapper.readTree(resp.body());
+                    boolean ok = root.path("code").asInt() == 0;
+                    String msg = root.path("message").asText();
+                    TransactionManager.runLaterSafe(() -> {
+                        if (ok) { showInformation("提示", msg.isBlank()?"已取消":msg); asyncLoadMyBorrows(); }
+                        else { showError(msg); }
+                    });
+                } else {
+                    TransactionManager.runLaterSafe(() -> showError("取消失败: HTTP " + resp.statusCode()));
+                }
+            } catch (Exception e) {
+                TransactionManager.runLaterSafe(() -> showError("取消失败: " + e.getMessage()));
+            }
+        }, "lib-cancel-reservation").start();
+    }
 
     // 从 BaseController 或登录上下文获取当前用户ID，这里先占位实现
     private String getCurrentUserId() {

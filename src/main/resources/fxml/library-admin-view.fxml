@@ -35,6 +35,8 @@
             <Separator/>
             <Button text="导入CSV" onAction="#onImportCsv"/>
             <Button text="导出CSV" onAction="#onExportCsv"/>
+            <Separator/>
+            <Button text="连通测试" onAction="#onPing"/>
         </ToolBar>
     </top>
 

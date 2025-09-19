@@ -35,6 +35,29 @@ public class LibraryAdminController extends BaseController {
     private final LibraryService service = new LibraryService();
     private final ObservableList<Book> data = FXCollections.observableArrayList();
     private final com.vCampus.dao.IBorrowRecordDao borrowDao = new com.vCampus.dao.BorrowRecordDao();
+    
+    @FXML
+    private void onPing() {
+        String base = com.vCampus.common.ConfigManager.getApiBaseUrl();
+        String url = base + "/books";
+        javafx.concurrent.Task<String> task = new javafx.concurrent.Task<>() {
+            @Override protected String call() {
+                long t0 = System.currentTimeMillis();
+                try {
+                    var client = java.net.http.HttpClient.newBuilder().connectTimeout(java.time.Duration.ofSeconds(3)).build();
+                    var req = java.net.http.HttpRequest.newBuilder(java.net.URI.create(url)).timeout(java.time.Duration.ofSeconds(5)).GET().build();
+                    var resp = client.send(req, java.net.http.HttpResponse.BodyHandlers.discarding());
+                    long ms = System.currentTimeMillis() - t0;
+                    return resp.statusCode() == 200 ? ("OK " + ms + " ms") : ("HTTP " + resp.statusCode());
+                } catch (Exception e) {
+                    long ms = System.currentTimeMillis() - t0;
+                    return "FAIL (" + ms + " ms): " + e.getClass().getSimpleName();
+                }
+            }
+        };
+        task.setOnSucceeded(e -> showInformation("连通测试", "GET /books => " + task.getValue() + "\n服务器: " + base));
+        new Thread(task, "lib-admin-ping").start();
+    }
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
@@ -67,8 +90,48 @@ public class LibraryAdminController extends BaseController {
 
     private void refresh() {
         String kw = keywordField == null ? "" : keywordField.getText();
-        List<Book> list = service.searchBooks(kw, 1, 200);
-        data.setAll(list);
+        new Thread(() -> {
+            java.util.List<Book> result;
+            try {
+                String base = com.vCampus.common.ConfigManager.getApiBaseUrl();
+                String url = base + "/books?keyword=" + java.net.URLEncoder.encode(kw, java.nio.charset.StandardCharsets.UTF_8);
+                var client = java.net.http.HttpClient.newHttpClient();
+                var req = java.net.http.HttpRequest.newBuilder(java.net.URI.create(url)).GET().build();
+                var resp = client.send(req, java.net.http.HttpResponse.BodyHandlers.ofString());
+                if (resp.statusCode() == 200) {
+                    var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                    var root = mapper.readTree(resp.body());
+                    if (root.path("code").asInt() == 0) {
+                        java.util.List<Book> list = new java.util.ArrayList<>();
+                        for (var n : root.withArray("data")) {
+                            Book b = new Book();
+                            b.setBookId(n.path("bookId").asInt());
+                            b.setIsbn(n.path("isbn").asText());
+                            b.setTitle(n.path("title").asText());
+                            b.setAuthor(n.path("author").asText());
+                            b.setCategory(n.path("category").asText());
+                            b.setPublisher(n.path("publisher").asText());
+                            String pd = n.path("pubDate").asText(null);
+                            if (pd != null && !pd.isBlank()) {
+                                try { b.setPubDate(java.sql.Date.valueOf(pd)); } catch (Exception ignore) {}
+                            }
+                            if (!n.path("totalCopies").isNull()) b.setTotalCopies(n.path("totalCopies").asInt());
+                            if (!n.path("availableCopies").isNull()) b.setAvailableCopies(n.path("availableCopies").asInt());
+                            b.setLocation(n.path("location").asText());
+                            b.setStatus(n.path("status").asText(null));
+                            list.add(b);
+                        }
+                        final java.util.List<Book> finalList = list;
+                        javafx.application.Platform.runLater(() -> data.setAll(finalList));
+                        return;
+                    }
+                }
+            } catch (Exception ignored) {}
+            // 回退本地
+            result = service.searchBooks(kw, 1, 200);
+            java.util.List<Book> finalResult = result;
+            javafx.application.Platform.runLater(() -> data.setAll(finalResult));
+        }, "lib-admin-refresh").start();
     }
 
     @FXML private void onAdd() { editDialog(null); }
@@ -106,54 +169,86 @@ public class LibraryAdminController extends BaseController {
     private void showBorrowDialog() {
         Book sel = table.getSelectionModel().getSelectedItem();
         if (sel == null) { showWarning("请先选择一本图书"); return; }
-        try {
-            java.util.List<com.vCampus.entity.BorrowRecord> records = com.vCampus.util.TransactionManager.executeInTransaction(conn ->
-                borrowDao.listByBook(sel.getBookId(), conn)
-            );
-            int total = com.vCampus.util.TransactionManager.executeInTransaction(conn ->
-                borrowDao.countTotalByBook(sel.getBookId(), conn)
-            );
-            java.time.LocalDate now = java.time.LocalDate.now();
-            int month = com.vCampus.util.TransactionManager.executeInTransaction(conn ->
-                borrowDao.countMonthlyByBook(sel.getBookId(), java.sql.Date.valueOf(now.withDayOfMonth(1)), java.sql.Date.valueOf(now.withDayOfMonth(1).plusMonths(1)), conn)
-            );
-            int current = com.vCampus.util.TransactionManager.executeInTransaction(conn ->
-                borrowDao.countCurrentBorrowedByBook(sel.getBookId(), conn)
-            );
+        new Thread(() -> {
+            java.util.List<com.vCampus.entity.BorrowRecord> records;
+            int total; int month; int current;
+            try {
+                String base = com.vCampus.common.ConfigManager.getApiBaseUrl();
+                String url = base + "/library/books/" + sel.getBookId() + "/records";
+                var client = java.net.http.HttpClient.newHttpClient();
+                var req = java.net.http.HttpRequest.newBuilder(java.net.URI.create(url)).GET().build();
+                var resp = client.send(req, java.net.http.HttpResponse.BodyHandlers.ofString());
+                if (resp.statusCode() == 200) {
+                    var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                    var root = mapper.readTree(resp.body());
+                    if (root.path("code").asInt() == 0) {
+                        var stats = root.path("data").path("stats");
+                        total = stats.path("total").asInt();
+                        month = stats.path("month").asInt();
+                        current = stats.path("current").asInt();
+                        java.util.List<com.vCampus.entity.BorrowRecord> list = new java.util.ArrayList<>();
+                        for (var n : root.path("data").withArray("records")) {
+                            com.vCampus.entity.BorrowRecord r = new com.vCampus.entity.BorrowRecord();
+                            r.setRecordId(n.path("recordId").asInt());
+                            r.setUserId(n.path("userId").asInt());
+                            String bd = n.path("borrowDate").asText(null);
+                            String dd = n.path("dueDate").asText(null);
+                            String rd = n.path("returnDate").asText(null);
+                            if (bd != null) try { r.setBorrowDate(java.sql.Date.valueOf(bd)); } catch (Exception ignore) {}
+                            if (dd != null) try { r.setDueDate(java.sql.Date.valueOf(dd)); } catch (Exception ignore) {}
+                            if (rd != null && !rd.equals("null")) try { r.setReturnDate(java.sql.Date.valueOf(rd)); } catch (Exception ignore) {}
+                            r.setStatus(n.path("status").asText());
+                            list.add(r);
+                        }
+                        records = list;
+                    } else throw new RuntimeException(root.path("message").asText());
+                } else throw new RuntimeException("HTTP " + resp.statusCode());
+            } catch (Exception ex) {
+                // 回退本地
+                records = com.vCampus.util.TransactionManager.executeInTransaction(conn -> borrowDao.listByBook(sel.getBookId(), conn));
+                int[] s = new com.vCampus.service.LibraryService().statsForBook(sel.getBookId());
+                total = s[0]; month = s[1]; current = s[2];
+            }
 
-            Dialog<Void> dlg = new Dialog<>();
-            dlg.setTitle("借阅情况 - 《" + sel.getTitle() + "》");
+            java.util.List<com.vCampus.entity.BorrowRecord> finalRecords = records;
+            int fTotal = total, fMonth = month, fCurrent = current;
+            javafx.application.Platform.runLater(() -> {
+                try {
+                    Dialog<Void> dlg = new Dialog<>();
+                    dlg.setTitle("借阅情况 - 《" + sel.getTitle() + "》");
 
-            TableView<com.vCampus.entity.BorrowRecord> tv = new TableView<>();
-            TableColumn<com.vCampus.entity.BorrowRecord, Number> cId = new TableColumn<>("记录ID");
-            cId.setCellValueFactory(x -> new SimpleIntegerProperty(x.getValue().getRecordId()==null?0:x.getValue().getRecordId()));
-            TableColumn<com.vCampus.entity.BorrowRecord, Number> cUser = new TableColumn<>("用户ID");
-            cUser.setCellValueFactory(x -> new SimpleIntegerProperty(x.getValue().getUserId()==null?0:x.getValue().getUserId()));
-            TableColumn<com.vCampus.entity.BorrowRecord, String> cUserName = new TableColumn<>("用户名");
-            cUserName.setCellValueFactory(x -> new SimpleStringProperty(resolveUsername(x.getValue().getUserId())));
-            TableColumn<com.vCampus.entity.BorrowRecord, String> cBorrow = new TableColumn<>("借出");
-            cBorrow.setCellValueFactory(x -> new SimpleStringProperty(String.valueOf(x.getValue().getBorrowDate())));
-            TableColumn<com.vCampus.entity.BorrowRecord, String> cDue = new TableColumn<>("到期");
-            cDue.setCellValueFactory(x -> new SimpleStringProperty(String.valueOf(x.getValue().getDueDate())));
-            TableColumn<com.vCampus.entity.BorrowRecord, String> cReturn = new TableColumn<>("归还");
-            cReturn.setCellValueFactory(x -> new SimpleStringProperty(String.valueOf(x.getValue().getReturnDate())));
-            TableColumn<com.vCampus.entity.BorrowRecord, String> cStatus = new TableColumn<>("状态");
-            cStatus.setCellValueFactory(x -> new SimpleStringProperty(x.getValue().getStatus()));
-            tv.getColumns().addAll(cId, cUser, cUserName, cBorrow, cDue, cReturn, cStatus);
-            tv.setItems(FXCollections.observableArrayList(records));
+                    TableView<com.vCampus.entity.BorrowRecord> tv = new TableView<>();
+                    TableColumn<com.vCampus.entity.BorrowRecord, Number> cId = new TableColumn<>("记录ID");
+                    cId.setCellValueFactory(x -> new SimpleIntegerProperty(x.getValue().getRecordId()==null?0:x.getValue().getRecordId()));
+                    TableColumn<com.vCampus.entity.BorrowRecord, Number> cUser = new TableColumn<>("用户ID");
+                    cUser.setCellValueFactory(x -> new SimpleIntegerProperty(x.getValue().getUserId()==null?0:x.getValue().getUserId()));
+                    TableColumn<com.vCampus.entity.BorrowRecord, String> cUserName = new TableColumn<>("用户名");
+                    cUserName.setCellValueFactory(x -> new SimpleStringProperty(resolveUsername(x.getValue().getUserId())));
+                    TableColumn<com.vCampus.entity.BorrowRecord, String> cBorrow = new TableColumn<>("借出");
+                    cBorrow.setCellValueFactory(x -> new SimpleStringProperty(String.valueOf(x.getValue().getBorrowDate())));
+                    TableColumn<com.vCampus.entity.BorrowRecord, String> cDue = new TableColumn<>("到期");
+                    cDue.setCellValueFactory(x -> new SimpleStringProperty(String.valueOf(x.getValue().getDueDate())));
+                    TableColumn<com.vCampus.entity.BorrowRecord, String> cReturn = new TableColumn<>("归还");
+                    cReturn.setCellValueFactory(x -> new SimpleStringProperty(String.valueOf(x.getValue().getReturnDate())));
+                    TableColumn<com.vCampus.entity.BorrowRecord, String> cStatus = new TableColumn<>("状态");
+                    cStatus.setCellValueFactory(x -> new SimpleStringProperty(x.getValue().getStatus()));
+                    tv.getColumns().addAll(cId, cUser, cUserName, cBorrow, cDue, cReturn, cStatus);
+                    tv.setItems(FXCollections.observableArrayList(finalRecords));
 
-            Label summary = new Label("总借阅: " + total + "    本月: " + month + "    当前借出: " + current);
-            summary.setStyle("-fx-font-weight: bold;");
+                    Label summary = new Label("总借阅: " + fTotal + "    本月: " + fMonth + "    当前借出: " + fCurrent);
+                    summary.setStyle("-fx-font-weight: bold;");
 
-            javafx.scene.layout.VBox box = new javafx.scene.layout.VBox(10, summary, tv);
-            box.setPadding(new javafx.geometry.Insets(10));
-            dlg.getDialogPane().setContent(box);
-            dlg.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
-            dlg.showAndWait();
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            showError("加载借阅情况失败: " + ex.getMessage());
-        }
+                    javafx.scene.layout.VBox box = new javafx.scene.layout.VBox(10, summary, tv);
+                    box.setPadding(new javafx.geometry.Insets(10));
+                    dlg.getDialogPane().setContent(box);
+                    dlg.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
+                    dlg.showAndWait();
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                    showError("加载借阅情况失败: " + ex.getMessage());
+                }
+            });
+        }, "lib-admin-records").start();
     }
 
     // 简单用户名缓存，避免重复查询
