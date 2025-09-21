@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+
+<BorderPane xmlns:fx="http://javafx.com/fxml"
+            fx:controller="com.vCampus.view.BookDetailController"
+            stylesheets="@../css/main.css">
+    <top>
+        <HBox spacing="10" style="-fx-padding: 10;">
+            <Label text="图书详情" style="-fx-font-size: 18px; -fx-font-weight: bold;"/>
+            <Region HBox.hgrow="ALWAYS"/>
+            <Button text="返回" onAction="#onBack"/>
+        </HBox>
+    </top>
+
+    <center>
+        <ScrollPane fitToWidth="true">
+            <VBox spacing="15" style="-fx-padding: 20;">
+                <!-- 基本信息 -->
+                <VBox spacing="8">
+                    <Label text="基本信息" style="-fx-font-size: 16px; -fx-font-weight: bold;"/>
+                    <GridPane hgap="10" vgap="8">
+                        <Label text="书名：" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+                        <Label fx:id="titleLabel" GridPane.columnIndex="1" GridPane.rowIndex="0" style="-fx-font-weight: bold;"/>
+                        
+                        <Label text="作者：" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+                        <Label fx:id="authorLabel" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+                        
+                        <Label text="ISBN：" GridPane.columnIndex="0" GridPane.rowIndex="2"/>
+                        <Label fx:id="isbnLabel" GridPane.columnIndex="1" GridPane.rowIndex="2"/>
+                        
+                        <Label text="出版社：" GridPane.columnIndex="0" GridPane.rowIndex="3"/>
+                        <Label fx:id="publisherLabel" GridPane.columnIndex="1" GridPane.rowIndex="3"/>
+                        
+                        <Label text="出版日期：" GridPane.columnIndex="0" GridPane.rowIndex="4"/>
+                        <Label fx:id="pubDateLabel" GridPane.columnIndex="1" GridPane.rowIndex="4"/>
+                        
+                        <Label text="分类：" GridPane.columnIndex="0" GridPane.rowIndex="5"/>
+                        <Label fx:id="categoryLabel" GridPane.columnIndex="1" GridPane.rowIndex="5"/>
+                        
+                        <Label text="位置：" GridPane.columnIndex="0" GridPane.rowIndex="6"/>
+                        <Label fx:id="locationLabel" GridPane.columnIndex="1" GridPane.rowIndex="6"/>
+                        
+                        <Label text="状态：" GridPane.columnIndex="0" GridPane.rowIndex="7"/>
+                        <Label fx:id="statusLabel" GridPane.columnIndex="1" GridPane.rowIndex="7"/>
+                    </GridPane>
+                </VBox>
+
+                <!-- 库存信息 -->
+                <VBox spacing="8">
+                    <Label text="库存信息" style="-fx-font-size: 16px; -fx-font-weight: bold;"/>
+                    <GridPane hgap="10" vgap="8">
+                        <Label text="总数量：" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+                        <Label fx:id="totalCopiesLabel" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+                        
+                        <Label text="可借数量：" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+                        <Label fx:id="availableCopiesLabel" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+                        
+                        <Label text="已借数量：" GridPane.columnIndex="0" GridPane.rowIndex="2"/>
+                        <Label fx:id="borrowedCopiesLabel" GridPane.columnIndex="1" GridPane.rowIndex="2"/>
+                    </GridPane>
+                </VBox>
+
+                <!-- 借阅统计 -->
+                <VBox spacing="8">
+                    <Label text="借阅统计" style="-fx-font-size: 16px; -fx-font-weight: bold;"/>
+                    <GridPane hgap="10" vgap="8">
+                        <Label text="总借阅次数：" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+                        <Label fx:id="totalBorrowsLabel" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+                        
+                        <Label text="本月借阅：" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+                        <Label fx:id="monthlyBorrowsLabel" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+                        
+                        <Label text="当前借出：" GridPane.columnIndex="0" GridPane.rowIndex="2"/>
+                        <Label fx:id="currentBorrowsLabel" GridPane.columnIndex="1" GridPane.rowIndex="2"/>
+                    </GridPane>
+                </VBox>
+
+                <!-- 相关推荐 -->
+                <VBox spacing="8">
+                    <Label text="相关推荐" style="-fx-font-size: 16px; -fx-font-weight: bold;"/>
+                    <TableView fx:id="recommendTable" prefHeight="150">
+                        <columns>
+                            <TableColumn text="书名" fx:id="recTitleCol"/>
+                            <TableColumn text="作者" fx:id="recAuthorCol"/>
+                            <TableColumn text="可借" fx:id="recAvailableCol"/>
+                        </columns>
+                    </TableView>
+                </VBox>
+            </VBox>
+        </ScrollPane>
+    </center>
+
+    <bottom>
+        <HBox spacing="10" style="-fx-padding: 10; -fx-alignment: center;">
+            <Button text="借阅此书" onAction="#onBorrow" fx:id="borrowButton"/>
+            <Button text="预约此书" onAction="#onReserve" fx:id="reserveButton"/>
+            <Button text="收藏此书" onAction="#onFavorite" fx:id="favoriteButton"/>
+        </HBox>
+    </bottom>
+</BorderPane>

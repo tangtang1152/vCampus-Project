@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- 引用父项目 -->
+    <parent>
+        <groupId>edu.seu.campus</groupId>
+        <artifactId>vCampus-Project1-Parent</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath> <!-- 指向父项目的路径 -->
+    </parent>
+
+    <!-- 删除了原有的 spring-boot-starter-parent 引用，因为新的父 pom 已经继承它 -->
+
+    <artifactId>vcampus-server</artifactId> <!-- 子模块自己的 Artifact ID -->
+    <!-- <version>0.0.1-SNAPSHOT</version> 版本从父级继承，删除 -->
+    <name>vCampus Server</name>
+    <description>vCampus Spring Boot Server (JSON over HTTP)</description>
+
+    <properties>
+        <!-- java.version 从父级继承，无需在此重复 -->
+        <!-- ucanaccess.version 从父级继承，无需在此重复 -->
+        <!-- commons-dbcp2.version 从父级继承，无需在此重复 -->
+        <!-- poi.version 从父级继承，无需在此重复 -->
+    </properties>
+
+    <dependencies>
+        <!-- Spring Boot Web Starter (版本由父级继承自 spring-boot-starter-parent) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+            <!-- 排除 commons-logging 依赖，避免潜在冲突 -->
+            <exclusions>
+                <exclusion>
+  <groupId>commons-logging</groupId>
+  <artifactId>commons-logging</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <!-- Spring Boot JDBC Starter (版本由父级继承自 spring-boot-starter-parent) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-jdbc</artifactId>
+        </dependency>
+
+        <!-- UCanAccess Driver (版本由父级 dependencyManagement 管理) -->
+        <dependency>
+            <groupId>net.sf.ucanaccess</groupId>
+            <artifactId>ucanaccess</artifactId>
+        </dependency>
+
+        <!-- DBCP2 for BasicDataSource (版本由父级 dependencyManagement 管理) -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-dbcp2</artifactId>
+        </dependency>
+
+        <!-- Spring Boot Test Starter (版本由父级继承自 spring-boot-starter-parent) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Apache POI for Excel (版本由父级 dependencyManagement 管理) -->
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-ooxml</artifactId>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- Spring Boot Maven Plugin (版本和配置从父级 pluginManagement 继承) -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <!-- 具体执行配置在父级 pluginManagement 中定义了，无需重复 -->
+            </plugin>
+        </plugins>
+    </build>
+</project>

@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+<?import javafx.collections.FXCollections?>
+<?import java.lang.String?>
+
+<BorderPane xmlns:fx="http://javafx.com/fxml"
+            fx:controller="com.vCampus.view.CourseManagementController"
+            stylesheets="@../css/main.css">
+    <top>
+        <ToolBar>
+            <Button text="新增课程" onAction="#onAdd"/>
+            <Button text="编辑课程" onAction="#onEdit"/>
+            <Button text="删除课程" onAction="#onDelete"/>
+            <Separator/>
+            <Button text="查看已选学生" onAction="#onViewChosenStudents"/> <!-- 也可以通过右键菜单实现 -->
+            <Button text="管理员代选" onAction="#onAdminAssistChoose"/> <!-- 新增按钮 -->
+            <Separator/>
+            <TextField fx:id="keywordField" promptText="课程号/课程名/教师ID"/>
+            <Button text="搜索" onAction="#onSearch"/>
+            <Button text="刷新" onAction="#onRefresh"/>
+            <Separator/>
+            <Button text="导入CSV" onAction="#onImportCsv"/>
+            <Button text="导出CSV" onAction="#onExportCsv"/>
+        </ToolBar>
+    </top>
+
+    <center>
+        <TableView fx:id="table">
+            <columns>
+                <TableColumn text="课程号" fx:id="colId"/>
+                <TableColumn text="课程名称" fx:id="colName"/>
+                <TableColumn text="开课日期" fx:id="colDate"/>
+                <TableColumn text="容量" fx:id="colNum"/>
+                <TableColumn text="学分" fx:id="colCredit"/>
+                <TableColumn text="教师ID" fx:id="colTeacher"/>
+                <TableColumn text="周次范围" fx:id="colWeekRange"/>
+                <TableColumn text="单双周" fx:id="colWeekType"/>
+                <TableColumn text="上课时间" fx:id="colTime"/>
+                <TableColumn text="教室" fx:id="colRoom"/>
+                <TableColumn text="已选人数" fx:id="colChosenCount"/>
+            </columns>
+            <!-- 右键菜单在Controller中动态添加 -->
+        </TableView>
+    </center>
+
+</BorderPane>

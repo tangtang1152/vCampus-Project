@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- 引用父项目 -->
+    <parent>
+        <groupId>edu.seu.campus</groupId>
+        <artifactId>vCampus-Project1-Parent</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath> <!-- 指向父项目的路径 -->
+    </parent>
+
+    <artifactId>vcampus-client</artifactId> <!-- 子模块自己的 Artifact ID -->
+    <!-- <version>1.0.0-SNAPSHOT</version>  版本从父级继承，删除 -->
+    <name>vCampus Client</name>
+    <description>vCampus JavaFX Client Application (JSON over HTTP)</description>
+
+    <properties>
+        <!-- java.version 从父级继承，无需在此重复 -->
+        <!-- javafx.version 从父级继承，无需在此重复 -->
+        <!-- jackson.version 从父级继承，无需在此重复 -->
+    </properties>
+
+    <dependencies>
+        <!-- JavaFX 核心模块 (版本由父级 dependencyManagement 管理) -->
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-controls</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-fxml</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-graphics</artifactId>
+            <classifier>win</classifier>
+        </dependency>
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-base</artifactId>
+            <classifier>win</classifier>
+        </dependency>
+
+        <!-- 用于网络通信和 JSON 处理 (版本由父级 dependencyManagement 管理) -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+
+        <!-- Apache POI for Excel (版本由父级 dependencyManagement 管理) -->
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-ooxml</artifactId>
+        </dependency>
+
+        <!--Test dependency (版本由父级 dependencyManagement 管理) -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- Maven Compiler Plugin (版本和配置从父级 pluginManagement 继承) -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+            </plugin>
+            <!-- JavaFX Maven Plugin (版本从父级 pluginManagement 继承，但此处定义具体执行) -->
+            <plugin>
+                <groupId>org.openjfx</groupId>
+                <artifactId>javafx-maven-plugin</artifactId>
+                <executions>
+  <execution>
+  <!-- Default configuration for running with: mvn clean javafx:run -->
+  <id>default-cli</id>
+  <configuration>
+  <mainClass>com.vCampus.app.MainApp</mainClass>
+  <launcher>app</launcher>
+  <jlinkZipName>app</jlinkZipName>
+  <jlinkImageName>app</jlinkImageName>
+  <noManPages>true</noManPages>
+  <stripDebug>true</stripDebug>
+  <noHeaderFiles>true</noHeaderFiles>
+  </configuration>
+  </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

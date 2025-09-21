@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- 父项目自身，它将继承自 Spring Boot 的父 POM -->
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.2.5</version> <!-- 根据您的server pom，使用 3.2.5 -->
+        <relativePath/> <!-- lookup parent from repository -->
+    </parent>
+
+    <groupId>edu.seu.campus</groupId>  <!-- 整个项目的组ID -->
+    <artifactId>vCampus-Project1-Parent</artifactId> <!-- 父项目的 Artifact ID -->
+    <version>0.0.1-SNAPSHOT</version> <!-- 整个项目的版本 -->
+    <packaging>pom</packaging> <!-- **关键：父项目的打包类型必须是 pom** -->
+
+    <name>vCampus Project Parent</name>
+    <description>Parent project for vCampus client and server modules</description>
+
+    <properties>
+        <java.version>21</java.version> <!-- 统一的 Java 版本 -->
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+        <!-- Spring Boot 版本已由 <parent> 标签管理，无需在此重复定义 -->
+        <!-- <spring-boot.version>3.2.5</spring-boot.version> -->
+
+        <!-- 子模块特有或需要在父级统一管理的版本 -->
+        <javafx.version>21.0.1</javafx.version>
+        <jackson.version>2.16.1</jackson.version>
+        <ucanaccess.version>5.0.1</ucanaccess.version>
+        <commons-dbcp2.version>2.11.0</commons-dbcp2.version>
+        <poi.version>5.2.5</poi.version> <!-- Apache POI 版本 -->
+        <junit-jupiter.version>5.12.0-M1</junit-jupiter.version>
+        <maven-compiler-plugin.version>3.11.0</maven-compiler-plugin.version>
+        <javafx-maven-plugin.version>0.0.8</javafx-maven-plugin.version>
+    </properties>
+
+    <!-- 声明子模块 -->
+    <modules>
+        <module>vCampus-client</module>
+        <module>vCampus-server</module>
+    </modules>
+
+    <!-- 统一管理所有依赖的版本，子模块只需声明groupId和artifactId -->
+    <dependencyManagement>
+        <dependencies>
+            <!-- Spring Boot Starter Dependencies 已经由父POM（spring-boot-starter-parent）管理 -->
+
+            <!-- JavaFX 核心模块 -->
+            <dependency>
+                <groupId>org.openjfx</groupId>
+                <artifactId>javafx-controls</artifactId>
+                <version>${javafx.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.openjfx</groupId>
+                <artifactId>javafx-fxml</artifactId>
+                <version>${javafx.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.openjfx</groupId>
+                <artifactId>javafx-graphics</artifactId>
+                <version>${javafx.version}</version>
+                <classifier>win</classifier>
+            </dependency>
+            <dependency>
+                <groupId>org.openjfx</groupId>
+                <artifactId>javafx-base</artifactId>
+                <version>${javafx.version}</version>
+                <classifier>win</classifier>
+            </dependency>
+
+            <!-- Jackson for JSON processing -->
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-databind</artifactId>
+                <version>${jackson.version}</version>
+            </dependency>
+
+            <!-- UCanAccess Driver for MS Access databases -->
+            <dependency>
+                <groupId>net.sf.ucanaccess</groupId>
+                <artifactId>ucanaccess</artifactId>
+                <version>${ucanaccess.version}</version>
+            </dependency>
+
+            <!-- DBCP2 for BasicDataSource (数据库连接池) -->
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-dbcp2</artifactId>
+                <version>${commons-dbcp2.version}</version>
+            </dependency>
+
+            <!-- Apache POI for Excel -->
+            <dependency>
+                <groupId>org.apache.poi</groupId>
+                <artifactId>poi-ooxml</artifactId>
+                <version>${poi.version}</version>
+            </dependency>
+
+            <!-- JUnit Jupiter for testing -->
+            <dependency>
+                <groupId>org.junit.jupiter</groupId>
+                <artifactId>junit-jupiter-api</artifactId>
+                <version>${junit-jupiter.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.junit.jupiter</groupId>
+                <artifactId>junit-jupiter-engine</artifactId>
+                <version>${junit-jupiter.version}</version>
+                <scope>test</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <build>
+        <pluginManagement>
+            <plugins>
+                <!-- Maven Compiler Plugin -->
+                <plugin>
+  <groupId>org.apache.maven.plugins</groupId>
+  <artifactId>maven-compiler-plugin</artifactId>
+  <version>${maven-compiler-plugin.version}</version>
+  <configuration>
+  <source>${java.version}</source>
+  <target>${java.version}</target>
+  </configuration>
+                </plugin>
+
+                <!-- Spring Boot Maven Plugin (版本由 Spring Boot 父POM管理，但在此配置执行) -->
+                <plugin>
+  <groupId>org.springframework.boot</groupId>
+  <artifactId>spring-boot-maven-plugin</artifactId>
+  <!-- 版本无需指定，由 Spring Boot 父POM 管理 -->
+  <executions>
+  <execution>
+  <goals>
+  <goal>repackage</goal>
+  </goals>
+  </execution>
+  </executions>
+                </plugin>
+
+                <!-- JavaFX Maven Plugin (仅在 client 模块中实际使用，但可以在父级管理版本) -->
+                <plugin>
+  <groupId>org.openjfx</groupId>
+  <artifactId>javafx-maven-plugin</artifactId>
+  <version>${javafx-maven-plugin.version}</version>
+  <!-- 具体配置将在子模块中定义 -->
+                </plugin>
+            </plugins>
+        </pluginManagement>
+    </build>
+
+</project>

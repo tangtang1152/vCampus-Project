@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+
+<BorderPane xmlns:fx="http://javafx.com/fxml"
+            fx:controller="com.vCampus.view.UserManagementController"
+            stylesheets="@../css/main.css">
+    <top>
+        <ToolBar>
+            <Label text="角色"/>
+            <CheckBox fx:id="cbStudent" text="学生" selected="true"/>
+            <CheckBox fx:id="cbTeacher" text="教师" selected="true"/>
+            <CheckBox fx:id="cbAdmin" text="管理员" selected="true"/>
+            <Separator/>
+            <TextField fx:id="keywordField" promptText="姓名/用户名/学工号" prefWidth="220"/>
+            <Button text="搜索" onAction="#onSearch"/>
+            <Button text="刷新" onAction="#onRefresh"/>
+            <Separator/>
+            <Button text="新增" onAction="#onAdd"/>
+            <Button text="编辑" onAction="#onEdit"/>
+            <Button text="删除" onAction="#onDelete"/>
+            <Separator/>
+            <Button text="导入" onAction="#onImport"/>
+            <Button text="导出" onAction="#onExport"/>
+        </ToolBar>
+    </top>
+
+    <center>
+        <TableView fx:id="table">
+            <columns>
+                <TableColumn text="用户ID" fx:id="colUserId"/>
+                <TableColumn text="用户名" fx:id="colUsername"/>
+                <TableColumn text="角色" fx:id="colRoles"/>
+                <TableColumn text="姓名" fx:id="colRealName"/>
+                <TableColumn text="类型信息" fx:id="colTypeInfo"/>
+            </columns>
+        </TableView>
+    </center>
+
+    <bottom>
+        <HBox spacing="10">
+            <padding>
+                <Insets top="10" right="10" bottom="10" left="10"/>
+            </padding>
+            <Label text="共"/>
+            <Label fx:id="lblCount"/>
+            <Label text="条"/>
+            <Region HBox.hgrow="ALWAYS"/>
+            <Button text="关闭" onAction="#onClose"/>
+        </HBox>
+    </bottom>
+</BorderPane>
+
+
