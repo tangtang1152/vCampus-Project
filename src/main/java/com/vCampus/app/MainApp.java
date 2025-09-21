@@ -174,27 +174,27 @@ public class MainApp extends Application {
     public static void main(String[] args) {
     	
 		
-        // 保存原始的System.err
-        PrintStream originalErr = System.err;
-        
-        // 重定向System.err到空输出，完全隐藏所有错误信息
-        System.setErr(new PrintStream(new OutputStream() {
-            @Override
-            public void write(int b) throws IOException {
-                // 完全丢弃所有错误输出
-            }
-            
-            @Override
-            public void write(byte[] b, int off, int len) throws IOException {
-                String message = new String(b, off, len);
-                // 只允许显示我们自己程序的错误，过滤掉所有UCanAccess和HSQLDB的错误
-                if (message.contains("可替换") || message.contains("注册") || 
-                    message.contains("登录") || message.contains("错误")) {
-                    originalErr.write(b, off, len);
-                }
-                // 其他错误全部丢弃
-            }
-        }));
+//        // 保存原始的System.err
+//        PrintStream originalErr = System.err;
+//        
+//        // 重定向System.err到空输出，完全隐藏所有错误信息
+//        System.setErr(new PrintStream(new OutputStream() {
+//            @Override
+//            public void write(int b) throws IOException {
+//                // 完全丢弃所有错误输出
+//            }
+//            
+//            @Override
+//            public void write(byte[] b, int off, int len) throws IOException {
+//                String message = new String(b, off, len);
+//                // 只允许显示我们自己程序的错误，过滤掉所有UCanAccess和HSQLDB的错误
+//                if (message.contains("可替换") || message.contains("注册") || 
+//                    message.contains("登录") || message.contains("错误")) {
+//                    originalErr.write(b, off, len);
+//                }
+//                // 其他错误全部丢弃
+//            }
+//        }));
     	
         // 强制设置系统编码为 UTF-8
         try {

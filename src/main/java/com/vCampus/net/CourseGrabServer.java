@@ -5,6 +5,7 @@ import com.vCampus.service.ServiceFactory;
 import com.vCampus.common.ConfigManager;
 import com.vCampus.service.LibraryService;
 import com.vCampus.service.ServiceResult;
+import com.vCampus.service.ISubjectService;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -14,6 +15,8 @@ import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * 简单的Socket服务器：处理选课与图书馆请求
@@ -29,6 +32,13 @@ public class CourseGrabServer {
 
     private final int port;
     private volatile boolean running = false;
+
+    // 每门课独立的公平锁，保证同一门课的请求按到达顺序串行处理
+    private final ConcurrentHashMap<String, ReentrantLock> subjectLocks = new ConcurrentHashMap<>();
+
+    private ReentrantLock getSubjectLock(String subjectId) {
+        return subjectLocks.computeIfAbsent(subjectId, k -> new ReentrantLock(true));
+    }
 
     public CourseGrabServer(int port) {
         this.port = port;
@@ -69,8 +79,33 @@ public class CourseGrabServer {
                 String studentId = parts[1];
                 String subjectId = parts[2];
                 IChooseService chooseService = ServiceFactory.getChooseService();
-                boolean ok = chooseService.chooseSubject(studentId, subjectId);
-                out.println(ok ? "OK|选课成功" : "FAIL|选课失败：可能已满或已选过");
+                ISubjectService subjectService = ServiceFactory.getSubjectService();
+
+                ReentrantLock lock = getSubjectLock(subjectId);
+                lock.lock();
+                try {
+                    boolean ok = chooseService.chooseSubject(studentId, subjectId);
+                    if (ok) {
+                        out.println("OK|选课成功");
+                    } else {
+                        String msg;
+                        try {
+                            var subject = subjectService.getSubjectById(subjectId);
+                            if (subject != null && subject.getSubjectNum() != null && subject.getSubjectNum() <= 0) {
+                                msg = "选课失败：课程已满";
+                            } else if (chooseService.isSubjectChosen(studentId, subjectId)) {
+                                msg = "选课失败：已选过该课";
+                            } else {
+                                msg = "选课失败";
+                            }
+                        } catch (Exception ex) {
+                            msg = "选课失败";
+                        }
+                        out.println("FAIL|" + msg);
+                    }
+                } finally {
+                    lock.unlock();
+                }
                 return;
             }
 
