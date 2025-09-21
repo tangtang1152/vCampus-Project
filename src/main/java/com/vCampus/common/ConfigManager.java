@@ -36,6 +36,7 @@ public class ConfigManager {
         properties.setProperty("socket.enabled", "false");
         properties.setProperty("socket.serverHost", "127.0.0.1");
         properties.setProperty("socket.serverPort", "9090");
+        properties.setProperty("socket.adminToken", "changeme");
     }
     
     public static String getDatabasePath() {
@@ -73,5 +74,9 @@ public class ConfigManager {
         } catch (NumberFormatException e) {
             return 9090;
         }
+    }
+
+    public static String getSocketAdminToken() {
+        return properties.getProperty("socket.adminToken", "changeme");
     }
 }

@@ -64,6 +64,21 @@ public class CourseGrabClient {
         String msg = parts.length > 1 ? parts[1] : "";
         return new CourseGrabResult("OK".equalsIgnoreCase(code), msg);
     }
+
+    public CourseGrabResult shutdown(String adminToken) {
+        try (Socket s = new Socket(host, port);
+             BufferedReader in = new BufferedReader(new InputStreamReader(s.getInputStream(), StandardCharsets.UTF_8));
+             PrintWriter out = new PrintWriter(new BufferedWriter(new OutputStreamWriter(s.getOutputStream(), StandardCharsets.UTF_8)), true)) {
+            s.setSoTimeout(5000);
+            out.println("SHUTDOWN|" + (adminToken == null ? "" : adminToken));
+            out.flush();
+            String resp = in.readLine();
+            if (resp == null) return new CourseGrabResult(false, "无响应");
+            return parse(resp);
+        } catch (Exception e) {
+            return new CourseGrabResult(false, "连接失败: " + e.getMessage());
+        }
+    }
 }
 
 

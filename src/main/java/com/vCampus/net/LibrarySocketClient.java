@@ -48,7 +48,9 @@ public class LibrarySocketClient {
         try (Socket s = new Socket(host, port);
              BufferedReader in = new BufferedReader(new InputStreamReader(s.getInputStream(), StandardCharsets.UTF_8));
              PrintWriter out = new PrintWriter(new BufferedWriter(new OutputStreamWriter(s.getOutputStream(), StandardCharsets.UTF_8)), true)) {
+            s.setSoTimeout(8000);
             out.println(line);
+            out.flush();
             String resp = in.readLine();
             if (resp == null) return new CourseGrabResult(false, "无响应");
             String[] parts = resp.split("\\|", 2);
