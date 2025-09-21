@@ -76,7 +76,7 @@ public class FlashGrabController extends BaseController {
             final boolean fOk = ok;
             final String fMsg = msg;
             TransactionManager.runLaterSafe(() -> {
-                showInformation("结果", fMsg);
+                if (fOk) showSuccess(fMsg); else showError(fMsg);
                 if (fOk) {
                     loadData();
                 } else {

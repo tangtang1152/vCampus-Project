@@ -78,9 +78,11 @@ public class ChosenStudentsDialogController extends BaseController {
      */
     @FXML
     private void onDropStudentSubject() {
-        // 权限检查：只有管理员和教师可以操作退课
+        // 权限检查：只有管理员和教师可以操作退课（支持多角色）
         User currentUser = SessionContext.getCurrentUser();
-        if (currentUser == null || (!"ADMIN".equalsIgnoreCase(currentUser.getRole()) && !"TEACHER".equalsIgnoreCase(currentUser.getRole()))) {
+        boolean isAdmin = currentUser != null && currentUser.getRoleSet().stream().anyMatch(r -> "ADMIN".equalsIgnoreCase(r));
+        boolean isTeacher = currentUser != null && currentUser.getRoleSet().stream().anyMatch(r -> "TEACHER".equalsIgnoreCase(r));
+        if (currentUser == null || (!isAdmin && !isTeacher)) {
             showWarning("您没有权限执行此操作，只有管理员或教师可以退课。");
             return;
         }
@@ -96,8 +98,16 @@ public class ChosenStudentsDialogController extends BaseController {
         }
 
         // 进一步权限检查：教师只能退自己教授的课程的学生
-        if ("TEACHER".equalsIgnoreCase(currentUser.getRole())) {
-            if (!currentSubject.getTeacherId().equals(((com.vCampus.entity.Teacher) currentUser).getTeacherId())) {
+        if (isTeacher && !isAdmin) {
+            // 教师必须是该课程任课教师；管理员不受限
+            String teacherId = null;
+            if (currentUser instanceof com.vCampus.entity.Teacher t) {
+                teacherId = t.getTeacherId();
+            } else {
+                var ts = com.vCampus.service.ServiceFactory.getTeacherService().getByUserId(currentUser.getUserId());
+                teacherId = ts == null ? null : ts.getTeacherId();
+            }
+            if (teacherId == null || !currentSubject.getTeacherId().equals(teacherId)) {
                 showWarning("您只能退选您所教授课程的学生。");
                 return;
             }

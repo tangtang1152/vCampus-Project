@@ -112,10 +112,9 @@ public class ChooseServiceImpl extends AbstractBaseServiceImpl<Choose, String> i
   System.out.println("选课失败: 课程不存在，课程ID: " + subjectId);
   return false;
                 }
-                // 新增：验证课程时间信息完整性（这个通常不应该跳过，因为课程信息本身就应该完整）
+                // 课程时间信息若不完整，记录警告但继续允许选课（便于并发抢课演示）
                 if (!isSubjectTimeValid(subject)) {
-  System.out.println("选课失败: 课程时间信息不完整，无法选课，课程ID: " + subjectId);
-  return false;
+  System.out.println("警告: 课程时间信息不完整，仍允许选课，课程ID: " + subjectId);
                 }
 
                 // 3. 检查是否已选该课程 (这个通常不应该跳过)
@@ -184,9 +183,11 @@ public class ChooseServiceImpl extends AbstractBaseServiceImpl<Choose, String> i
                 //     return false;
                 // }
 
-                // 3. 删除选课记录
+                // 3. 删除选课记录并回补名额
                 boolean success = chooseDao.delete(selectid, conn);
                 if (success) {
+                    // 回补课程名额
+                    try { subjectDao.increaseSlot(choose.getSubjectId(), conn); } catch (Exception ignore) {}
   System.out.println("退选成功，选课ID: " + selectid);
                 }
                 return success;

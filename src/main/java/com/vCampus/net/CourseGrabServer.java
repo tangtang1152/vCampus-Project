@@ -60,54 +60,55 @@ public class CourseGrabServer {
              BufferedReader in = new BufferedReader(new InputStreamReader(c.getInputStream(), StandardCharsets.UTF_8));
              PrintWriter out = new PrintWriter(new BufferedWriter(new OutputStreamWriter(c.getOutputStream(), StandardCharsets.UTF_8)), true)) {
 
-            String line = in.readLine();
-            if (line == null || line.isBlank()) {
-                out.println("FAIL|空请求");
-                return;
-            }
-            String[] parts = line.split("\\|", -1);
-            String cmd = parts[0];
-            if ("PING".equalsIgnoreCase(cmd)) {
-                out.println("OK|PONG");
-                return;
-            }
-            if ("CHOOSE".equalsIgnoreCase(cmd)) {
-                if (parts.length < 3) {
-                    out.println("FAIL|参数不足");
+            try {
+                String line = in.readLine();
+                if (line == null || line.isBlank()) {
+                    out.println("FAIL|空请求");
                     return;
                 }
-                String studentId = parts[1];
-                String subjectId = parts[2];
-                IChooseService chooseService = ServiceFactory.getChooseService();
-                ISubjectService subjectService = ServiceFactory.getSubjectService();
+                String[] parts = line.split("\\|", -1);
+                String cmd = parts[0];
+                if ("PING".equalsIgnoreCase(cmd)) {
+                    out.println("OK|PONG");
+                    return;
+                }
+                if ("CHOOSE".equalsIgnoreCase(cmd)) {
+                    if (parts.length < 3) {
+                        out.println("FAIL|参数不足");
+                        return;
+                    }
+                    String studentId = parts[1];
+                    String subjectId = parts[2];
+                    IChooseService chooseService = ServiceFactory.getChooseService();
+                    ISubjectService subjectService = ServiceFactory.getSubjectService();
 
-                ReentrantLock lock = getSubjectLock(subjectId);
-                lock.lock();
-                try {
-                    boolean ok = chooseService.chooseSubject(studentId, subjectId);
-                    if (ok) {
-                        out.println("OK|选课成功");
-                    } else {
-                        String msg;
-                        try {
-                            var subject = subjectService.getSubjectById(subjectId);
-                            if (subject != null && subject.getSubjectNum() != null && subject.getSubjectNum() <= 0) {
-                                msg = "选课失败：课程已满";
-                            } else if (chooseService.isSubjectChosen(studentId, subjectId)) {
-                                msg = "选课失败：已选过该课";
-                            } else {
+                    ReentrantLock lock = getSubjectLock(subjectId);
+                    lock.lock();
+                    try {
+                        boolean ok = chooseService.chooseSubject(studentId, subjectId);
+                        if (ok) {
+                            out.println("OK|选课成功");
+                        } else {
+                            String msg;
+                            try {
+                                var subject = subjectService.getSubjectById(subjectId);
+                                if (subject != null && subject.getSubjectNum() != null && subject.getSubjectNum() <= 0) {
+                                    msg = "选课失败：课程已满";
+                                } else if (chooseService.isSubjectChosen(studentId, subjectId)) {
+                                    msg = "选课失败：已选过该课";
+                                } else {
+                                    msg = "选课失败";
+                                }
+                            } catch (Exception ex) {
                                 msg = "选课失败";
                             }
-                        } catch (Exception ex) {
-                            msg = "选课失败";
+                            out.println("FAIL|" + msg);
                         }
-                        out.println("FAIL|" + msg);
+                    } finally {
+                        lock.unlock();
                     }
-                } finally {
-                    lock.unlock();
+                    return;
                 }
-                return;
-            }
 
             // ====== Library commands ======
             LibraryService lib = ServiceFactory.getLibraryService();
@@ -147,7 +148,10 @@ public class CourseGrabServer {
                 return;
             }
 
-            out.println("FAIL|未知指令");
+                out.println("FAIL|未知指令");
+            } catch (Exception cmdEx) {
+                try { out.println("FAIL|服务端异常: " + (cmdEx.getMessage() == null ? "unknown" : cmdEx.getMessage())); } catch (Exception ignore) {}
+            }
         } catch (Exception e) {
             System.err.println("[CourseGrabServer] 处理客户端异常: " + e.getMessage());
         }
