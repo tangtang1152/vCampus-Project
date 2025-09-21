@@ -76,12 +76,14 @@ public class FlashGrabController extends BaseController {
             final boolean fOk = ok;
             final String fMsg = msg;
             TransactionManager.runLaterSafe(() -> {
-                if (fOk) showSuccess(fMsg); else showError(fMsg);
-                if (fOk) {
-                    loadData();
+                // 为避免并发时旧行状态覆盖提示，这里根据最新列表再比对一次容量/选中状态，修正消息
+                if (!fOk) {
+                    showError(fMsg);
                 } else {
-                    table.refresh();
+                    showSuccess(fMsg);
                 }
+                // 无论成功或失败都重新从数据库拉取，以便容量/状态立刻同步
+                loadData();
             });
         }, "grab-"+subjectId).start();
     }
