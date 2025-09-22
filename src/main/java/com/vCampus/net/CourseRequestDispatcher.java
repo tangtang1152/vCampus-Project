@@ -67,6 +67,11 @@ public class CourseRequestDispatcher {
             return new SocketResponse(false, "参数不足");
         }
         IChooseService chooseService = ServiceFactory.getChooseService();
+        // 若实现类支持带原因的接口，则优先走它
+        if (chooseService instanceof com.vCampus.service.ChooseServiceImpl impl) {
+            var res = impl.chooseSubjectWithReason(studentId, subjectId);
+            return new SocketResponse(res.isSuccess(), res.getMessage());
+        }
         boolean ok = chooseService.chooseSubject(studentId, subjectId);
         return new SocketResponse(ok, ok ? "选课成功" : "选课失败：可能已满或已选过");
     }

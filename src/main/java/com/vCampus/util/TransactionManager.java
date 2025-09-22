@@ -8,6 +8,8 @@ import java.sql.SQLException;
  * 统一管理数据库事务
  */
 public class TransactionManager {
+    // Access 对并发写入支持较弱：用全局可重入锁串行化事务，避免文件通道被并发写破坏
+    private static final java.util.concurrent.locks.ReentrantLock DB_WRITE_LOCK = new java.util.concurrent.locks.ReentrantLock(true);
     
     /**
      * 在事务中执行操作
@@ -18,12 +20,15 @@ public class TransactionManager {
         while (true) {
             Connection conn = null;
             try {
+                // 串行化进入事务，避免 UCanAccess ClosedChannelException
+                DB_WRITE_LOCK.lock();
+                System.out.println("获得数据库全局事务锁");
                 conn = DBUtil.getConnection();
                 System.out.println("获取数据库连接成功");
                 conn.setAutoCommit(false);
                 System.out.println("开始事务");
-                // 高隔离级别，配合条件更新，保障并发一致性
-                conn.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
+                // 降低隔离级别，减少并发下的锁等待与阻塞
+                conn.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
 
                 T result = callback.doInTransaction(conn);
                 conn.commit();
@@ -80,6 +85,10 @@ public class TransactionManager {
                         System.err.println("关闭连接失败: " + e.getMessage());
                         e.printStackTrace();
                     }
+                }
+                if (DB_WRITE_LOCK.isHeldByCurrentThread()) {
+                    DB_WRITE_LOCK.unlock();
+                    System.out.println("释放数据库全局事务锁");
                 }
             }
         }
