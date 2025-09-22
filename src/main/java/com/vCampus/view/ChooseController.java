@@ -86,9 +86,13 @@ public class ChooseController extends BaseController {
         String kw = keywordField.getText() == null ? "" : keywordField.getText();
         new Thread(() -> {
             java.util.List<Subject> list;
-            if (com.vCampus.common.ConfigManager.isSocketEnabled()) {
+            boolean socket = com.vCampus.common.ConfigManager.isSocketEnabled();
+            if (socket) {
                 list = fetchSubjectsFromServer(kw);
-                if (list == null) list = fetchSubjectsLocally(kw);
+                if (list == null) {
+                    com.vCampus.util.TransactionManager.runLaterSafe(() -> showError("服务器不可用或连接中断，请检查网络/配置后重试"));
+                    return; // 不再回退到本地，保持一致性
+                }
             } else {
                 list = fetchSubjectsLocally(kw);
             }
@@ -144,9 +148,13 @@ public class ChooseController extends BaseController {
     private void loadMy() {
         new Thread(() -> {
             java.util.List<Subject> list;
-            if (com.vCampus.common.ConfigManager.isSocketEnabled()) {
+            boolean socket = com.vCampus.common.ConfigManager.isSocketEnabled();
+            if (socket) {
                 list = fetchMySubjectsFromServer(getCurrentStudentId());
-                if (list == null) list = chooseService.getStudentSubjects(getCurrentStudentId());
+                if (list == null) {
+                    com.vCampus.util.TransactionManager.runLaterSafe(() -> showError("服务器不可用或连接中断，请检查网络/配置后重试"));
+                    return; // 不回退
+                }
             } else {
                 list = chooseService.getStudentSubjects(getCurrentStudentId());
             }

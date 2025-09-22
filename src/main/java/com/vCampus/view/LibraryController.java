@@ -183,7 +183,8 @@ public class LibraryController extends BaseController {
                         }
                     } finally { s.close(); }
                 } catch (Exception e) {
-                    list = libraryService.searchBooksAdvanced(kw, st, sort, curPage, size);
+                    com.vCampus.util.TransactionManager.runLaterSafe(() -> showError("服务器不可用或连接中断，请检查网络/配置后重试"));
+                    return; // 不回退到本地
                 }
             } else {
                 list = libraryService.searchBooksAdvanced(kw, st, sort, curPage, size);
