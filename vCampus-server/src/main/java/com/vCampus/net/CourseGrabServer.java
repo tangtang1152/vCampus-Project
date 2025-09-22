@@ -18,6 +18,8 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
@@ -36,6 +38,9 @@ public class CourseGrabServer {
     private final int port;
     private volatile boolean running = false;
     private volatile ServerSocket serverSocket;
+    // 线程池与客户端线程映射
+    private ExecutorService clientExecutor;
+    private final ConcurrentHashMap<String, ClientThread> clientThreads = new ConcurrentHashMap<>();
     
     @Autowired private IChooseService chooseService; 
     @Autowired private ISubjectService subjectService; 
@@ -49,13 +54,23 @@ public class CourseGrabServer {
     
     // 每门课独立的公平锁，保证同一门课的请求按到达顺序串行处理
     private final ConcurrentHashMap<String, ReentrantLock> subjectLocks = new ConcurrentHashMap<>();
+    // 每本书独立的公平锁，保证同一本书的借还/预约在并发下的顺序与一致性
+    private final ConcurrentHashMap<Integer, ReentrantLock> bookLocks = new ConcurrentHashMap<>();
 
     private ReentrantLock getSubjectLock(String subjectId) {
         return subjectLocks.computeIfAbsent(subjectId, k -> new ReentrantLock(true));
     }
 
+    private ReentrantLock getBookLock(Integer bookId) {
+        return bookLocks.computeIfAbsent(bookId, k -> new ReentrantLock(true));
+    }
+
     public void start() throws Exception {
         running = true;
+        // 懒加载线程池
+        if (clientExecutor == null) {
+            clientExecutor = Executors.newCachedThreadPool();
+        }
         serverSocket = new ServerSocket(port);
         System.out.println("[CourseGrabServer] Listening on port " + port);
         try {
@@ -63,7 +78,10 @@ public class CourseGrabServer {
                 try {
   Socket client = serverSocket.accept();
   if (!running) { try { client.close(); } catch (Exception ignore) {} break; }
-  new Thread(() -> handleClient(client), "grab-client-" + client.getPort()).start();
+  String key = buildClientKey(client);
+  ClientThread task = new ClientThread(key, client);
+  clientThreads.put(key, task);
+  clientExecutor.submit(task);
                 } catch (java.net.SocketException se) {
   if (running) {
   System.err.println("[CourseGrabServer] Socket exception: " + se.getMessage());
@@ -74,6 +92,7 @@ public class CourseGrabServer {
         } finally {
             try { if (serverSocket != null && !serverSocket.isClosed()) serverSocket.close(); } catch (Exception ignore) {}
             serverSocket = null;
+            shutdownExecutor();
         }
     }
 
@@ -103,6 +122,7 @@ public class CourseGrabServer {
   running = false;
   try { if (serverSocket != null) serverSocket.close(); } catch (Exception ignore) {}
   try { c.close(); } catch (Exception ignore) {}
+                            shutdownExecutor();
   }, "shutdown-thread").start();
   } else {
   out.println("FAIL|拒绝：无效令牌");
@@ -141,10 +161,17 @@ public class CourseGrabServer {
                 if (parts.length < 3) { out.println("FAIL|参数不足"); return; }
                 String userId = parts[1];
                 Integer bookId = parseIntSafe(parts[2]);
+                if (bookId == null) { out.println("FAIL|参数错误：bookId"); return; }
                 int days = parts.length >= 4 ? parseIntSafe(parts[3], 30) : 30;
-                ServiceResult res = lib.borrowBookWithReason(userId, bookId, days);
-                out.println(res.isSuccess() ? ("OK|" + res.getMessage()) : ("FAIL|" + res.getMessage()));
-                out.flush();
+                ReentrantLock lock = getBookLock(bookId);
+                lock.lock();
+                try {
+                    ServiceResult res = lib.borrowBookWithReason(userId, bookId, days);
+                    out.println(res.isSuccess() ? ("OK|" + res.getMessage()) : ("FAIL|" + res.getMessage()));
+                    out.flush();
+                } finally {
+                    lock.unlock();
+                }
                 return;
             }
             if ("RENEW".equalsIgnoreCase(cmd)) {
@@ -162,18 +189,32 @@ public class CourseGrabServer {
                 String userId = parts[1];
                 Integer recordId = parseIntSafe(parts[2]);
                 Integer bookId = parseIntSafe(parts[3]);
-                ServiceResult res = lib.returnBookWithReason(userId, recordId, bookId);
-                out.println(res.isSuccess() ? ("OK|" + res.getMessage()) : ("FAIL|" + res.getMessage()));
-                out.flush();
+                if (bookId == null) { out.println("FAIL|参数错误：bookId"); return; }
+                ReentrantLock lock = getBookLock(bookId);
+                lock.lock();
+                try {
+                    ServiceResult res = lib.returnBookWithReason(userId, recordId, bookId);
+                    out.println(res.isSuccess() ? ("OK|" + res.getMessage()) : ("FAIL|" + res.getMessage()));
+                    out.flush();
+                } finally {
+                    lock.unlock();
+                }
                 return;
             }
             if ("RESERVE".equalsIgnoreCase(cmd)) {
                 if (parts.length < 3) { out.println("FAIL|参数不足"); return; }
                 String userId = parts[1];
                 Integer bookId = parseIntSafe(parts[2]);
-                ServiceResult res = lib.reserveBookWithReason(userId, bookId);
-                out.println(res.isSuccess() ? ("OK|" + res.getMessage()) : ("FAIL|" + res.getMessage()));
-                out.flush();
+                if (bookId == null) { out.println("FAIL|参数错误：bookId"); return; }
+                ReentrantLock lock = getBookLock(bookId);
+                lock.lock();
+                try {
+                    ServiceResult res = lib.reserveBookWithReason(userId, bookId);
+                    out.println(res.isSuccess() ? ("OK|" + res.getMessage()) : ("FAIL|" + res.getMessage()));
+                    out.flush();
+                } finally {
+                    lock.unlock();
+                }
                 return;
             }
 
@@ -184,6 +225,42 @@ public class CourseGrabServer {
             }
         } catch (Exception e) {
             System.err.println("[CourseGrabServer] 处理客户端异常: " + e.getMessage());
+        }
+    }
+
+    private String buildClientKey(Socket s) {
+        try {
+            return s.getInetAddress().getHostAddress() + ":" + s.getPort();
+        } catch (Exception e) {
+            return String.valueOf(s.getPort());
+        }
+    }
+
+    private void shutdownExecutor() {
+        try {
+            if (clientExecutor != null) {
+                clientExecutor.shutdownNow();
+            }
+        } catch (Exception ignored) {}
+    }
+
+    // 简单的客户端任务包装，便于维护 Map<String, ClientThread>
+    private class ClientThread implements Runnable {
+        private final String key;
+        private final Socket client;
+
+        ClientThread(String key, Socket client) {
+            this.key = key;
+            this.client = client;
+        }
+
+        @Override
+        public void run() {
+            try {
+                handleClient(client);
+            } finally {
+                clientThreads.remove(key);
+            }
         }
     }
 

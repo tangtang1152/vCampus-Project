@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>      <!-- 用于 TableView, TableColumn, TextField, Button, Label 等 -->
+<?import javafx.scene.layout.*?>        <!-- 用于 BorderPane, HBox, VBox 等 -->
+<?import javafx.geometry.Insets?>       <!-- 用于 Insets -->
+
+<BorderPane xmlns:fx="http://javafx.com/fxml"
+            fx:controller="com.vCampus.view.ChooseController"
+            stylesheets="@../css/main.css">
+    <top>
+        <HBox spacing="10" style="-fx-padding: 10;">
+            <TextField fx:id="keywordField" promptText="输入课程名搜索" HBox.hgrow="ALWAYS"/>
+            <Button text="搜索" onAction="#onSearch"/>
+            <Label fx:id="infoLabel"/>
+        </HBox>
+    </top>
+
+    <center>
+        <VBox spacing="8" style="-fx-padding: 8;">
+            <Label text="可选课程" style="-fx-font-weight:bold;"/>
+            <TableView fx:id="subjectTable">
+                <columns>
+                    <TableColumn text="课程号" fx:id="colId"/>
+                    <TableColumn text="名称" fx:id="colName"/>
+                    <TableColumn text="开课日期" fx:id="colDate"/>
+                    <TableColumn text="学时" fx:id="colNum"/>
+                    <TableColumn text="学分" fx:id="colCredit"/>
+                    <TableColumn text="教师" fx:id="colTeacher"/>
+                    <TableColumn text="周次" fx:id="colWeekRange"/>
+                    <TableColumn text="单双周" fx:id="colWeekType"/>
+                    <TableColumn text="时间" fx:id="colTime"/>
+                    <TableColumn text="教室" fx:id="colRoom"/>
+                </columns>
+            </TableView>
+
+            <Label text="我已选的课程" style="-fx-font-weight:bold;"/>
+            <TableView fx:id="myTable" prefHeight="200">
+                <columns>
+                    <TableColumn text="课程号" fx:id="myColId"/>
+                    <TableColumn text="名称" fx:id="myColName"/>
+                    <TableColumn text="教师" fx:id="myColTeacher"/>
+                    <TableColumn text="时间" fx:id="myColTime"/>
+                </columns>
+            </TableView>
+        </VBox>
+    </center>
+
+    <bottom>
+        <HBox spacing="10" style="-fx-padding: 8;">
+            <Button text="选课" onAction="#onChoose"/>
+            <Button text="退课" onAction="#onDrop"/>
+            <Button text="刷新我的课程" onAction="#onRefreshMySubjects"/>
+        </HBox>
+    </bottom>
+</BorderPane>

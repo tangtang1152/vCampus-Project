@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+
+<BorderPane xmlns:fx="http://javafx.com/fxml"
+            fx:controller="com.vCampus.view.LibraryController"
+            stylesheets="@../css/main.css">
+    <top>
+        <HBox spacing="10" style="-fx-padding: 10;">
+            <TextField fx:id="keywordField" promptText="输入书名/作者/ISBN(支持模糊)" HBox.hgrow="ALWAYS"/>
+            <Label text="状态"/>
+            <ComboBox fx:id="bookStatusBox" prefWidth="120"/>
+            <Label text="排序"/>
+            <ComboBox fx:id="sortBox" prefWidth="140"/>
+            <Button text="搜索" onAction="#onSearch"/>
+            <Label fx:id="infoLabel"/>
+        </HBox>
+    </top>
+
+    <center>
+        <VBox spacing="8" style="-fx-padding: 8;">
+            <TableView fx:id="bookTable">
+                <columns>
+                    <TableColumn text="书名" fx:id="titleCol"/>
+                    <TableColumn text="作者" fx:id="authorCol"/>
+                    <TableColumn text="ISBN" fx:id="isbnCol"/>
+                    <TableColumn text="可借" fx:id="availableCol"/>
+                </columns>
+            </TableView>
+
+            <HBox spacing="10" style="-fx-padding: 6 0 0 0; -fx-alignment: CENTER_LEFT;">
+                <Label text="我的借阅" style="-fx-font-weight: bold;"/>
+                <Region HBox.hgrow="ALWAYS"/>
+                <Label text="借阅状态："/>
+                <ComboBox fx:id="statusFilter" prefWidth="120"/>
+            </HBox>
+            <TableView fx:id="borrowTable" prefHeight="200">
+                <columns>
+                    <TableColumn text="书名" fx:id="brTitleCol"/>
+                    <TableColumn text="借出日" fx:id="brBorrowDateCol"/>
+                    <TableColumn text="到期日" fx:id="brDueCol"/>
+                    <TableColumn text="状态" fx:id="brStatusCol"/>
+                    <TableColumn text="罚金(元)" fx:id="brFineCol"/>
+                    <TableColumn text="剩余天数" fx:id="brRemainingDaysCol"/>
+                    <TableColumn text="续借次数" fx:id="brRenewTimesCol"/>
+                </columns>
+            </TableView>
+        </VBox>
+    </center>
+
+    <bottom>
+        <VBox spacing="4" style="-fx-padding: 8;">
+            <HBox spacing="10">
+                <Button text="借书" onAction="#onBorrow"/>
+                <Button text="预约" onAction="#onReserve"/>
+                <Region HBox.hgrow="ALWAYS"/>
+                <Pagination fx:id="pagination" />
+            </HBox>
+            <HBox spacing="10">
+                <Button fx:id="btnRenew" text="续借" onAction="#onRenew"/>
+                <Button fx:id="btnReturn" text="还书" onAction="#onReturn"/>
+                <Button text="刷新我的借阅" onAction="#onRefreshBorrows"/>
+            </HBox>
+        </VBox>
+    </bottom>
+</BorderPane>
+
+

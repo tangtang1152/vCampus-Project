@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.geometry.Insets?>
+
+<BorderPane xmlns:fx="http://javafx.com/fxml" fx:controller="com.vCampus.view.ShopCartController">
+    <center>
+        <TableView fx:id="tableCart">
+            <columns>
+                <TableColumn fx:id="colPid" text="商品编号" prefWidth="120"/>
+                <TableColumn fx:id="colQty" text="数量" prefWidth="80"/>
+                <TableColumn fx:id="colSubtotal" text="小计" prefWidth="100"/>
+                <TableColumn fx:id="colActions" text="操作" prefWidth="160"/>
+            </columns>
+        </TableView>
+    </center>
+    <bottom>
+        <HBox spacing="10" style="-fx-padding:10; -fx-alignment:CENTER_RIGHT;">
+            <Label text="总金额："/>
+            <Label fx:id="lbTotal" style="-fx-font-weight:bold;"/>
+            <Region HBox.hgrow="ALWAYS"/>
+            <Button text="清空" onAction="#onClear"/>
+            <Button text="去结算" onAction="#onCheckout"/>
+        </HBox>
+    </bottom>
+    <padding>
+        <Insets top="8" right="8" bottom="8" left="8"/>
+    </padding>
+</BorderPane>
+
+

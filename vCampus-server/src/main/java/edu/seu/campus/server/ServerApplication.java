@@ -1,6 +1,7 @@
 package edu.seu.campus.server;
 
 import com.vCampus.net.CourseGrabServer;
+import com.vCampus.common.ConfigManager;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -17,14 +18,18 @@ public class ServerApplication {
     @Bean
     public CommandLineRunner startCourseGrabServer(CourseGrabServer courseGrabServer) {
         return args -> {
+            if (!ConfigManager.isSocketEnabled()) {
+                System.out.println("[ServerApplication] socket.enabled=false，跳过启动 CourseGrabServer");
+                return;
+            }
             new Thread(() -> {
             	try {
-					courseGrabServer.start();
-            		} catch (Exception e) {
-            			System.err.println("Failed to start CourseGrabServer: " + e.getMessage());
-            			e.printStackTrace();
-            		}
-            	}, "CourseGrabServer-Starter").start();
+    				courseGrabServer.start();
+    				} catch (Exception e) {
+    					System.err.println("Failed to start CourseGrabServer: " + e.getMessage());
+    					e.printStackTrace();
+    				}
+    			}, "CourseGrabServer-Starter").start();
         };
     }
 }
