@@ -10,6 +10,7 @@ import com.vCampus.entity.Order;
 import com.vCampus.entity.OrderItem;
 import com.vCampus.entity.Product;
 
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Date;
@@ -76,72 +77,58 @@ public class ShopServiceImpl implements IShopService {
             return null;
         }
         
-        // 2. 检查库存
-        for (OrderItem item : items) {
-            if (!productService.checkStock(item.getProductId(), item.getQuantity())) {
-                System.err.println("购买失败：商品 " + item.getProductId() + " 库存不足");
-                return null;
-            }
-        }
-        
-        // 3. 计算总金额
+        // 2. 计算总金额
         double totalAmount = calculateCartTotal(items);
         
-        // 4. 生成订单号
+        // 3. 生成订单号
         String orderId = generateOrderId();
         
-        // 5. 创建订单对象
-        Order order = new Order();
-        order.setOrderId(orderId);
-        order.setStudentId(studentId);
-        order.setOrderDate(new Date());
-        order.setTotalAmount(totalAmount);
-        order.setStatus("待支付");
-        
+        // 4. 单事务执行：创建订单、写入订单项、条件减库存
         try {
-            // 6. 创建订单
-            boolean orderCreated = orderDao.createOrder(order);
-            if (!orderCreated) {
-                System.err.println("购买失败：创建订单失败");
-                return null;
-            }
-            
-            // 7. 添加订单项并更新库存
-            for (OrderItem item : items) {
-                item.setOrderId(orderId);
+            return com.vCampus.util.TransactionManager.executeInTransaction((Connection conn) -> {
+                // 4.1 创建订单（待支付）
+                Order order = new Order();
+                order.setOrderId(orderId);
+                order.setStudentId(studentId);
+                order.setOrderDate(new Date());
+                order.setTotalAmount(totalAmount);
+                order.setStatus("待支付");
+                if (!((OrderDaoImpl)orderDao).createOrder(order, conn)) {
+                    System.err.println("购买失败：创建订单失败");
+                    return null;
+                }
                 
-                // 计算小计金额
-                Product product = productService.getProductById(item.getProductId());
-                if (product != null) {
+                // 4.2 校验并条件减库存 + 写入订单项（逐项）
+                for (OrderItem item : items) {
+                    // 读取商品价格以计算小计
+                    Product product = ((ProductDaoImpl)productDao).getProductById(item.getProductId(), conn);
+                    if (product == null) {
+                        System.err.println("购买失败：商品不存在: " + item.getProductId());
+                        return null;
+                    }
+                    item.setOrderId(orderId);
                     item.setSubtotal(product.getPrice() * item.getQuantity());
+                    
+                    // 条件更新库存：防超卖
+                    boolean stockUpdated = ((ProductDaoImpl)productDao).updateProductStock(item.getProductId(), -item.getQuantity(), conn);
+                    if (!stockUpdated) {
+                        System.err.println("购买失败：商品库存不足或更新失败，productId=" + item.getProductId());
+                        return null; // 事务回滚
+                    }
+                    
+                    // 写入订单项
+                    boolean itemAdded = ((OrderItemDaoImpl)orderItemDao).addOrderItem(item, conn);
+                    if (!itemAdded) {
+                        System.err.println("购买失败：添加订单项失败");
+                        return null; // 事务回滚
+                    }
                 }
                 
-                // 添加订单项
-                boolean itemAdded = orderItemDao.addOrderItem(item);
-                if (!itemAdded) {
-                    // 回滚：删除订单
-                    orderDao.deleteOrder(orderId);
-                    System.err.println("购买失败：添加订单项失败");
-                    return null;
-                }
-                
-                // 更新库存
-                boolean stockUpdated = productService.updateProductStock(
-                    item.getProductId(), -item.getQuantity());
-                if (!stockUpdated) {
-                    // 回滚：删除订单项和订单
-                    orderItemDao.deleteOrderItemsByOrderId(orderId);
-                    orderDao.deleteOrder(orderId);
-                    System.err.println("购买失败：更新库存失败");
-                    return null;
-                }
-            }
-            
-            System.out.println("订单创建成功: " + orderId);
-            return orderId;
-            
-        } catch (SQLException e) {
-            System.err.println("购买过程中发生数据库错误: " + e.getMessage());
+                System.out.println("订单创建成功: " + orderId);
+                return orderId;
+            });
+        } catch (Exception e) {
+            System.err.println("购买过程中发生错误: " + e.getMessage());
             e.printStackTrace();
             return null;
         }
@@ -191,18 +178,16 @@ public class ShopServiceImpl implements IShopService {
         }
         
         try {
-            // 获取订单项
-            List<OrderItem> items = orderItemDao.getOrderItemsByOrderId(orderId);
-            
-            // 恢复库存
-            for (OrderItem item : items) {
-                productService.updateProductStock(item.getProductId(), item.getQuantity());
-            }
-            
-            // 更新订单状态为已取消
-            return orderService.updateOrderStatus(orderId, "已取消");
-            
-        } catch (SQLException e) {
+            // 用单事务恢复库存并更新订单状态
+            return com.vCampus.util.TransactionManager.executeInTransaction((Connection conn) -> {
+                List<OrderItem> items = ((OrderItemDaoImpl)orderItemDao).getOrderItemsByOrderId(orderId, conn);
+                for (OrderItem item : items) {
+                    boolean ok = ((ProductDaoImpl)productDao).updateProductStock(item.getProductId(), item.getQuantity(), conn);
+                    if (!ok) return false; // 回滚
+                }
+                return ((OrderDaoImpl)orderDao).updateOrderStatus(orderId, "已取消", conn);
+            });
+        } catch (Exception e) {
             System.err.println("取消订单过程中发生数据库错误: " + e.getMessage());
             e.printStackTrace();
             return false;
@@ -229,12 +214,7 @@ public class ShopServiceImpl implements IShopService {
         Order order = orderService.getOrderById(orderId);
         if (order != null) {
             List<OrderItem> items = orderService.getOrderItemsByOrderId(orderId);
-            // 这里可以进一步获取商品详细信息
-            // for (OrderItem item : items) {
-            //     Product product = productService.getProductById(item.getProductId());
-            //     item.setProduct(product);
-            // }
-            // order.setItems(items);
+            // 可扩展：加载商品详情
         }
         return order;
     }

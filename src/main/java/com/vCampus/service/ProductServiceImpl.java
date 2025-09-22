@@ -183,18 +183,8 @@ public class ProductServiceImpl implements IProductService {
                 System.err.println("更新库存失败：商品ID不能为空");
                 return false;
             }
-            
-            // 检查库存是否足够减少
-            if (quantity < 0) {
-                Product product = productDao.getProductById(productId);
-                if (product != null && product.getStock() + quantity < 0) {
-                    System.err.println("更新库存失败：商品 '" + productId + "' 库存不足，当前库存: " + product.getStock() + ", 需要: " + (-quantity));
-                    return false;
-                }
-            }
-            
+            // 直接走DAO层条件更新，避免并发窗口判断
             return productDao.updateProductStock(productId, quantity);
-            
         } catch (SQLException e) {
             System.err.println("更新库存过程中发生数据库错误: " + e.getMessage());
             e.printStackTrace();

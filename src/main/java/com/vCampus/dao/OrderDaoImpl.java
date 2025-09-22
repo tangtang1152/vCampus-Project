@@ -15,144 +15,140 @@ public class OrderDaoImpl implements IOrderDao {
     @Override
     public boolean createOrder(Order order) throws SQLException {
         Connection conn = null;
-        PreparedStatement ps = null;
-        
         try {
             conn = DBUtil.getConnection();
+            return createOrder(order, conn);
+        } finally {
+            DBUtil.closeConnection(conn);
+        }
+    }
+
+    public boolean createOrder(Order order, Connection conn) throws SQLException {
+        PreparedStatement ps = null;
+        try {
             String sql = "INSERT INTO tbl_order (orderId, studentId, orderDate, totalAmount, status) VALUES (?, ?, ?, ?, ?)";
             ps = conn.prepareStatement(sql);
             ps.setString(1, order.getOrderId());
             ps.setString(2, order.getStudentId());
-            
-            // 处理日期类型
             if (order.getOrderDate() != null) {
                 ps.setTimestamp(3, new Timestamp(order.getOrderDate().getTime()));
             } else {
                 ps.setTimestamp(3, new Timestamp(System.currentTimeMillis()));
             }
-            
             ps.setDouble(4, order.getTotalAmount());
             ps.setString(5, order.getStatus());
-            
             int result = ps.executeUpdate();
             return result > 0;
-            
         } finally {
-            // 确保资源被关闭
-            try {
-                if (ps != null) ps.close();
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
-            DBUtil.closeConnection(conn);
+            if (ps != null) try { ps.close(); } catch (SQLException ignore) {}
         }
     }
 
     @Override
     public boolean deleteOrder(String orderId) throws SQLException {
         Connection conn = null;
-        PreparedStatement ps = null;
-        
         try {
             conn = DBUtil.getConnection();
+            return deleteOrder(orderId, conn);
+        } finally {
+            DBUtil.closeConnection(conn);
+        }
+    }
+
+    public boolean deleteOrder(String orderId, Connection conn) throws SQLException {
+        PreparedStatement ps = null;
+        try {
             String sql = "DELETE FROM tbl_order WHERE orderId = ?";
             ps = conn.prepareStatement(sql);
             ps.setString(1, orderId);
-            
             int result = ps.executeUpdate();
             return result > 0;
-            
         } finally {
-            try {
-                if (ps != null) ps.close();
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
-            DBUtil.closeConnection(conn);
+            if (ps != null) try { ps.close(); } catch (SQLException ignore) {}
         }
     }
 
     @Override
     public boolean updateOrderStatus(String orderId, String status) throws SQLException {
         Connection conn = null;
-        PreparedStatement ps = null;
-        
         try {
             conn = DBUtil.getConnection();
+            return updateOrderStatus(orderId, status, conn);
+        } finally {
+            DBUtil.closeConnection(conn);
+        }
+    }
+
+    public boolean updateOrderStatus(String orderId, String status, Connection conn) throws SQLException {
+        PreparedStatement ps = null;
+        try {
             String sql = "UPDATE tbl_order SET status = ? WHERE orderId = ?";
             ps = conn.prepareStatement(sql);
             ps.setString(1, status);
             ps.setString(2, orderId);
-            
             int result = ps.executeUpdate();
             return result > 0;
-            
         } finally {
-            try {
-                if (ps != null) ps.close();
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
-            DBUtil.closeConnection(conn);
+            if (ps != null) try { ps.close(); } catch (SQLException ignore) {}
         }
     }
 
     @Override
     public Order getOrderById(String orderId) throws SQLException {
         Connection conn = null;
-        PreparedStatement ps = null;
-        ResultSet rs = null;
-        
         try {
             conn = DBUtil.getConnection();
+            return getOrderById(orderId, conn);
+        } finally {
+            DBUtil.closeConnection(conn);
+        }
+    }
+
+    public Order getOrderById(String orderId, Connection conn) throws SQLException {
+        PreparedStatement ps = null;
+        ResultSet rs = null;
+        try {
             String sql = "SELECT * FROM tbl_order WHERE orderId = ?";
             ps = conn.prepareStatement(sql);
             ps.setString(1, orderId);
             rs = ps.executeQuery();
-            
             if (rs.next()) {
                 return mapResultSetToOrder(rs);
             }
             return null;
-            
         } finally {
-            try {
-                if (rs != null) rs.close();
-                if (ps != null) ps.close();
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
-            DBUtil.closeConnection(conn);
+            if (rs != null) try { rs.close(); } catch (SQLException ignore) {}
+            if (ps != null) try { ps.close(); } catch (SQLException ignore) {}
         }
     }
 
     @Override
     public List<Order> getOrdersByStudentId(String studentId) throws SQLException {
         Connection conn = null;
+        try {
+            conn = DBUtil.getConnection();
+            return getOrdersByStudentId(studentId, conn);
+        } finally {
+            DBUtil.closeConnection(conn);
+        }
+    }
+
+    public List<Order> getOrdersByStudentId(String studentId, Connection conn) throws SQLException {
         PreparedStatement ps = null;
         ResultSet rs = null;
         List<Order> orders = new ArrayList<>();
-        
         try {
-            conn = DBUtil.getConnection();
             String sql = "SELECT * FROM tbl_order WHERE studentId = ? ORDER BY orderDate DESC";
             ps = conn.prepareStatement(sql);
             ps.setString(1, studentId);
             rs = ps.executeQuery();
-            
             while (rs.next()) {
                 orders.add(mapResultSetToOrder(rs));
             }
             return orders;
-            
         } finally {
-            try {
-                if (rs != null) rs.close();
-                if (ps != null) ps.close();
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
-            DBUtil.closeConnection(conn);
+            if (rs != null) try { rs.close(); } catch (SQLException ignore) {}
+            if (ps != null) try { ps.close(); } catch (SQLException ignore) {}
         }
     }
 

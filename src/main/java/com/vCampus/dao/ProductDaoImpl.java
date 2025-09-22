@@ -97,29 +97,29 @@ public class ProductDaoImpl implements IProductDao {
     @Override
     public Product getProductById(String productId) throws SQLException {
         Connection conn = null;
-        PreparedStatement ps = null;
-        ResultSet rs = null;
-        
         try {
             conn = DBUtil.getConnection();
+            return getProductById(productId, conn);
+        } finally {
+            DBUtil.closeConnection(conn);
+        }
+    }
+
+    public Product getProductById(String productId, Connection conn) throws SQLException {
+        PreparedStatement ps = null;
+        ResultSet rs = null;
+        try {
             String sql = "SELECT * FROM tbl_product WHERE productId = ?";
             ps = conn.prepareStatement(sql);
             ps.setString(1, productId);
             rs = ps.executeQuery();
-            
             if (rs.next()) {
                 return mapResultSetToProduct(rs);
             }
             return null;
-            
         } finally {
-            try {
-                if (rs != null) rs.close();
-                if (ps != null) ps.close();
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
-            DBUtil.closeConnection(conn);
+            if (rs != null) try { rs.close(); } catch (SQLException ignore) {}
+            if (ps != null) try { ps.close(); } catch (SQLException ignore) {}
         }
     }
 
@@ -184,25 +184,31 @@ public class ProductDaoImpl implements IProductDao {
     @Override
     public boolean updateProductStock(String productId, int quantity) throws SQLException {
         Connection conn = null;
-        PreparedStatement ps = null;
-        
         try {
             conn = DBUtil.getConnection();
-            String sql = "UPDATE tbl_product SET stock = stock + ? WHERE productId = ?";
+            return updateProductStock(productId, quantity, conn);
+        } finally {
+            DBUtil.closeConnection(conn);
+        }
+    }
+
+    public boolean updateProductStock(String productId, int quantity, Connection conn) throws SQLException {
+        PreparedStatement ps = null;
+        try {
+            // 条件更新：当减少库存时，确保库存充足（stock >= -quantity）
+            String sql = (quantity < 0)
+                    ? "UPDATE tbl_product SET stock = stock + ? WHERE productId = ? AND stock >= ?"
+                    : "UPDATE tbl_product SET stock = stock + ? WHERE productId = ?";
             ps = conn.prepareStatement(sql);
             ps.setInt(1, quantity);
             ps.setString(2, productId);
-            
+            if (quantity < 0) {
+                ps.setInt(3, -quantity);
+            }
             int result = ps.executeUpdate();
             return result > 0;
-            
         } finally {
-            try {
-                if (ps != null) ps.close();
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
-            DBUtil.closeConnection(conn);
+            if (ps != null) try { ps.close(); } catch (SQLException ignore) {}
         }
     }
 

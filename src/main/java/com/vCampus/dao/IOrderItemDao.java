@@ -13,4 +13,9 @@ public interface IOrderItemDao {
 	List<OrderItem> getOrderItemsByOrderId(String orderId) throws SQLException;
 	List<OrderItem> getAllOrderItems() throws SQLException;
 	
+	// 事务化重载
+	boolean addOrderItem(OrderItem orderItem, java.sql.Connection conn) throws SQLException;
+	boolean deleteOrderItemsByOrderId(String orderId, java.sql.Connection conn) throws SQLException;
+	List<OrderItem> getOrderItemsByOrderId(String orderId, java.sql.Connection conn) throws SQLException;
+	
 }

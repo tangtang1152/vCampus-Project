@@ -36,6 +36,8 @@ public class ConfigManager {
         properties.setProperty("socket.enabled", "false");
         properties.setProperty("socket.serverHost", "127.0.0.1");
         properties.setProperty("socket.serverPort", "9090");
+        properties.setProperty("socket.connectTimeoutMs", "5000");
+        properties.setProperty("socket.soTimeoutMs", "8000");
     }
     
     public static String getDatabasePath() {
@@ -72,6 +74,22 @@ public class ConfigManager {
             return Integer.parseInt(properties.getProperty("socket.serverPort", "9090"));
         } catch (NumberFormatException e) {
             return 9090;
+        }
+    }
+
+    public static int getSocketConnectTimeoutMs() {
+        try {
+            return Integer.parseInt(properties.getProperty("socket.connectTimeoutMs", "5000"));
+        } catch (NumberFormatException e) {
+            return 5000;
+        }
+    }
+
+    public static int getSocketSoTimeoutMs() {
+        try {
+            return Integer.parseInt(properties.getProperty("socket.soTimeoutMs", "8000"));
+        } catch (NumberFormatException e) {
+            return 8000;
         }
     }
 }

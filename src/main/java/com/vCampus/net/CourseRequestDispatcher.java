@@ -1,0 +1,188 @@
+package com.vCampus.net;
+
+import com.vCampus.net.dto.SocketRequest;
+import com.vCampus.net.dto.SocketResponse;
+import com.vCampus.net.dto.ShopDtos;
+import com.vCampus.service.IChooseService;
+import com.vCampus.service.LibraryService;
+import com.vCampus.service.ServiceFactory;
+import com.vCampus.service.ServiceResult;
+
+/**
+ * 将 SocketRequest 调度到具体业务服务并生成 SocketResponse。
+ * 由服务器端复用一个实例处理所有请求。
+ */
+public class CourseRequestDispatcher {
+
+    public interface ClientClosedCallback {
+        void onClientClosed(String clientKey);
+    }
+
+    private final ClientClosedCallback clientClosedCallback;
+
+    public CourseRequestDispatcher(ClientClosedCallback clientClosedCallback) {
+        this.clientClosedCallback = clientClosedCallback;
+    }
+
+    public SocketResponse handle(SocketRequest req) {
+        String action = req.getAction();
+        if (action == null) {
+            return new SocketResponse(false, "缺少 action");
+        }
+        switch (action.toUpperCase()) {
+            case "PING":
+                return new SocketResponse(true, "PONG");
+            case "CHOOSE":
+                return handleChoose(req);
+            case "BORROW":
+                return handleBorrow(req);
+            case "RENEW":
+                return handleRenew(req);
+            case "RETURN":
+                return handleReturn(req);
+            case "RESERVE":
+                return handleReserve(req);
+            // ===== Shop over Socket =====
+            case "SHOP_LIST":
+                return handleShopList(req);
+            case "SHOP_CREATE_ORDER":
+                return handleShopCreateOrder(req);
+            case "SHOP_PAY":
+                return handleShopPay(req);
+            default:
+                return new SocketResponse(false, "未知指令: " + action);
+        }
+    }
+
+    public void onClientClosed(String clientKey) {
+        if (clientClosedCallback != null) {
+            clientClosedCallback.onClientClosed(clientKey);
+        }
+    }
+
+    private SocketResponse handleChoose(SocketRequest req) {
+        String studentId = req.getParam("studentId");
+        String subjectId = req.getParam("subjectId");
+        if (isBlank(studentId) || isBlank(subjectId)) {
+            return new SocketResponse(false, "参数不足");
+        }
+        IChooseService chooseService = ServiceFactory.getChooseService();
+        boolean ok = chooseService.chooseSubject(studentId, subjectId);
+        return new SocketResponse(ok, ok ? "选课成功" : "选课失败：可能已满或已选过");
+    }
+
+    private SocketResponse handleBorrow(SocketRequest req) {
+        String userId = req.getParam("userId");
+        Integer bookId = parseInt(req.getParam("bookId"));
+        int days = parseIntOrDefault(req.getParam("days"), 30);
+        if (isBlank(userId) || bookId == null) {
+            return new SocketResponse(false, "参数不足");
+        }
+        LibraryService lib = ServiceFactory.getLibraryService();
+        ServiceResult res = lib.borrowBookWithReason(userId, bookId, days);
+        return new SocketResponse(res != null && res.isSuccess(), res == null ? "操作失败" : res.getMessage());
+    }
+
+    private SocketResponse handleRenew(SocketRequest req) {
+        String userId = req.getParam("userId");
+        Integer recordId = parseInt(req.getParam("recordId"));
+        int days = parseIntOrDefault(req.getParam("days"), 30);
+        if (isBlank(userId) || recordId == null) {
+            return new SocketResponse(false, "参数不足");
+        }
+        LibraryService lib = ServiceFactory.getLibraryService();
+        ServiceResult res = lib.renewBorrowWithReason(userId, recordId, days, 1);
+        return new SocketResponse(res != null && res.isSuccess(), res == null ? "操作失败" : res.getMessage());
+    }
+
+    private SocketResponse handleReturn(SocketRequest req) {
+        String userId = req.getParam("userId");
+        Integer recordId = parseInt(req.getParam("recordId"));
+        Integer bookId = parseInt(req.getParam("bookId"));
+        if (isBlank(userId) || recordId == null || bookId == null) {
+            return new SocketResponse(false, "参数不足");
+        }
+        LibraryService lib = ServiceFactory.getLibraryService();
+        ServiceResult res = lib.returnBookWithReason(userId, recordId, bookId);
+        return new SocketResponse(res != null && res.isSuccess(), res == null ? "操作失败" : res.getMessage());
+    }
+
+    private SocketResponse handleReserve(SocketRequest req) {
+        String userId = req.getParam("userId");
+        Integer bookId = parseInt(req.getParam("bookId"));
+        if (isBlank(userId) || bookId == null) {
+            return new SocketResponse(false, "参数不足");
+        }
+        LibraryService lib = ServiceFactory.getLibraryService();
+        ServiceResult res = lib.reserveBookWithReason(userId, bookId);
+        return new SocketResponse(res != null && res.isSuccess(), res == null ? "操作失败" : res.getMessage());
+    }
+
+    private boolean isBlank(String s) {
+        return s == null || s.isBlank();
+    }
+
+    private Integer parseInt(String s) {
+        try { return s == null ? null : Integer.valueOf(s); } catch (Exception e) { return null; }
+    }
+
+    private int parseIntOrDefault(String s, int defVal) {
+        try { return s == null ? defVal : Integer.parseInt(s); } catch (Exception e) { return defVal; }
+    }
+
+    // ================= Shop handlers =================
+    private SocketResponse handleShopList(SocketRequest req) {
+        String category = req.getParam("category");
+        String keyword = req.getParam("keyword");
+        var svc = ServiceFactory.getProductService();
+        java.util.List<com.vCampus.entity.Product> list;
+        if (keyword != null && !keyword.isBlank()) list = svc.searchProductsByName(keyword);
+        else if (category != null && !category.isBlank() && !"全部".equals(category)) list = svc.getProductsByCategory(category);
+        else list = svc.getAllProducts();
+        java.util.List<java.util.Map<String,Object>> rows = new java.util.ArrayList<>();
+        for (var p : list) {
+            java.util.Map<String,Object> m = new java.util.HashMap<>();
+            m.put("productId", p.getProductId());
+            m.put("productName", p.getProductName());
+            m.put("price", p.getPrice());
+            m.put("stock", p.getStock());
+            m.put("category", p.getCategory());
+            m.put("description", p.getDescription());
+            rows.add(m);
+        }
+        java.util.Map<String,Object> map = new java.util.HashMap<>();
+        map.put("rows", rows);
+        return new SocketResponse(true, "OK", (java.io.Serializable) map);
+    }
+
+    private SocketResponse handleShopCreateOrder(SocketRequest req) {
+        Object payload = req.getPayload();
+        if (!(payload instanceof ShopDtos.CreateOrderReqDTO dto)) return new SocketResponse(false, "非法请求体");
+        var svc = ServiceFactory.getShopService();
+        java.util.List<com.vCampus.entity.OrderItem> items = new java.util.ArrayList<>();
+        for (ShopDtos.OrderItemDTO it : dto.items) {
+            com.vCampus.entity.OrderItem oi = new com.vCampus.entity.OrderItem();
+            oi.setProductId(it.productId);
+            oi.setQuantity(it.quantity);
+            items.add(oi);
+        }
+        String orderId = svc.purchase(dto.studentId, items);
+        if (orderId == null) return new SocketResponse(false, "下单失败");
+        ShopDtos.CreateOrderRespDTO resp = new ShopDtos.CreateOrderRespDTO();
+        resp.orderId = orderId;
+        resp.totalAmount = svc.calculateCartTotal(items);
+        resp.status = "待支付";
+        java.util.Map<String,Object> map = new java.util.HashMap<>();
+        map.put("order", resp);
+        return new SocketResponse(true, "OK", (java.io.Serializable) map);
+    }
+
+    private SocketResponse handleShopPay(SocketRequest req) {
+        String orderId = req.getParam("orderId");
+        if (orderId == null || orderId.isBlank()) return new SocketResponse(false, "orderId 不能为空");
+        boolean ok = ServiceFactory.getShopService().payOrder(orderId);
+        return new SocketResponse(ok, ok ? "支付成功" : "支付失败");
+    }
+}
+
+

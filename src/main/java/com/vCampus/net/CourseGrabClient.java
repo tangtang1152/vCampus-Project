@@ -1,17 +1,15 @@
 package com.vCampus.net;
 
 import com.vCampus.common.ConfigManager;
+import com.vCampus.net.dto.SocketRequest;
+import com.vCampus.net.dto.SocketResponse;
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
-import java.io.PrintWriter;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.net.Socket;
-import java.nio.charset.StandardCharsets;
 
 /**
- * 选课Socket客户端封装
+ * 选课Socket客户端封装（对象流）。
  */
 public class CourseGrabClient {
 
@@ -28,37 +26,40 @@ public class CourseGrabClient {
     }
 
     public CourseGrabResult ping() {
-        try (Socket s = new Socket(host, port);
-             BufferedReader in = new BufferedReader(new InputStreamReader(s.getInputStream(), StandardCharsets.UTF_8));
-             PrintWriter out = new PrintWriter(new BufferedWriter(new OutputStreamWriter(s.getOutputStream(), StandardCharsets.UTF_8)), true)) {
-            out.println("PING");
-            String resp = in.readLine();
-            if (resp == null) return new CourseGrabResult(false, "无响应");
-            return parse(resp);
+        try (Socket s = new Socket()) {
+            s.connect(new java.net.InetSocketAddress(host, port), ConfigManager.getSocketConnectTimeoutMs());
+            s.setSoTimeout(ConfigManager.getSocketSoTimeoutMs());
+            try (ObjectOutputStream out = new ObjectOutputStream(s.getOutputStream());
+                 ObjectInputStream in = new ObjectInputStream(s.getInputStream())) {
+            out.writeObject(new SocketRequest("PING"));
+            out.flush();
+            Object obj = in.readObject();
+            if (!(obj instanceof SocketResponse resp)) return new CourseGrabResult(false, "非法响应");
+            return new CourseGrabResult(resp.isSuccess(), resp.getMessage());
+            }
         } catch (Exception e) {
             return new CourseGrabResult(false, "连接失败: " + e.getMessage());
         }
     }
 
     public CourseGrabResult choose(String studentId, String subjectId) {
-        try (Socket s = new Socket(host, port);
-             BufferedReader in = new BufferedReader(new InputStreamReader(s.getInputStream(), StandardCharsets.UTF_8));
-             PrintWriter out = new PrintWriter(new BufferedWriter(new OutputStreamWriter(s.getOutputStream(), StandardCharsets.UTF_8)), true)) {
-            out.println("CHOOSE|" + studentId + "|" + subjectId);
-            String resp = in.readLine();
-            if (resp == null) return new CourseGrabResult(false, "无响应");
-            return parse(resp);
+        try (Socket s = new Socket()) {
+            s.connect(new java.net.InetSocketAddress(host, port), ConfigManager.getSocketConnectTimeoutMs());
+            s.setSoTimeout(ConfigManager.getSocketSoTimeoutMs());
+            try (ObjectOutputStream out = new ObjectOutputStream(s.getOutputStream());
+                 ObjectInputStream in = new ObjectInputStream(s.getInputStream())) {
+            SocketRequest req = new SocketRequest("CHOOSE")
+                    .put("studentId", studentId)
+                    .put("subjectId", subjectId);
+            out.writeObject(req);
+            out.flush();
+            Object obj = in.readObject();
+            if (!(obj instanceof SocketResponse resp)) return new CourseGrabResult(false, "非法响应");
+            return new CourseGrabResult(resp.isSuccess(), resp.getMessage());
+            }
         } catch (Exception e) {
             return new CourseGrabResult(false, "连接失败: " + e.getMessage());
         }
-    }
-
-    private CourseGrabResult parse(String line) {
-        String[] parts = line.split("\\|", 2);
-        if (parts.length == 0) return new CourseGrabResult(false, "非法响应");
-        String code = parts[0];
-        String msg = parts.length > 1 ? parts[1] : "";
-        return new CourseGrabResult("OK".equalsIgnoreCase(code), msg);
     }
 }
 

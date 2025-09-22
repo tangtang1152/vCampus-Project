@@ -176,6 +176,53 @@ public class OrderItemDaoImpl implements IOrderItemDao {
         }
     }
 
+    // 事务化重载实现
+    public boolean addOrderItem(OrderItem orderItem, Connection conn) throws SQLException {
+        PreparedStatement ps = null;
+        try {
+            String sql = "INSERT INTO tbl_order_item (orderId, productId, quantity, subtotal) VALUES (?, ?, ?, ?)";
+            ps = conn.prepareStatement(sql);
+            ps.setString(1, orderItem.getOrderId());
+            ps.setString(2, orderItem.getProductId());
+            ps.setInt(3, orderItem.getQuantity());
+            ps.setDouble(4, orderItem.getSubtotal());
+            return ps.executeUpdate() > 0;
+        } finally {
+            if (ps != null) try { ps.close(); } catch (SQLException ignore) {}
+        }
+    }
+
+    public boolean deleteOrderItemsByOrderId(String orderId, Connection conn) throws SQLException {
+        PreparedStatement ps = null;
+        try {
+            String sql = "DELETE FROM tbl_order_item WHERE orderId = ?";
+            ps = conn.prepareStatement(sql);
+            ps.setString(1, orderId);
+            return ps.executeUpdate() > 0;
+        } finally {
+            if (ps != null) try { ps.close(); } catch (SQLException ignore) {}
+        }
+    }
+
+    public List<OrderItem> getOrderItemsByOrderId(String orderId, Connection conn) throws SQLException {
+        PreparedStatement ps = null;
+        ResultSet rs = null;
+        List<OrderItem> orderItems = new ArrayList<>();
+        try {
+            String sql = "SELECT * FROM tbl_order_item WHERE orderId = ? ORDER BY itemId";
+            ps = conn.prepareStatement(sql);
+            ps.setString(1, orderId);
+            rs = ps.executeQuery();
+            while (rs.next()) {
+                orderItems.add(mapResultSetToOrderItem(rs));
+            }
+            return orderItems;
+        } finally {
+            if (rs != null) try { rs.close(); } catch (SQLException ignore) {}
+            if (ps != null) try { ps.close(); } catch (SQLException ignore) {}
+        }
+    }
+
     /**
      * 将ResultSet映射到OrderItem对象的辅助方法
      * @param rs ResultSet对象

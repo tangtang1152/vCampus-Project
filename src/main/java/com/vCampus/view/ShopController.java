@@ -77,6 +77,23 @@ public class ShopController extends BaseController {
 
     private void loadProducts(String category, String keyword) {
         List<Product> products;
+        if (com.vCampus.common.ConfigManager.isSocketEnabled()) {
+            var client = com.vCampus.net.ShopSocketClient.fromConfig();
+            var rows = client.listProducts(category, keyword);
+            List<Product> list = new java.util.ArrayList<>();
+            for (var m : rows) {
+                Product p = new Product();
+                p.setProductId(String.valueOf(m.get("productId")));
+                p.setProductName(String.valueOf(m.get("productName")));
+                p.setPrice(((Number)m.get("price")).doubleValue());
+                p.setStock(((Number)m.get("stock")).intValue());
+                p.setCategory(String.valueOf(m.get("category")));
+                p.setDescription(String.valueOf(m.get("description")));
+                list.add(p);
+            }
+            tableProducts.setItems(FXCollections.observableArrayList(list));
+            return;
+        }
         if (keyword != null && !keyword.trim().isEmpty()) {
             products = shopService.searchProducts(keyword.trim());
         } else if (category != null && !category.equals("全部")) {

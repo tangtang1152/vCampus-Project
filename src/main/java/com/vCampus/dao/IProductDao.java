@@ -14,6 +14,10 @@ public interface IProductDao {
 	List<Product> getProductsByCategory(String category) throws SQLException;
 	
 	boolean updateProductStock(String productId, int quantity) throws SQLException;
+
+	// 事务化重载：使用调用方提供的连接，便于与其它操作同事务提交/回滚
+	Product getProductById(String productId, java.sql.Connection conn) throws SQLException;
+	boolean updateProductStock(String productId, int quantity, java.sql.Connection conn) throws SQLException;
 	
 	 // 新增的方法
     boolean productExists(String productId) throws SQLException;

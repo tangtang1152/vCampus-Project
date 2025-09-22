@@ -88,21 +88,48 @@ public class ShopCartController extends BaseController {
     }
 
     @FXML private void onCheckout() {
-        // 精简版：直接在此调用服务端下单与支付（减少一步弹窗），成功后清空购物车
         java.util.List<OrderItem> items = ShopSession.getCartItems();
         if (items == null || items.isEmpty()) { showWarning("购物车为空"); return; }
-        // 组装请求
+        String studentId = resolveCurrentStudentId();
+        if (studentId == null) { showError("未绑定学生信息"); return; }
+
+        if (com.vCampus.common.ConfigManager.isSocketEnabled()) {
+            try {
+                var client = com.vCampus.net.ShopSocketClient.fromConfig();
+                java.util.List<com.vCampus.net.dto.ShopDtos.OrderItemDTO> list = new java.util.ArrayList<>();
+                for (OrderItem it : items) {
+                    com.vCampus.net.dto.ShopDtos.OrderItemDTO dto = new com.vCampus.net.dto.ShopDtos.OrderItemDTO();
+                    dto.productId = it.getProductId();
+                    dto.quantity = it.getQuantity();
+                    list.add(dto);
+                }
+                var resp = client.createOrder(studentId, list);
+                if (resp == null || resp.orderId == null) { showError("下单失败"); return; }
+                boolean ok = client.payOrder(resp.orderId);
+                if (!ok) { showError("支付失败"); return; }
+                ShopSession.clearCart();
+                reload();
+                showSuccess("下单并支付成功，订单: " + resp.orderId);
+                return;
+            } catch (Exception e) {
+                e.printStackTrace();
+                showError("结算失败: " + e.getMessage());
+                return;
+            }
+        }
+
+        // 回退 HTTP
+        // ... 保留原 HTTP 逻辑
+        java.util.List<OrderItem> httpItems = ShopSession.getCartItems();
+        if (httpItems == null || httpItems.isEmpty()) { showWarning("购物车为空"); return; }
         String base = ConfigManager.getApiBaseUrl();
         String createUrl = base + "/orders";
         try {
             var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
             java.util.Map<String,Object> body = new java.util.HashMap<>();
-            // 由支付页面自动解析过一次，这里复用客户端侧的学号解析逻辑简单化处理：若无则提示
-            String studentId = resolveCurrentStudentId();
-            if (studentId == null) { showError("未绑定学生信息"); return; }
             body.put("studentId", studentId);
             java.util.List<java.util.Map<String,Object>> list = new java.util.ArrayList<>();
-            for (OrderItem it : items) {
+            for (OrderItem it : httpItems) {
                 java.util.Map<String,Object> m = new java.util.HashMap<>();
                 m.put("productId", it.getProductId());
                 m.put("quantity", it.getQuantity());
@@ -110,7 +137,6 @@ public class ShopCartController extends BaseController {
             }
             body.put("items", list);
             String json = mapper.writeValueAsString(body);
-
             var client = java.net.http.HttpClient.newHttpClient();
             var req = java.net.http.HttpRequest.newBuilder(java.net.URI.create(createUrl))
                     .header("Content-Type", "application/json")
@@ -121,7 +147,6 @@ public class ShopCartController extends BaseController {
             var root = mapper.readTree(resp.body());
             if (root.path("code").asInt() != 0) { showError("下单失败: " + root.path("message").asText()); return; }
             String orderId = root.path("data").path("orderId").asText();
-            // 支付
             String payUrl = base + "/orders/" + orderId + "/pay";
             var payReq = java.net.http.HttpRequest.newBuilder(java.net.URI.create(payUrl)).POST(java.net.http.HttpRequest.BodyPublishers.noBody()).build();
             var payResp = client.send(payReq, java.net.http.HttpResponse.BodyHandlers.ofString());
