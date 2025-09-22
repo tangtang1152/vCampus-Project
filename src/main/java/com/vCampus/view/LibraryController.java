@@ -150,9 +150,47 @@ public class LibraryController extends BaseController {
         LibrarySession.setPageSize(size);
 
         new Thread(() -> {
-            List<Book> list = libraryService.searchBooksAdvanced(kw, st, sort, curPage, size);
+            List<Book> list;
+            if (ConfigManager.isSocketEnabled()) {
+                try {
+                    var req = new com.vCampus.net.dto.SocketRequest("LIB_LIST")
+                            .put("keyword", kw)
+                            .put("status", st)
+                            .put("sort", sort)
+                            .put("page", String.valueOf(curPage))
+                            .put("size", String.valueOf(size));
+                    java.net.Socket s = new java.net.Socket();
+                    s.connect(new java.net.InetSocketAddress(ConfigManager.getSocketServerHost(), ConfigManager.getSocketServerPort()), ConfigManager.getSocketConnectTimeoutMs());
+                    s.setSoTimeout(ConfigManager.getSocketSoTimeoutMs());
+                    try (java.io.ObjectOutputStream out = new java.io.ObjectOutputStream(s.getOutputStream());
+                         java.io.ObjectInputStream in = new java.io.ObjectInputStream(s.getInputStream())) {
+                        out.writeObject(req); out.flush();
+                        Object obj = in.readObject();
+                        list = new java.util.ArrayList<>();
+                        if (obj instanceof com.vCampus.net.dto.SocketResponse resp && resp.isSuccess() && resp.getData() instanceof java.util.Map<?,?> m && m.get("rows") instanceof java.util.List<?> rows) {
+                            for (Object r : rows) {
+                                if (r instanceof java.util.Map<?,?> rm) {
+                                    Book b = new Book();
+                                    Object id = rm.get("bookId"); if (id != null) b.setBookId(((Number)id).intValue());
+                                    b.setTitle(String.valueOf(rm.get("title")));
+                                    b.setAuthor(String.valueOf(rm.get("author")));
+                                    b.setIsbn(String.valueOf(rm.get("isbn")));
+                                    Object av = rm.get("availableCopies"); if (av != null) b.setAvailableCopies(((Number)av).intValue());
+                                    b.setStatus((String)rm.get("status"));
+                                    list.add(b);
+                                }
+                            }
+                        }
+                    } finally { s.close(); }
+                } catch (Exception e) {
+                    list = libraryService.searchBooksAdvanced(kw, st, sort, curPage, size);
+                }
+            } else {
+                list = libraryService.searchBooksAdvanced(kw, st, sort, curPage, size);
+            }
+            final List<Book> flist = list;
             TransactionManager.runLaterSafe(() -> {
-                data.setAll(list);
+                data.setAll(flist);
                 infoLabel.setText("共 " + data.size() + " 条（本页）");
                 LibrarySession.setLastRefreshMillis(System.currentTimeMillis());
             });
@@ -164,10 +202,47 @@ public class LibraryController extends BaseController {
         LibrarySession.setBorrowStatus(status);
         String uid = getCurrentUserId();
         new Thread(() -> {
-            var list = libraryService.listMyBorrowsByStatus(uid, status);
+            java.util.List<BorrowRecord> list;
+            if (ConfigManager.isSocketEnabled()) {
+                try {
+                    var req = new com.vCampus.net.dto.SocketRequest("LIB_MY_BORROWS")
+                            .put("userId", uid)
+                            .put("status", status);
+                    java.net.Socket s = new java.net.Socket();
+                    s.connect(new java.net.InetSocketAddress(ConfigManager.getSocketServerHost(), ConfigManager.getSocketServerPort()), ConfigManager.getSocketConnectTimeoutMs());
+                    s.setSoTimeout(ConfigManager.getSocketSoTimeoutMs());
+                    try (java.io.ObjectOutputStream out = new java.io.ObjectOutputStream(s.getOutputStream());
+                         java.io.ObjectInputStream in = new java.io.ObjectInputStream(s.getInputStream())) {
+                        out.writeObject(req); out.flush();
+                        Object obj = in.readObject();
+                        list = new java.util.ArrayList<>();
+                        if (obj instanceof com.vCampus.net.dto.SocketResponse resp && resp.isSuccess() && resp.getData() instanceof java.util.Map<?,?> m && m.get("rows") instanceof java.util.List<?> rows) {
+                            for (Object r : rows) {
+                                if (r instanceof java.util.Map<?,?> rm) {
+                                    BorrowRecord br = new BorrowRecord();
+                                    Object rid = rm.get("recordId"); if (rid != null) br.setRecordId(((Number)rid).intValue());
+                                    Object bid = rm.get("bookId"); if (bid != null) br.setBookId(((Number)bid).intValue());
+                                    Object bd = rm.get("borrowDate"); if (bd instanceof java.util.Date d1) br.setBorrowDate(new java.sql.Date(d1.getTime()));
+                                    Object dd = rm.get("dueDate"); if (dd instanceof java.util.Date d2) br.setDueDate(new java.sql.Date(d2.getTime()));
+                                    Object rd = rm.get("returnDate"); if (rd instanceof java.util.Date d3) br.setReturnDate(new java.sql.Date(d3.getTime()));
+                                    Object rt = rm.get("renewTimes"); if (rt != null) br.setRenewTimes(((Number)rt).intValue());
+                                    Object f = rm.get("fine"); if (f != null) br.setFine(((Number)f).doubleValue());
+                                    br.setStatus((String)rm.get("status"));
+                                    list.add(br);
+                                }
+                            }
+                        }
+                    } finally { s.close(); }
+                } catch (Exception e) {
+                    list = libraryService.listMyBorrowsByStatus(uid, status);
+                }
+            } else {
+                list = libraryService.listMyBorrowsByStatus(uid, status);
+            }
+            final java.util.List<BorrowRecord> flist = list;
             TransactionManager.runLaterSafe(() -> {
                 if (borrowTable != null) {
-                    borrowTable.getItems().setAll(list);
+                    borrowTable.getItems().setAll(flist);
                 }
             });
         }, "lib-loadMyBorrows").start();

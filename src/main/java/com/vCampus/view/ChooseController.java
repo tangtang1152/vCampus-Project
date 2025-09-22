@@ -82,17 +82,89 @@ public class ChooseController extends BaseController {
 
     private void loadAll() {
         String kw = keywordField.getText() == null ? "" : keywordField.getText();
-        List<Subject> list;
-        if (kw.isBlank()) {
-            list = subjectService.getAllSubjects();
-        } else {
-            list = subjectService.getSubjectsByName(kw);
+        if (com.vCampus.common.ConfigManager.isSocketEnabled()) {
+            var client = com.vCampus.net.ShopSocketClient.fromConfig(); // 复用简单Socket客户端结构
+            // 使用通用 SocketRequest 直接请求 SUBJECT_LIST
+            try {
+                var req = new com.vCampus.net.dto.SocketRequest("SUBJECT_LIST").put("keyword", kw);
+                java.net.Socket s = new java.net.Socket();
+                s.connect(new java.net.InetSocketAddress(com.vCampus.common.ConfigManager.getSocketServerHost(), com.vCampus.common.ConfigManager.getSocketServerPort()), com.vCampus.common.ConfigManager.getSocketConnectTimeoutMs());
+                s.setSoTimeout(com.vCampus.common.ConfigManager.getSocketSoTimeoutMs());
+                try (java.io.ObjectOutputStream out = new java.io.ObjectOutputStream(s.getOutputStream());
+                     java.io.ObjectInputStream in = new java.io.ObjectInputStream(s.getInputStream())) {
+                    out.writeObject(req); out.flush();
+                    Object obj = in.readObject();
+                    if (obj instanceof com.vCampus.net.dto.SocketResponse resp && resp.isSuccess() && resp.getData() instanceof java.util.Map<?,?> m && m.get("rows") instanceof java.util.List<?> rows) {
+                        java.util.List<Subject> list = new java.util.ArrayList<>();
+                        for (Object r : rows) {
+                            if (r instanceof java.util.Map<?,?> rm) {
+                                Subject sObj = new Subject();
+                                sObj.setSubjectId(String.valueOf(rm.get("subjectId")));
+                                sObj.setSubjectName(String.valueOf(rm.get("subjectName")));
+                                Object dt = rm.get("subjectDate");
+                                if (dt instanceof java.sql.Date d) sObj.setSubjectDate(new java.util.Date(d.getTime()));
+                                else if (dt instanceof java.util.Date d2) sObj.setSubjectDate(d2);
+                                sObj.setSubjectNum(((Number)rm.get("subjectNum")).intValue());
+                                sObj.setCredit(((Number)rm.get("credit")).doubleValue());
+                                sObj.setTeacherId(String.valueOf(rm.get("teacherId")));
+                                sObj.setWeekRange(String.valueOf(rm.get("weekRange")));
+                                sObj.setWeekType(String.valueOf(rm.get("weekType")));
+                                sObj.setClassTime(String.valueOf(rm.get("classTime")));
+                                sObj.setClassroom(String.valueOf(rm.get("classroom")));
+                                list.add(sObj);
+                            }
+                        }
+                        allSubjects.setAll(list);
+                        infoLabel.setText("共 " + list.size() + " 条可选课程");
+                        return;
+                    }
+                } finally { s.close(); }
+            } catch (Exception ignored) {}
         }
+        List<Subject> list;
+        if (kw.isBlank()) list = subjectService.getAllSubjects(); else list = subjectService.getSubjectsByName(kw);
         allSubjects.setAll(list);
         infoLabel.setText("共 " + list.size() + " 条可选课程");
     }
 
     private void loadMy() {
+        if (com.vCampus.common.ConfigManager.isSocketEnabled()) {
+            try {
+                String sid = getCurrentStudentId();
+                var req = new com.vCampus.net.dto.SocketRequest("MY_SUBJECTS").put("studentId", sid);
+                java.net.Socket s = new java.net.Socket();
+                s.connect(new java.net.InetSocketAddress(com.vCampus.common.ConfigManager.getSocketServerHost(), com.vCampus.common.ConfigManager.getSocketServerPort()), com.vCampus.common.ConfigManager.getSocketConnectTimeoutMs());
+                s.setSoTimeout(com.vCampus.common.ConfigManager.getSocketSoTimeoutMs());
+                try (java.io.ObjectOutputStream out = new java.io.ObjectOutputStream(s.getOutputStream());
+                     java.io.ObjectInputStream in = new java.io.ObjectInputStream(s.getInputStream())) {
+                    out.writeObject(req); out.flush();
+                    Object obj = in.readObject();
+                    if (obj instanceof com.vCampus.net.dto.SocketResponse resp && resp.isSuccess() && resp.getData() instanceof java.util.Map<?,?> m && m.get("rows") instanceof java.util.List<?> rows) {
+                        java.util.List<Subject> list = new java.util.ArrayList<>();
+                        for (Object r : rows) {
+                            if (r instanceof java.util.Map<?,?> rm) {
+                                Subject sObj = new Subject();
+                                sObj.setSubjectId(String.valueOf(rm.get("subjectId")));
+                                sObj.setSubjectName(String.valueOf(rm.get("subjectName")));
+                                Object dt = rm.get("subjectDate");
+                                if (dt instanceof java.sql.Date d) sObj.setSubjectDate(new java.util.Date(d.getTime()));
+                                else if (dt instanceof java.util.Date d2) sObj.setSubjectDate(d2);
+                                sObj.setSubjectNum(rm.get("subjectNum") == null ? 0 : ((Number)rm.get("subjectNum")).intValue());
+                                sObj.setCredit(rm.get("credit") == null ? 0.0 : ((Number)rm.get("credit")).doubleValue());
+                                sObj.setTeacherId(String.valueOf(rm.get("teacherId")));
+                                sObj.setWeekRange(String.valueOf(rm.get("weekRange")));
+                                sObj.setWeekType(String.valueOf(rm.get("weekType")));
+                                sObj.setClassTime(String.valueOf(rm.get("classTime")));
+                                sObj.setClassroom(String.valueOf(rm.get("classroom")));
+                                list.add(sObj);
+                            }
+                        }
+                        mySubjects.setAll(list);
+                        return;
+                    }
+                } finally { s.close(); }
+            } catch (Exception ignored) {}
+        }
         mySubjects.setAll(chooseService.getStudentSubjects(getCurrentStudentId()));
     }
 

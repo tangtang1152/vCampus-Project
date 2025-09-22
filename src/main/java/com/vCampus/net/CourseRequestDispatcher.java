@@ -49,6 +49,14 @@ public class CourseRequestDispatcher {
                 return handleShopCreateOrder(req);
             case "SHOP_PAY":
                 return handleShopPay(req);
+            case "SUBJECT_LIST":
+                return handleSubjectList(req);
+            case "MY_SUBJECTS":
+                return handleMySubjects(req);
+            case "LIB_LIST":
+                return handleLibList(req);
+            case "LIB_MY_BORROWS":
+                return handleLibMyBorrows(req);
             default:
                 return new SocketResponse(false, "未知指令: " + action);
         }
@@ -187,6 +195,112 @@ public class CourseRequestDispatcher {
         if (orderId == null || orderId.isBlank()) return new SocketResponse(false, "orderId 不能为空");
         boolean ok = ServiceFactory.getShopService().payOrder(orderId);
         return new SocketResponse(ok, ok ? "支付成功" : "支付失败");
+    }
+
+    // ================= Subject list over socket =================
+    private SocketResponse handleSubjectList(SocketRequest req) {
+        String keyword = req.getParam("keyword");
+        var svc = ServiceFactory.getSubjectService();
+        java.util.List<com.vCampus.entity.Subject> list = (keyword == null || keyword.isBlank())
+                ? svc.getAllSubjects()
+                : svc.getSubjectsByName(keyword);
+        java.util.List<java.util.Map<String,Object>> rows = new java.util.ArrayList<>();
+        java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd");
+        for (var s : list) {
+            java.util.Map<String,Object> m = new java.util.HashMap<>();
+            m.put("subjectId", s.getSubjectId());
+            m.put("subjectName", s.getSubjectName());
+            m.put("subjectDate", s.getSubjectDate());
+            m.put("subjectNum", s.getSubjectNum());
+            m.put("credit", s.getCredit());
+            m.put("teacherId", s.getTeacherId());
+            m.put("weekRange", s.getWeekRange());
+            m.put("weekType", s.getWeekType());
+            m.put("classTime", s.getClassTime());
+            m.put("classroom", s.getClassroom());
+            rows.add(m);
+        }
+        java.util.Map<String,Object> map = new java.util.HashMap<>();
+        map.put("rows", rows);
+        return new SocketResponse(true, "OK", (java.io.Serializable) map);
+    }
+
+    private SocketResponse handleMySubjects(SocketRequest req) {
+        String studentId = req.getParam("studentId");
+        if (isBlank(studentId)) return new SocketResponse(false, "参数不足");
+        var choose = ServiceFactory.getChooseService();
+        java.util.List<com.vCampus.entity.Subject> list = choose.getStudentSubjects(studentId);
+        java.util.List<java.util.Map<String,Object>> rows = new java.util.ArrayList<>();
+        for (var s : list) {
+            java.util.Map<String,Object> m = new java.util.HashMap<>();
+            m.put("subjectId", s.getSubjectId());
+            m.put("subjectName", s.getSubjectName());
+            m.put("subjectDate", s.getSubjectDate());
+            m.put("subjectNum", s.getSubjectNum());
+            m.put("credit", s.getCredit());
+            m.put("teacherId", s.getTeacherId());
+            m.put("weekRange", s.getWeekRange());
+            m.put("weekType", s.getWeekType());
+            m.put("classTime", s.getClassTime());
+            m.put("classroom", s.getClassroom());
+            rows.add(m);
+        }
+        java.util.Map<String,Object> map = new java.util.HashMap<>();
+        map.put("rows", rows);
+        return new SocketResponse(true, "OK", (java.io.Serializable) map);
+    }
+
+    // ================= Library list over socket =================
+    private SocketResponse handleLibList(SocketRequest req) {
+        String keyword = req.getParam("keyword");
+        String status = req.getParam("status");
+        String sort = req.getParam("sort");
+        int page = parseIntOrDefault(req.getParam("page"), 1);
+        int size = parseIntOrDefault(req.getParam("size"), 10);
+        var lib = ServiceFactory.getLibraryService();
+        java.util.List<com.vCampus.entity.Book> list = lib.searchBooksAdvanced(keyword == null ? "" : keyword,
+                status == null ? "全部" : status,
+                sort == null ? "默认(最新)" : sort,
+                page,
+                size);
+        java.util.List<java.util.Map<String,Object>> rows = new java.util.ArrayList<>();
+        for (var b : list) {
+            java.util.Map<String,Object> m = new java.util.HashMap<>();
+            m.put("bookId", b.getBookId());
+            m.put("title", b.getTitle());
+            m.put("author", b.getAuthor());
+            m.put("isbn", b.getIsbn());
+            m.put("availableCopies", b.getAvailableCopies());
+            m.put("status", b.getStatus());
+            rows.add(m);
+        }
+        java.util.Map<String,Object> map = new java.util.HashMap<>();
+        map.put("rows", rows);
+        return new SocketResponse(true, "OK", (java.io.Serializable) map);
+    }
+
+    private SocketResponse handleLibMyBorrows(SocketRequest req) {
+        String userId = req.getParam("userId");
+        String status = req.getParam("status");
+        if (isBlank(userId)) return new SocketResponse(false, "参数不足");
+        var lib = ServiceFactory.getLibraryService();
+        java.util.List<com.vCampus.entity.BorrowRecord> list = lib.listMyBorrowsByStatus(userId, status == null ? "借出" : status);
+        java.util.List<java.util.Map<String,Object>> rows = new java.util.ArrayList<>();
+        for (var r : list) {
+            java.util.Map<String,Object> m = new java.util.HashMap<>();
+            m.put("recordId", r.getRecordId());
+            m.put("bookId", r.getBookId());
+            m.put("borrowDate", r.getBorrowDate());
+            m.put("dueDate", r.getDueDate());
+            m.put("returnDate", r.getReturnDate());
+            m.put("status", r.getStatus());
+            m.put("fine", r.getFine());
+            m.put("renewTimes", r.getRenewTimes());
+            rows.add(m);
+        }
+        java.util.Map<String,Object> map = new java.util.HashMap<>();
+        map.put("rows", rows);
+        return new SocketResponse(true, "OK", (java.io.Serializable) map);
     }
 }
 
