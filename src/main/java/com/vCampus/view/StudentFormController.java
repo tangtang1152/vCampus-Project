@@ -74,23 +74,46 @@ public class StudentFormController extends BaseController {
             showWarning("请检查必填项与长度");
             return;
         }
-
         boolean ok;
-        if (editing == null) {
-            // 新增：走注册总线，默认创建用户后再创建学生
-            s.setUsername(s.getStudentId());
-            s.setPassword("123456");
-            s.setRole("STUDENT");
-            ok = (userService.register(s) == IUserService.RegisterResult.SUCCESS);
+        if (com.vCampus.common.ConfigManager.isSocketEnabled()) {
+            try {
+                com.vCampus.net.dto.SocketRequest req;
+                if (editing == null) {
+                    req = new com.vCampus.net.dto.SocketRequest("STUDENT_ADD")
+                            .put("studentId", s.getStudentId())
+                            .put("studentName", s.getStudentName())
+                            .put("className", s.getClassName())
+                            .put("sex", s.getSex())
+                            .put("email", s.getEmail())
+                            .put("idCard", s.getIdCard())
+                            .put("status", s.getStatus());
+                } else {
+                    req = new com.vCampus.net.dto.SocketRequest("STUDENT_UPDATE")
+                            .put("studentId", s.getStudentId())
+                            .put("studentName", s.getStudentName())
+                            .put("className", s.getClassName())
+                            .put("sex", s.getSex())
+                            .put("email", s.getEmail())
+                            .put("idCard", s.getIdCard())
+                            .put("status", s.getStatus());
+                }
+                java.net.Socket sk = new java.net.Socket();
+                sk.connect(new java.net.InetSocketAddress(com.vCampus.common.ConfigManager.getSocketServerHost(), com.vCampus.common.ConfigManager.getSocketServerPort()), com.vCampus.common.ConfigManager.getSocketConnectTimeoutMs());
+                sk.setSoTimeout(com.vCampus.common.ConfigManager.getSocketSoTimeoutMs());
+                try (java.io.ObjectOutputStream out = new java.io.ObjectOutputStream(sk.getOutputStream());
+                     java.io.ObjectInputStream in = new java.io.ObjectInputStream(sk.getInputStream())) {
+                    out.writeObject(req); out.flush();
+                    Object obj = in.readObject();
+                    ok = obj instanceof com.vCampus.net.dto.SocketResponse resp && resp.isSuccess();
+                } finally { sk.close(); }
+            } catch (Exception e) {
+                ok = false;
+            }
         } else {
-            ok = studentService.updateStudentOnly(s);
+            ok = (editing == null) ? studentService.add(s) : studentService.updateStudentOnly(s);
         }
-        if (ok) {
-            showSuccess("保存成功");
-            closeIfDialog();
-        } else {
-            showError("保存失败");
-        }
+        if (ok) { showSuccess("保存成功"); closeIfDialog(); }
+        else { showError("保存失败"); }
     }
 
     @FXML

@@ -78,32 +78,67 @@ public class UserManagementController extends BaseController {
     @FXML private void onClose() { ((javafx.stage.Stage) table.getScene().getWindow()).close(); }
 
     private void refresh() {
-        List<User> all = userService.getAll();
-
-        // 一次性加载三类详情，构建缓存，避免单元格重复触发数据库
-        realNameByUserId.clear();
-        typeInfoByUserId.clear();
-        try {
-            List<Student> studs = studentService.getAll();
-            for (Student s : studs) {
-                realNameByUserId.put(s.getUserId(), s.getStudentName() == null ? "" : s.getStudentName());
-                typeInfoByUserId.put(s.getUserId(), "班级:" + (s.getClassName() == null ? "" : s.getClassName()));
+        List<User> all;
+        if (com.vCampus.common.ConfigManager.isSocketEnabled()) {
+            try {
+                var req = new com.vCampus.net.dto.SocketRequest("USER_LIST");
+                java.net.Socket s = new java.net.Socket();
+                s.connect(new java.net.InetSocketAddress(com.vCampus.common.ConfigManager.getSocketServerHost(), com.vCampus.common.ConfigManager.getSocketServerPort()), com.vCampus.common.ConfigManager.getSocketConnectTimeoutMs());
+                s.setSoTimeout(com.vCampus.common.ConfigManager.getSocketSoTimeoutMs());
+                try (java.io.ObjectOutputStream out = new java.io.ObjectOutputStream(s.getOutputStream());
+                     java.io.ObjectInputStream in = new java.io.ObjectInputStream(s.getInputStream())) {
+                    out.writeObject(req); out.flush();
+                    Object obj = in.readObject();
+                    all = new java.util.ArrayList<>();
+                    if (obj instanceof com.vCampus.net.dto.SocketResponse resp && resp.isSuccess() && resp.getData() instanceof java.util.Map<?,?> m && m.get("rows") instanceof java.util.List<?> rows) {
+                        realNameByUserId.clear(); typeInfoByUserId.clear();
+                        for (Object r : rows) if (r instanceof java.util.Map<?,?> rm) {
+                            User u = new User();
+                            Object id = rm.get("userId"); if (id instanceof Number) u.setUserId(((Number)id).intValue());
+                            u.setUsername(String.valueOf(rm.get("username")));
+                            java.util.LinkedHashSet<String> roles = new java.util.LinkedHashSet<>();
+                            Object ro = rm.get("roles"); if (ro instanceof java.util.Collection<?> c) for (Object x : c) roles.add(String.valueOf(x));
+                            u.setRoleSet(roles);
+                            all.add(u);
+                            if (u.getUserId() != 0) {
+                                Object rn = rm.containsKey("realName") ? rm.get("realName") : "";
+                                Object ti = rm.containsKey("typeInfo") ? rm.get("typeInfo") : "";
+                                realNameByUserId.put(u.getUserId(), String.valueOf(rn));
+                                typeInfoByUserId.put(u.getUserId(), String.valueOf(ti));
+                            }
+                        }
+                    }
+                } finally { s.close(); }
+            } catch (Exception e) {
+                showError("服务器不可用或连接中断，请检查网络/配置后重试");
+                return;
             }
-        } catch (Exception ignored) {}
-        try {
-            List<Teacher> tchs = teacherService.getAll();
-            for (Teacher t : tchs) {
-                realNameByUserId.put(t.getUserId(), t.getTeacherName() == null ? "" : t.getTeacherName());
-                typeInfoByUserId.put(t.getUserId(), "部门:" + (t.getDepartmentId() == null ? "" : t.getDepartmentId()));
-            }
-        } catch (Exception ignored) {}
-        try {
-            List<Admin> adms = adminService.getAll();
-            for (Admin a : adms) {
-                realNameByUserId.put(a.getUserId(), a.getAdminName() == null ? "" : a.getAdminName());
-                typeInfoByUserId.put(a.getUserId(), "工号:" + (a.getAdminId() == null ? "" : a.getAdminId()));
-            }
-        } catch (Exception ignored) {}
+        } else {
+            all = userService.getAll();
+            // 本地模式：继续使用下方缓存构建
+            realNameByUserId.clear(); typeInfoByUserId.clear();
+            try {
+                List<Student> studs = studentService.getAll();
+                for (Student s : studs) {
+                    realNameByUserId.put(s.getUserId(), s.getStudentName() == null ? "" : s.getStudentName());
+                    typeInfoByUserId.put(s.getUserId(), "班级:" + (s.getClassName() == null ? "" : s.getClassName()));
+                }
+            } catch (Exception ignored) {}
+            try {
+                List<Teacher> tchs = teacherService.getAll();
+                for (Teacher t : tchs) {
+                    realNameByUserId.put(t.getUserId(), t.getTeacherName() == null ? "" : t.getTeacherName());
+                    typeInfoByUserId.put(t.getUserId(), "部门:" + (t.getDepartmentId() == null ? "" : t.getDepartmentId()));
+                }
+            } catch (Exception ignored) {}
+            try {
+                List<Admin> adms = adminService.getAll();
+                for (Admin a : adms) {
+                    realNameByUserId.put(a.getUserId(), a.getAdminName() == null ? "" : a.getAdminName());
+                    typeInfoByUserId.put(a.getUserId(), "工号:" + (a.getAdminId() == null ? "" : a.getAdminId()));
+                }
+            } catch (Exception ignored) {}
+        }
         String kw = keywordField == null ? "" : keywordField.getText().trim().toLowerCase();
         boolean fStu = cbStudent == null || cbStudent.isSelected();
         boolean fTch = cbTeacher == null || cbTeacher.isSelected();
@@ -134,33 +169,36 @@ public class UserManagementController extends BaseController {
         User sel = table.getSelectionModel().getSelectedItem();
         if (sel == null) { showWarning("请选择要删除的用户"); return; }
         if (!showConfirmation("删除用户", "确定删除用户 " + sel.getUsername() + " ? 此操作不可恢复")) return;
-        // 先删除所有子表记录，再删除父表 tbl_user，避免外键约束错误（多角色场景）
-        boolean ok = true;
-        String errorMsg = null;
-        Set<String> rs = sel.getRoleSet().stream().map(String::toUpperCase).collect(java.util.stream.Collectors.toSet());
-        try {
-            // 学生
-            if (rs.contains("STUDENT")) {
-                Student s = studentService.getByUserId(sel.getUserId());
-                if (s != null) ok &= studentService.deleteStudentOnly(s.getStudentId());
+        boolean ok;
+        if (com.vCampus.common.ConfigManager.isSocketEnabled()) {
+            try {
+                var req = new com.vCampus.net.dto.SocketRequest("USER_DELETE").put("userId", String.valueOf(sel.getUserId()));
+                java.net.Socket s = new java.net.Socket();
+                s.connect(new java.net.InetSocketAddress(com.vCampus.common.ConfigManager.getSocketServerHost(), com.vCampus.common.ConfigManager.getSocketServerPort()), com.vCampus.common.ConfigManager.getSocketConnectTimeoutMs());
+                s.setSoTimeout(com.vCampus.common.ConfigManager.getSocketSoTimeoutMs());
+                try (java.io.ObjectOutputStream out = new java.io.ObjectOutputStream(s.getOutputStream());
+                     java.io.ObjectInputStream in = new java.io.ObjectInputStream(s.getInputStream())) {
+                    out.writeObject(req); out.flush();
+                    Object obj = in.readObject();
+                    ok = obj instanceof com.vCampus.net.dto.SocketResponse resp && resp.isSuccess();
+                } finally { s.close(); }
+            } catch (Exception e) {
+                showError("服务器不可用或连接中断，请检查网络/配置后重试");
+                return;
             }
-            // 教师
-            if (rs.contains("TEACHER")) {
-                Teacher t = teacherService.getByUserId(sel.getUserId());
-                if (t != null) ok &= teacherService.deleteTeacherOnly(t.getTeacherId());
-            }
-            // 管理员
-            if (rs.contains("ADMIN")) {
-                Admin a = adminService.getByUserId(sel.getUserId());
-                if (a != null) ok &= adminService.deleteAdminOnly(a.getAdminId());
-            }
-            // 最后删除用户主表
-            if (ok) ok &= userService.delete(sel.getUserId());
-        } catch (Exception e) {
-            ok = false; errorMsg = e.getMessage();
+        } else {
+            // 旧本地逻辑
+            boolean okLocal = true; String errorMsg = null;
+            Set<String> rs = sel.getRoleSet().stream().map(String::toUpperCase).collect(java.util.stream.Collectors.toSet());
+            try {
+                if (rs.contains("STUDENT")) { Student s = studentService.getByUserId(sel.getUserId()); if (s != null) okLocal &= studentService.deleteStudentOnly(s.getStudentId()); }
+                if (rs.contains("TEACHER")) { Teacher t = teacherService.getByUserId(sel.getUserId()); if (t != null) okLocal &= teacherService.deleteTeacherOnly(t.getTeacherId()); }
+                if (rs.contains("ADMIN")) { Admin a = adminService.getByUserId(sel.getUserId()); if (a != null) okLocal &= adminService.deleteAdminOnly(a.getAdminId()); }
+                if (okLocal) okLocal &= userService.delete(sel.getUserId());
+            } catch (Exception e) { okLocal = false; errorMsg = e.getMessage(); }
+            ok = okLocal; if (!okLocal) { showError("删除失败：" + errorMsg); return; }
         }
         if (ok) { showInformation("提示", "删除成功"); refresh(); }
-        else { showError("删除失败：请检查外键引用或残留角色明细\n" + (errorMsg==null?"":errorMsg)); }
     }
 
     private void openUserForm(User originUser) {

@@ -30,6 +30,38 @@ public class CourseRequestDispatcher {
             return new SocketResponse(false, "缺少 action");
         }
         switch (action.toUpperCase()) {
+            case "USER_LIST":
+                return handleUserList(req);
+            case "USER_DELETE":
+                return handleUserDelete(req);
+            case "USER_ADD":
+                return handleUserAdd(req);
+            case "USER_UPDATE":
+                return handleUserUpdate(req);
+            case "STUDENT_LIST":
+                return handleStudentList(req);
+            case "STUDENT_ADD":
+                return handleStudentAdd(req);
+            case "STUDENT_UPDATE":
+                return handleStudentUpdate(req);
+            case "STUDENT_DELETE":
+                return handleStudentDelete(req);
+            case "TEACHER_LIST":
+                return handleTeacherList(req);
+            case "TEACHER_ADD":
+                return handleTeacherAdd(req);
+            case "TEACHER_UPDATE":
+                return handleTeacherUpdate(req);
+            case "TEACHER_DELETE":
+                return handleTeacherDelete(req);
+            case "ADMIN_LIST":
+                return handleAdminList(req);
+            case "ADMIN_ADD":
+                return handleAdminAdd(req);
+            case "ADMIN_UPDATE":
+                return handleAdminUpdate(req);
+            case "ADMIN_DELETE":
+                return handleAdminDelete(req);
             case "PING":
                 return new SocketResponse(true, "PONG");
             case "CHOOSE":
@@ -123,6 +155,7 @@ public class CourseRequestDispatcher {
         user.setUsername(username); user.setPassword(password); user.setRole(role);
         var res = svc.register(user);
         if (res != com.vCampus.service.IUserService.RegisterResult.SUCCESS) return new SocketResponse(false, res.getMessage());
+        int newUserId = svc.getByUsername(username).getUserId();
         // 若是学生且携带学号，必须提供班级；否则不允许注册
         if ("STUDENT".equalsIgnoreCase(role) && studentId != null && !studentId.isBlank()) {
             try {
@@ -141,7 +174,243 @@ public class CourseRequestDispatcher {
                 return new SocketResponse(false, "注册成功但创建学生档案失败: " + e.getMessage());
             }
         }
-        return new SocketResponse(true, "注册成功");
+        java.util.Map<String,Object> data = new java.util.HashMap<>();
+        data.put("userId", newUserId);
+        return new SocketResponse(true, "注册成功", (java.io.Serializable) data);
+    }
+
+    // ===== User management over socket =====
+    private SocketResponse handleUserList(SocketRequest req) {
+        var userSvc = ServiceFactory.getUserService();
+        var stuSvc = ServiceFactory.getStudentService();
+        var tchSvc = ServiceFactory.getTeacherService();
+        var admSvc = ServiceFactory.getAdminService();
+        java.util.List<com.vCampus.entity.User> list = userSvc.getAll();
+        java.util.List<java.util.Map<String,Object>> rows = new java.util.ArrayList<>();
+        for (var u : list) {
+            java.util.Map<String,Object> m = new java.util.HashMap<>();
+            m.put("userId", u.getUserId());
+            m.put("username", u.getUsername());
+            m.put("roles", new java.util.ArrayList<>(u.getRoleSet()));
+            // 附带 realName/typeInfo
+            String realName = ""; String typeInfo = "";
+            try { var s = stuSvc.getByUserId(u.getUserId()); if (s != null) { realName = s.getStudentName()==null?"":s.getStudentName(); typeInfo = "班级:" + (s.getClassName()==null?"":s.getClassName()); } } catch (Exception ignored) {}
+            try { var t = tchSvc.getByUserId(u.getUserId()); if (t != null) { realName = t.getTeacherName()==null?realName:t.getTeacherName(); if (!typeInfo.isEmpty()) typeInfo += " "; typeInfo += "部门:" + (t.getDepartmentId()==null?"":t.getDepartmentId()); } } catch (Exception ignored) {}
+            try { var a = admSvc.getByUserId(u.getUserId()); if (a != null) { realName = a.getAdminName()==null?realName:a.getAdminName(); if (!typeInfo.isEmpty()) typeInfo += " "; typeInfo += "工号:" + (a.getAdminId()==null?"":a.getAdminId()); } } catch (Exception ignored) {}
+            m.put("realName", realName);
+            m.put("typeInfo", typeInfo);
+            rows.add(m);
+        }
+        java.util.Map<String,Object> data = new java.util.HashMap<>();
+        data.put("rows", rows);
+        return new SocketResponse(true, "OK", (java.io.Serializable) data);
+    }
+
+    private SocketResponse handleUserDelete(SocketRequest req) {
+        Integer userId = parseInt(req.getParam("userId"));
+        if (userId == null) return new SocketResponse(false, "参数不足");
+        try {
+            var userSvc = ServiceFactory.getUserService();
+            var stuSvc = ServiceFactory.getStudentService();
+            var tchSvc = ServiceFactory.getTeacherService();
+            var admSvc = ServiceFactory.getAdminService();
+            var u = userSvc.getBySelfId(userId);
+            if (u == null) return new SocketResponse(false, "用户不存在");
+            java.util.Set<String> rs = u.getRoleSet();
+            if (rs.contains("STUDENT")) { var s = stuSvc.getByUserId(userId); if (s != null) stuSvc.deleteStudentOnly(s.getStudentId()); }
+            if (rs.contains("TEACHER")) { var t = tchSvc.getByUserId(userId); if (t != null) tchSvc.deleteTeacherOnly(t.getTeacherId()); }
+            if (rs.contains("ADMIN")) { var a = admSvc.getByUserId(userId); if (a != null) admSvc.deleteAdminOnly(a.getAdminId()); }
+            boolean ok = userSvc.delete(userId);
+            return new SocketResponse(ok, ok?"删除成功":"删除失败");
+        } catch (Exception e) {
+            return new SocketResponse(false, e.getMessage());
+        }
+    }
+
+    private SocketResponse handleUserAdd(SocketRequest req) {
+        String username = req.getParam("username");
+        String password = req.getParam("password");
+        String role = req.getParam("role"); // STUDENT/TEACHER/ADMIN
+        if (isBlank(username) || isBlank(role)) return new SocketResponse(false, "参数不足");
+        var svc = ServiceFactory.getUserService();
+        if (svc.isUsernameExists(username)) return new SocketResponse(false, "用户名已存在");
+        com.vCampus.entity.User u = new com.vCampus.entity.User();
+        u.setUsername(username); u.setPassword(password==null?"123456":password); u.setRole(role);
+        var res = svc.register(u);
+        java.util.Map<String,Object> data = new java.util.HashMap<>();
+        if (res == com.vCampus.service.IUserService.RegisterResult.SUCCESS) {
+            data.put("userId", svc.getByUsername(username).getUserId());
+            return new SocketResponse(true, "新增成功", (java.io.Serializable) data);
+        }
+        return new SocketResponse(false, res.getMessage());
+    }
+
+    private SocketResponse handleUserUpdate(SocketRequest req) {
+        Integer userId = parseInt(req.getParam("userId"));
+        if (userId == null) return new SocketResponse(false, "参数不足");
+        var svc = ServiceFactory.getUserService();
+        var u = svc.getBySelfId(userId);
+        if (u == null) return new SocketResponse(false, "用户不存在");
+        if (req.getParam("username") != null) u.setUsername(req.getParam("username"));
+        if (req.getParam("password") != null && !req.getParam("password").isBlank()) u.setPassword(req.getParam("password"));
+        if (req.getParam("roles") != null) {
+            java.util.LinkedHashSet<String> rs = new java.util.LinkedHashSet<>();
+            for (String p : req.getParam("roles").split(",")) rs.add(p.trim());
+            u.setRoleSet(rs);
+        }
+        boolean ok = svc.update(u);
+        return new SocketResponse(ok, ok?"保存成功":"保存失败");
+    }
+
+    // ===== Student management over socket =====
+    private SocketResponse handleStudentList(SocketRequest req) {
+        var svc = ServiceFactory.getStudentService();
+        java.util.List<com.vCampus.entity.Student> list = svc.getAll();
+        java.util.List<java.util.Map<String,Object>> rows = new java.util.ArrayList<>();
+        for (var s : list) {
+            java.util.Map<String,Object> m = new java.util.HashMap<>();
+            m.put("studentId", s.getStudentId());
+            m.put("studentName", s.getStudentName());
+            m.put("className", s.getClassName());
+            m.put("sex", s.getSex());
+            m.put("enrollDate", s.getEnrollDate());
+            m.put("email", s.getEmail());
+            m.put("idCard", s.getIdCard());
+            m.put("status", s.getStatus());
+            rows.add(m);
+        }
+        java.util.Map<String,Object> data = new java.util.HashMap<>();
+        data.put("rows", rows);
+        return new SocketResponse(true, "OK", (java.io.Serializable) data);
+    }
+
+    private SocketResponse handleStudentAdd(SocketRequest req) {
+        var svc = ServiceFactory.getStudentService();
+        com.vCampus.entity.Student s = new com.vCampus.entity.Student();
+        s.setStudentId(req.getParam("studentId"));
+        s.setStudentName(req.getParam("studentName"));
+        s.setClassName(req.getParam("className"));
+        s.setSex(req.getParam("sex"));
+        s.setEmail(req.getParam("email"));
+        s.setIdCard(req.getParam("idCard"));
+        s.setStatus(req.getParam("status"));
+        try { String uid = req.getParam("userId"); if (uid != null && !uid.isBlank()) s.setUserId(Integer.parseInt(uid)); } catch (Exception ignored) {}
+        boolean ok = svc.add(s);
+        return new SocketResponse(ok, ok?"新增成功":"新增失败");
+    }
+
+    private SocketResponse handleStudentUpdate(SocketRequest req) {
+        var svc = ServiceFactory.getStudentService();
+        com.vCampus.entity.Student s = svc.getBySelfId(req.getParam("studentId"));
+        if (s == null) return new SocketResponse(false, "学生不存在");
+        if (req.getParam("studentName") != null) s.setStudentName(req.getParam("studentName"));
+        if (req.getParam("className") != null) s.setClassName(req.getParam("className"));
+        if (req.getParam("sex") != null) s.setSex(req.getParam("sex"));
+        if (req.getParam("email") != null) s.setEmail(req.getParam("email"));
+        if (req.getParam("idCard") != null) s.setIdCard(req.getParam("idCard"));
+        if (req.getParam("status") != null) s.setStatus(req.getParam("status"));
+        boolean ok = ServiceFactory.getStudentService().updateStudentOnly(s);
+        return new SocketResponse(ok, ok?"保存成功":"保存失败");
+    }
+
+    private SocketResponse handleStudentDelete(SocketRequest req) {
+        String sid = req.getParam("studentId");
+        if (sid == null || sid.isBlank()) return new SocketResponse(false, "参数不足");
+        boolean ok = ServiceFactory.getStudentService().deleteStudentOnly(sid);
+        return new SocketResponse(ok, ok?"删除成功":"删除失败");
+    }
+
+    // ===== Teacher management over socket =====
+    private SocketResponse handleTeacherList(SocketRequest req) {
+        var svc = ServiceFactory.getTeacherService();
+        java.util.List<com.vCampus.entity.Teacher> list = svc.getAll();
+        java.util.List<java.util.Map<String,Object>> rows = new java.util.ArrayList<>();
+        for (var t : list) {
+            java.util.Map<String,Object> m = new java.util.HashMap<>();
+            m.put("teacherId", t.getTeacherId());
+            m.put("teacherName", t.getTeacherName());
+            m.put("sex", t.getSex());
+            m.put("technical", t.getTechnical());
+            m.put("departmentId", t.getDepartmentId());
+            rows.add(m);
+        }
+        java.util.Map<String,Object> data = new java.util.HashMap<>();
+        data.put("rows", rows);
+        return new SocketResponse(true, "OK", (java.io.Serializable) data);
+    }
+
+    private SocketResponse handleTeacherAdd(SocketRequest req) {
+        var svc = ServiceFactory.getTeacherService();
+        com.vCampus.entity.Teacher t = new com.vCampus.entity.Teacher();
+        t.setTeacherId(req.getParam("teacherId"));
+        t.setTeacherName(req.getParam("teacherName"));
+        t.setSex(req.getParam("sex"));
+        t.setTechnical(req.getParam("technical"));
+        t.setDepartmentId(req.getParam("departmentId"));
+        try { String uid = req.getParam("userId"); if (uid != null && !uid.isBlank()) t.setUserId(Integer.parseInt(uid)); } catch (Exception ignored) {}
+        boolean ok = svc.add(t);
+        return new SocketResponse(ok, ok?"新增成功":"新增失败");
+    }
+
+    private SocketResponse handleTeacherUpdate(SocketRequest req) {
+        var svc = ServiceFactory.getTeacherService();
+        com.vCampus.entity.Teacher t = svc.getBySelfId(req.getParam("teacherId"));
+        if (t == null) return new SocketResponse(false, "教师不存在");
+        if (req.getParam("teacherName") != null) t.setTeacherName(req.getParam("teacherName"));
+        if (req.getParam("sex") != null) t.setSex(req.getParam("sex"));
+        if (req.getParam("technical") != null) t.setTechnical(req.getParam("technical"));
+        if (req.getParam("departmentId") != null) t.setDepartmentId(req.getParam("departmentId"));
+        boolean ok = ServiceFactory.getTeacherService().updateTeacherOnly(t);
+        return new SocketResponse(ok, ok?"保存成功":"保存失败");
+    }
+
+    private SocketResponse handleTeacherDelete(SocketRequest req) {
+        String tid = req.getParam("teacherId");
+        if (tid == null || tid.isBlank()) return new SocketResponse(false, "参数不足");
+        boolean ok = ServiceFactory.getTeacherService().deleteTeacherOnly(tid);
+        return new SocketResponse(ok, ok?"删除成功":"删除失败");
+    }
+
+    // ===== Admin management over socket =====
+    private SocketResponse handleAdminList(SocketRequest req) {
+        var svc = ServiceFactory.getAdminService();
+        java.util.List<com.vCampus.entity.Admin> list = svc.getAll();
+        java.util.List<java.util.Map<String,Object>> rows = new java.util.ArrayList<>();
+        for (var a : list) {
+            java.util.Map<String,Object> m = new java.util.HashMap<>();
+            m.put("adminId", a.getAdminId());
+            m.put("adminName", a.getAdminName());
+            rows.add(m);
+        }
+        java.util.Map<String,Object> data = new java.util.HashMap<>();
+        data.put("rows", rows);
+        return new SocketResponse(true, "OK", (java.io.Serializable) data);
+    }
+
+    private SocketResponse handleAdminAdd(SocketRequest req) {
+        var svc = ServiceFactory.getAdminService();
+        com.vCampus.entity.Admin a = new com.vCampus.entity.Admin();
+        a.setAdminId(req.getParam("adminId"));
+        a.setAdminName(req.getParam("adminName"));
+        try { String uid = req.getParam("userId"); if (uid != null && !uid.isBlank()) a.setUserId(Integer.parseInt(uid)); } catch (Exception ignored) {}
+        boolean ok = svc.add(a);
+        return new SocketResponse(ok, ok?"新增成功":"新增失败");
+    }
+
+    private SocketResponse handleAdminUpdate(SocketRequest req) {
+        var svc = ServiceFactory.getAdminService();
+        com.vCampus.entity.Admin a = svc.getBySelfId(req.getParam("adminId"));
+        if (a == null) return new SocketResponse(false, "管理员不存在");
+        if (req.getParam("adminName") != null) a.setAdminName(req.getParam("adminName"));
+        boolean ok = ServiceFactory.getAdminService().updateAdminOnly(a);
+        return new SocketResponse(ok, ok?"保存成功":"保存失败");
+    }
+
+    private SocketResponse handleAdminDelete(SocketRequest req) {
+        String aid = req.getParam("adminId");
+        if (aid == null || aid.isBlank()) return new SocketResponse(false, "参数不足");
+        boolean ok = ServiceFactory.getAdminService().deleteAdminOnly(aid);
+        return new SocketResponse(ok, ok?"删除成功":"删除失败");
     }
 
     public void onClientClosed(String clientKey) {

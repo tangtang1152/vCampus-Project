@@ -78,7 +78,40 @@ public class StudentManagementController extends BaseController {
     }
 
     private void refresh() {
-        List<Student> all = studentService.getAll();
+        List<Student> all;
+        if (com.vCampus.common.ConfigManager.isSocketEnabled()) {
+            try {
+                var req = new com.vCampus.net.dto.SocketRequest("STUDENT_LIST");
+                java.net.Socket s = new java.net.Socket();
+                s.connect(new java.net.InetSocketAddress(com.vCampus.common.ConfigManager.getSocketServerHost(), com.vCampus.common.ConfigManager.getSocketServerPort()), com.vCampus.common.ConfigManager.getSocketConnectTimeoutMs());
+                s.setSoTimeout(com.vCampus.common.ConfigManager.getSocketSoTimeoutMs());
+                try (java.io.ObjectOutputStream out = new java.io.ObjectOutputStream(s.getOutputStream());
+                     java.io.ObjectInputStream in = new java.io.ObjectInputStream(s.getInputStream())) {
+                    out.writeObject(req); out.flush();
+                    Object obj = in.readObject();
+                    all = new java.util.ArrayList<>();
+                    if (obj instanceof com.vCampus.net.dto.SocketResponse resp && resp.isSuccess() && resp.getData() instanceof java.util.Map<?,?> m && m.get("rows") instanceof java.util.List<?> rows) {
+                        for (Object r : rows) if (r instanceof java.util.Map<?,?> rm) {
+                            Student st = new Student();
+                            st.setStudentId(String.valueOf(rm.get("studentId")));
+                            st.setStudentName(String.valueOf(rm.get("studentName")));
+                            st.setClassName(String.valueOf(rm.get("className")));
+                            st.setSex(String.valueOf(rm.get("sex")));
+                            Object ed = rm.get("enrollDate"); if (ed instanceof java.util.Date d) st.setEnrollDate(d);
+                            st.setEmail(String.valueOf(rm.get("email")));
+                            st.setIdCard(String.valueOf(rm.get("idCard")));
+                            st.setStatus(String.valueOf(rm.get("status")));
+                            all.add(st);
+                        }
+                    }
+                } finally { s.close(); }
+            } catch (Exception e) {
+                showError("服务器不可用或连接中断，请检查网络/配置后重试");
+                return;
+            }
+        } else {
+            all = studentService.getAll();
+        }
         filtered = new FilteredList<>(FXCollections.observableArrayList(all), s -> true);
         table.setItems(filtered);
         applyFilter(tfKeyword == null ? null : tfKeyword.getText());
