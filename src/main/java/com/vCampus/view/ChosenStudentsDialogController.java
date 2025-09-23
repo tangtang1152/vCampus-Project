@@ -62,15 +62,83 @@ public class ChosenStudentsDialogController extends BaseController {
      * @param subjectId 课程ID
      */
     private void loadChosenStudents(String subjectId) {
+        // 优先尝试走 Socket 查询服务端数据库（即使未开启开关也尝试，失败再回退）
+        try {
+            var req = new com.vCampus.net.dto.SocketRequest("SUBJECT_CHOOSES").put("subjectId", subjectId);
+            java.net.Socket s = new java.net.Socket();
+            s.connect(new java.net.InetSocketAddress(
+                    com.vCampus.common.ConfigManager.getSocketServerHost(),
+                    com.vCampus.common.ConfigManager.getSocketServerPort()),
+                    com.vCampus.common.ConfigManager.getSocketConnectTimeoutMs());
+            s.setSoTimeout(com.vCampus.common.ConfigManager.getSocketSoTimeoutMs());
+            try (java.io.ObjectOutputStream out = new java.io.ObjectOutputStream(s.getOutputStream());
+                 java.io.ObjectInputStream in = new java.io.ObjectInputStream(s.getInputStream())) {
+                out.writeObject(req); out.flush();
+                Object obj = in.readObject();
+                if (obj instanceof com.vCampus.net.dto.SocketResponse resp
+                        && resp.isSuccess()
+                        && resp.getData() instanceof java.util.Map<?,?> m
+                        && m.get("rows") instanceof java.util.List<?> rows) {
+                    chosenStudentsData.clear();
+                    for (Object r : rows) {
+                        if (r instanceof java.util.Map<?,?> rm) {
+                            Student stu = new Student();
+                            Object sid = rm.get("studentId");
+                            Object sname = rm.get("studentName");
+                            stu.setStudentId(sid == null ? "" : String.valueOf(sid));
+                            if (sname != null) stu.setStudentName(String.valueOf(sname));
+                            chosenStudentsData.add(stu);
+                        }
+                    }
+                    return; // 已经加载完成
+                }
+            } finally { s.close(); }
+        } catch (Exception e) {
+            // 忽略，回退到本地
+        }
+        // 回退到本地服务（单机模式）
         List<Choose> chooses = chooseService.getSubjectChooses(subjectId);
         chosenStudentsData.clear();
         for (Choose choose : chooses) {
-            Student student = studentService.getStudentFull(choose.getStudentId()); // 使用 getStudentFull 获取更完整的学生信息
+            Student student = studentService.getStudentFull(choose.getStudentId());
             if (student != null) {
                 chosenStudentsData.add(student);
             }
         }
-        // 如果列表为空，TableView 的 placeholder 会自动显示
+    }
+
+    private String fetchSelectIdFromServer(String subjectId, String studentId) {
+        try {
+            var req = new com.vCampus.net.dto.SocketRequest("SUBJECT_CHOOSES").put("subjectId", subjectId);
+            java.net.Socket s = new java.net.Socket();
+            s.connect(new java.net.InetSocketAddress(
+                    com.vCampus.common.ConfigManager.getSocketServerHost(),
+                    com.vCampus.common.ConfigManager.getSocketServerPort()),
+                    com.vCampus.common.ConfigManager.getSocketConnectTimeoutMs());
+            s.setSoTimeout(com.vCampus.common.ConfigManager.getSocketSoTimeoutMs());
+            try (java.io.ObjectOutputStream out = new java.io.ObjectOutputStream(s.getOutputStream());
+                 java.io.ObjectInputStream in = new java.io.ObjectInputStream(s.getInputStream())) {
+                out.writeObject(req); out.flush();
+                Object obj = in.readObject();
+                if (obj instanceof com.vCampus.net.dto.SocketResponse resp
+                        && resp.isSuccess()
+                        && resp.getData() instanceof java.util.Map<?,?> m
+                        && m.get("rows") instanceof java.util.List<?> rows) {
+                    for (Object r : rows) {
+                        if (r instanceof java.util.Map<?,?> rm) {
+                            Object sid = rm.get("studentId");
+                            if (sid != null && studentId.equals(String.valueOf(sid))) {
+                                Object selId = rm.get("selectid");
+                                if (selId != null) return String.valueOf(selId);
+                            }
+                        }
+                    }
+                }
+            } finally { s.close(); }
+        } catch (Exception e) {
+            // 忽略，返回空
+        }
+        return null;
     }
 
     /**
@@ -116,15 +184,35 @@ public class ChosenStudentsDialogController extends BaseController {
             return;
         }
 
-        // 执行退课操作
-        // 注意：chooseService.dropSubject() 内部会检查退选有效期。
-        // 如果需要管理员/教师无视退选有效期强制退课，ChooseServiceImpl 也需要修改，
-        // 增加一个 `adminForceDropSubject` 类似的方法。
-        // 这里我们假设管理员/教师退课也遵循退选有效期。
-        boolean dropSuccess = chooseService.dropSubject(chooseRecord.getSelectid());
+        boolean dropSuccess;
+        String msg = null;
+        if (com.vCampus.common.ConfigManager.isSocketEnabled()) {
+            try {
+                var req = new com.vCampus.net.dto.SocketRequest("DROP").put("selectid", chooseRecord.getSelectid());
+                java.net.Socket s = new java.net.Socket();
+                s.connect(new java.net.InetSocketAddress(
+                        com.vCampus.common.ConfigManager.getSocketServerHost(),
+                        com.vCampus.common.ConfigManager.getSocketServerPort()),
+                        com.vCampus.common.ConfigManager.getSocketConnectTimeoutMs());
+                s.setSoTimeout(com.vCampus.common.ConfigManager.getSocketSoTimeoutMs());
+                try (java.io.ObjectOutputStream out = new java.io.ObjectOutputStream(s.getOutputStream());
+                     java.io.ObjectInputStream in = new java.io.ObjectInputStream(s.getInputStream())) {
+                    out.writeObject(req); out.flush();
+                    Object obj = in.readObject();
+                    if (obj instanceof com.vCampus.net.dto.SocketResponse resp) {
+                        dropSuccess = resp.isSuccess();
+                        msg = resp.getMessage();
+                    } else { dropSuccess = false; msg = "服务器返回非法响应"; }
+                } finally { s.close(); }
+            } catch (Exception e) {
+                dropSuccess = false; msg = "连接失败: " + e.getMessage();
+            }
+        } else {
+            dropSuccess = chooseService.dropSubject(chooseRecord.getSelectid());
+        }
 
         if (dropSuccess) {
-            showSuccess("已成功为学生《" + selectedStudent.getStudentName() + "》退选课程《" + currentSubject.getSubjectName() + "》。");
+            showSuccess(msg == null ? ("已成功为学生《" + selectedStudent.getStudentName() + "》退选课程《" + currentSubject.getSubjectName() + "》。") : msg);
             loadChosenStudents(currentSubject.getSubjectId()); // 刷新列表
             
             // 通知 CourseManagementController 刷新其表格，以更新已选人数
@@ -143,7 +231,7 @@ public class ChosenStudentsDialogController extends BaseController {
 
 
         } else {
-            showError("退课失败。请检查是否已超过退选时间或联系系统管理员。");
+            showError(msg == null ? "退课失败。请检查是否已超过退选时间或联系系统管理员。" : msg);
         }
     }
 

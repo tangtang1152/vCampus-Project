@@ -59,7 +59,10 @@ public class ShopCartController extends BaseController {
                         int q = Math.max(1, it.getQuantity() + delta);
                         it.setQuantity(q);
                         it.setSubtotal(p.getPrice() * q);
-                        reload();
+                        // 直接刷新表格与合计，避免依赖重建列表导致列未即时渲染
+                        double total = ShopCartController.this.shopService.calculateCartTotal(getTableView().getItems());
+                        ShopCartController.this.lbTotal.setText(String.format("%.2f", total));
+                        getTableView().refresh();
                     }
                     private void removeItem() {
                         OrderItem it = getTableView().getItems().get(getIndex());

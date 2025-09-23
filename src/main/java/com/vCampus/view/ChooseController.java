@@ -137,6 +137,7 @@ public class ChooseController extends BaseController {
                             sObj.setWeekType(String.valueOf(rm.get("weekType")));
                             sObj.setClassTime(String.valueOf(rm.get("classTime")));
                             sObj.setClassroom(String.valueOf(rm.get("classroom")));
+                            Object cc = rm.get("chosenCount"); if (cc != null) sObj.setChosenCount(((Number)cc).intValue());
                             list.add(sObj);
                         }
                     }
@@ -239,8 +240,40 @@ public class ChooseController extends BaseController {
     private void onChoose() {
         Subject sel = subjectTable.getSelectionModel().getSelectedItem();
         if (sel == null) { showWarning("请选择要选的课程"); return; }
-        boolean ok = chooseService.chooseSubject(getCurrentStudentId(), sel.getSubjectId());
-        if (ok) { showSuccess("选课成功"); loadAll(); loadMy(); } else { showError("选课失败"); }
+        boolean ok;
+        String msg;
+        if (com.vCampus.common.ConfigManager.isSocketEnabled()) {
+            ok = false; msg = null;
+            try {
+                var req = new com.vCampus.net.dto.SocketRequest("CHOOSE")
+                        .put("studentId", getCurrentStudentId())
+                        .put("subjectId", sel.getSubjectId());
+                java.net.Socket s = new java.net.Socket();
+                s.connect(new java.net.InetSocketAddress(
+                        com.vCampus.common.ConfigManager.getSocketServerHost(),
+                        com.vCampus.common.ConfigManager.getSocketServerPort()),
+                        com.vCampus.common.ConfigManager.getSocketConnectTimeoutMs());
+                s.setSoTimeout(com.vCampus.common.ConfigManager.getSocketSoTimeoutMs());
+                try (java.io.ObjectOutputStream out = new java.io.ObjectOutputStream(s.getOutputStream());
+                     java.io.ObjectInputStream in = new java.io.ObjectInputStream(s.getInputStream())) {
+                    out.writeObject(req); out.flush();
+                    Object obj = in.readObject();
+                    if (obj instanceof com.vCampus.net.dto.SocketResponse resp) {
+                        ok = resp.isSuccess();
+                        msg = resp.getMessage();
+                    } else {
+                        msg = "服务器返回非法响应";
+                    }
+                } finally { s.close(); }
+            } catch (Exception e) {
+                ok = false;
+                msg = "连接失败: " + e.getMessage();
+            }
+        } else {
+            ok = chooseService.chooseSubject(getCurrentStudentId(), sel.getSubjectId());
+            msg = ok ? "选课成功" : "选课失败";
+        }
+        if (ok) { showSuccess(msg == null ? "选课成功" : msg); loadAll(); loadMy(); } else { showError(msg == null ? "选课失败" : msg); }
     }
 
     @FXML
@@ -248,14 +281,80 @@ public class ChooseController extends BaseController {
         Subject sel = myTable.getSelectionModel().getSelectedItem();
         if (sel == null) { showWarning("请选择要退的课程"); return; }
         // 根据学生id和课程id找到对应的选课记录id
-        var chooses = chooseService.getSubjectChooses(sel.getSubjectId());
-        var myRecord = chooses.stream()
-                .filter(c -> c.getStudentId().equals(getCurrentStudentId()))
-                .findFirst()
-                .orElse(null);
-        if (myRecord == null) { showError("未找到选课记录"); return; }
-        boolean ok = chooseService.dropSubject(myRecord.getSelectid());
-        if (ok) { showSuccess("退课成功"); loadAll(); loadMy(); } else { showError("退课失败"); }
+        String selectId = null;
+        if (com.vCampus.common.ConfigManager.isSocketEnabled()) {
+            // 从服务器查询该课程的选课记录，筛出当前学生的 selectid
+            try {
+                var req = new com.vCampus.net.dto.SocketRequest("SUBJECT_CHOOSES").put("subjectId", sel.getSubjectId());
+                java.net.Socket s = new java.net.Socket();
+                s.connect(new java.net.InetSocketAddress(
+                        com.vCampus.common.ConfigManager.getSocketServerHost(),
+                        com.vCampus.common.ConfigManager.getSocketServerPort()),
+                        com.vCampus.common.ConfigManager.getSocketConnectTimeoutMs());
+                s.setSoTimeout(com.vCampus.common.ConfigManager.getSocketSoTimeoutMs());
+                try (java.io.ObjectOutputStream out = new java.io.ObjectOutputStream(s.getOutputStream());
+                     java.io.ObjectInputStream in = new java.io.ObjectInputStream(s.getInputStream())) {
+                    out.writeObject(req); out.flush();
+                    Object obj = in.readObject();
+                    if (obj instanceof com.vCampus.net.dto.SocketResponse resp
+                            && resp.isSuccess()
+                            && resp.getData() instanceof java.util.Map<?,?> m
+                            && m.get("rows") instanceof java.util.List<?> rows) {
+                        String sid = getCurrentStudentId();
+                        for (Object r : rows) {
+                            if (r instanceof java.util.Map<?,?> rm) {
+                                Object studentId = rm.get("studentId");
+                                if (studentId != null && sid.equals(String.valueOf(studentId))) {
+                                    Object selId = rm.get("selectid");
+                                    if (selId != null) selectId = String.valueOf(selId);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                } finally { s.close(); }
+            } catch (Exception ignored) {}
+        } else {
+            var chooses = chooseService.getSubjectChooses(sel.getSubjectId());
+            var myRecord = chooses.stream()
+                    .filter(c -> c.getStudentId().equals(getCurrentStudentId()))
+                    .findFirst()
+                    .orElse(null);
+            if (myRecord != null) selectId = myRecord.getSelectid();
+        }
+        if (selectId == null || selectId.isBlank()) { showError("未找到选课记录"); return; }
+        boolean ok;
+        String msg;
+        if (com.vCampus.common.ConfigManager.isSocketEnabled()) {
+            ok = false; msg = null;
+            try {
+                var req = new com.vCampus.net.dto.SocketRequest("DROP")
+                        .put("selectid", selectId);
+                java.net.Socket s = new java.net.Socket();
+                s.connect(new java.net.InetSocketAddress(
+                        com.vCampus.common.ConfigManager.getSocketServerHost(),
+                        com.vCampus.common.ConfigManager.getSocketServerPort()),
+                        com.vCampus.common.ConfigManager.getSocketConnectTimeoutMs());
+                s.setSoTimeout(com.vCampus.common.ConfigManager.getSocketSoTimeoutMs());
+                try (java.io.ObjectOutputStream out = new java.io.ObjectOutputStream(s.getOutputStream());
+                     java.io.ObjectInputStream in = new java.io.ObjectInputStream(s.getInputStream())) {
+                    out.writeObject(req); out.flush();
+                    Object obj = in.readObject();
+                    if (obj instanceof com.vCampus.net.dto.SocketResponse resp) {
+                        ok = resp.isSuccess();
+                        msg = resp.getMessage();
+                    } else {
+                        msg = "服务器返回非法响应";
+                    }
+                } finally { s.close(); }
+            } catch (Exception e) {
+                ok = false; msg = "连接失败: " + e.getMessage();
+            }
+        } else {
+            ok = chooseService.dropSubject(selectId);
+            msg = ok ? "退课成功" : "退课失败";
+        }
+        if (ok) { showSuccess(msg == null ? "退课成功" : msg); loadAll(); loadMy(); } else { showError(msg == null ? "退课失败" : msg); }
     }
 
     @FXML

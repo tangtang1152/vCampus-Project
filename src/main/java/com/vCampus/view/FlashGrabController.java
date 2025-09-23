@@ -173,7 +173,8 @@ public class FlashGrabController extends BaseController {
 									sObj.setWeekType(String.valueOf(rm.get("weekType")));
 									sObj.setClassTime(String.valueOf(rm.get("classTime")));
 									sObj.setClassroom(String.valueOf(rm.get("classroom")));
-									list.add(sObj);
+                            Object cc = rm.get("chosenCount"); if (cc != null) sObj.setChosenCount(((Number)cc).intValue());
+                            list.add(sObj);
 								}
 							}
 						}

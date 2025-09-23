@@ -66,6 +66,8 @@ public class CourseRequestDispatcher {
                 return new SocketResponse(true, "PONG");
             case "CHOOSE":
                 return handleChoose(req);
+            case "DROP":
+                return handleDrop(req);
             case "BORROW":
                 return handleBorrow(req);
             case "RENEW":
@@ -88,9 +90,14 @@ public class CourseRequestDispatcher {
             case "SHOP_DELETE":
                 return handleShopDelete(req);
             case "SUBJECT_LIST":
+                System.out.println("[SOCKET] SUBJECT_LIST request: keyword=" + req.getParam("keyword"));
                 return handleSubjectList(req);
             case "MY_SUBJECTS":
+                System.out.println("[SOCKET] MY_SUBJECTS request: studentId=" + req.getParam("studentId"));
                 return handleMySubjects(req);
+            case "SUBJECT_CHOOSES":
+                System.out.println("[SOCKET] SUBJECT_CHOOSES request: subjectId=" + req.getParam("subjectId"));
+                return handleSubjectChooses(req);
             case "LIB_LIST":
                 return handleLibList(req);
             case "LIB_MY_BORROWS":
@@ -435,6 +442,16 @@ public class CourseRequestDispatcher {
         return new SocketResponse(ok, ok ? "选课成功" : "选课失败：可能已满或已选过");
     }
 
+    private SocketResponse handleDrop(SocketRequest req) {
+        String selectId = req.getParam("selectid");
+        if (isBlank(selectId)) {
+            return new SocketResponse(false, "参数不足");
+        }
+        IChooseService chooseService = ServiceFactory.getChooseService();
+        boolean ok = chooseService.dropSubject(selectId);
+        return new SocketResponse(ok, ok ? "退课成功" : "退课失败");
+    }
+
     private SocketResponse handleBorrow(SocketRequest req) {
         String userId = req.getParam("userId");
         Integer bookId = parseInt(req.getParam("bookId"));
@@ -592,7 +609,8 @@ public class CourseRequestDispatcher {
     private SocketResponse handleSubjectList(SocketRequest req) {
         String keyword = req.getParam("keyword");
         var svc = ServiceFactory.getSubjectService();
-        java.util.List<com.vCampus.entity.Subject> list = (keyword == null || keyword.isBlank())
+        var choose = ServiceFactory.getChooseService();
+        java.util.List<com.vCampus.entity.Subject> list = (keyword == null)
                 ? svc.getAllSubjects()
                 : svc.getSubjectsByName(keyword);
         java.util.List<java.util.Map<String,Object>> rows = new java.util.ArrayList<>();
@@ -609,7 +627,16 @@ public class CourseRequestDispatcher {
             m.put("weekType", s.getWeekType());
             m.put("classTime", s.getClassTime());
             m.put("classroom", s.getClassroom());
+            // chosenCount 从服务器数据库计算，确保所有客户端一致
+            int count = 0;
+            try {
+                count = (int) choose.getSubjectChooses(s.getSubjectId()).stream().count();
+            } catch (Exception e) {
+                // 不中断，保持 0
+            }
+            m.put("chosenCount", count);
             rows.add(m);
+            System.out.println("[SOCKET] SUBJECT_LIST item subjectId=" + s.getSubjectId() + ", chosenCount=" + count);
         }
         java.util.Map<String,Object> map = new java.util.HashMap<>();
         map.put("rows", rows);
@@ -634,6 +661,31 @@ public class CourseRequestDispatcher {
             m.put("weekType", s.getWeekType());
             m.put("classTime", s.getClassTime());
             m.put("classroom", s.getClassroom());
+            rows.add(m);
+        }
+        java.util.Map<String,Object> map = new java.util.HashMap<>();
+        map.put("rows", rows);
+        return new SocketResponse(true, "OK", (java.io.Serializable) map);
+    }
+
+    // ================= Subject chooses over socket =================
+    private SocketResponse handleSubjectChooses(SocketRequest req) {
+        String subjectId = req.getParam("subjectId");
+        if (isBlank(subjectId)) return new SocketResponse(false, "参数不足");
+        var chooseSvc = ServiceFactory.getChooseService();
+        var stuSvc = ServiceFactory.getStudentService();
+        java.util.List<com.vCampus.entity.Choose> chooses = chooseSvc.getSubjectChooses(subjectId);
+        System.out.println("[SOCKET] SUBJECT_CHOOSES size=" + (chooses==null?0:chooses.size()));
+        java.util.List<java.util.Map<String,Object>> rows = new java.util.ArrayList<>();
+        for (var ch : chooses) {
+            java.util.Map<String,Object> m = new java.util.HashMap<>();
+            String sid = ch.getStudentId();
+            m.put("studentId", sid);
+            m.put("selectid", ch.getSelectid());
+            try {
+                var s = stuSvc.getBySelfId(sid);
+                if (s != null) m.put("studentName", s.getStudentName());
+            } catch (Exception ignored) {}
             rows.add(m);
         }
         java.util.Map<String,Object> map = new java.util.HashMap<>();

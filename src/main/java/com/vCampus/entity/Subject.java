@@ -17,6 +17,9 @@ public class Subject {
     private String classTime;      // 具体上课时间（如 "周一第1-2节,周三第3-4节"）
     private String classroom;      // 教室位置（如 "教101"）
 
+    // 非持久化统计字段（服务器返回时携带），用于显示已选人数
+    private Integer chosenCount;
+
     // ==================== 构造函数 ====================
     public Subject() {
         // 原有初始化逻辑
@@ -132,6 +135,14 @@ public class Subject {
 
     public void setClassroom(String classroom) {
         this.classroom = classroom;
+    }
+
+    public Integer getChosenCount() {
+        return chosenCount;
+    }
+
+    public void setChosenCount(Integer chosenCount) {
+        this.chosenCount = chosenCount;
     }
 
     // toString、equals、hashCode方法同步更新，包含新增字段

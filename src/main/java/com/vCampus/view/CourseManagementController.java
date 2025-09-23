@@ -94,14 +94,17 @@ public class CourseManagementController extends BaseController {
         colChosenCount.setCellValueFactory(c -> {
             String subjectId = c.getValue().getSubjectId();
             if (subjectId == null || subjectId.isEmpty()) return new SimpleIntegerProperty(0);
-            // 仅统计“学生仍存在”的有效选课记录，避免孤儿记录造成人数偏差
-            int count = (int) chooseService.getSubjectChooses(subjectId).stream()
+            // 优先使用服务器返回的 chosenCount，避免在每个单元格里发起网络请求
+            Number chosenCount = c.getValue().getChosenCount();
+            if (chosenCount != null) return new SimpleIntegerProperty(chosenCount.intValue());
+            // 回退：本地统计有效选课记录
+            int localCount = (int) chooseService.getSubjectChooses(subjectId).stream()
                     .filter(ch -> {
                         try { return studentService.getBySelfId(ch.getStudentId()) != null; }
                         catch (Exception ignored) { return false; }
                     })
                     .count();
-            return new SimpleIntegerProperty(count);
+            return new SimpleIntegerProperty(localCount);
         });
     }
 
@@ -140,8 +143,55 @@ public class CourseManagementController extends BaseController {
 
     private void refresh() {
         String kw = keywordField == null ? "" : keywordField.getText();
-        List<Subject> list = subjectService.getSubjectsByName(kw);
+        List<Subject> list = fetchSubjectsFromServer(kw);
+        if (list == null || list.isEmpty()) {
+            list = subjectService.getSubjectsByName(kw);
+        }
         data.setAll(list);
+    }
+
+    private List<Subject> fetchSubjectsFromServer(String kw) {
+        try {
+            var req = new com.vCampus.net.dto.SocketRequest("SUBJECT_LIST").put("keyword", kw);
+            java.net.Socket s = new java.net.Socket();
+            s.connect(new java.net.InetSocketAddress(
+                    com.vCampus.common.ConfigManager.getSocketServerHost(),
+                    com.vCampus.common.ConfigManager.getSocketServerPort()),
+                    com.vCampus.common.ConfigManager.getSocketConnectTimeoutMs());
+            s.setSoTimeout(com.vCampus.common.ConfigManager.getSocketSoTimeoutMs());
+            try (java.io.ObjectOutputStream out = new java.io.ObjectOutputStream(s.getOutputStream());
+                 java.io.ObjectInputStream in = new java.io.ObjectInputStream(s.getInputStream())) {
+                out.writeObject(req); out.flush();
+                Object obj = in.readObject();
+                if (obj instanceof com.vCampus.net.dto.SocketResponse resp
+                        && resp.isSuccess()
+                        && resp.getData() instanceof java.util.Map<?,?> m
+                        && m.get("rows") instanceof java.util.List<?> rows) {
+                    java.util.List<Subject> list = new java.util.ArrayList<>();
+                    for (Object r : rows) {
+                        if (r instanceof java.util.Map<?,?> rm) {
+                            Subject sObj = new Subject();
+                            sObj.setSubjectId(String.valueOf(rm.get("subjectId")));
+                            sObj.setSubjectName(String.valueOf(rm.get("subjectName")));
+                            Object dt = rm.get("subjectDate");
+                            if (dt instanceof java.sql.Date d) sObj.setSubjectDate(new java.util.Date(d.getTime()));
+                            else if (dt instanceof java.util.Date d2) sObj.setSubjectDate(d2);
+                            Object sn = rm.get("subjectNum"); if (sn != null) sObj.setSubjectNum(((Number)sn).intValue());
+                            Object cr = rm.get("credit"); if (cr != null) sObj.setCredit(((Number)cr).doubleValue());
+                            sObj.setTeacherId(String.valueOf(rm.get("teacherId")));
+                            sObj.setWeekRange(String.valueOf(rm.get("weekRange")));
+                            sObj.setWeekType(String.valueOf(rm.get("weekType")));
+                            sObj.setClassTime(String.valueOf(rm.get("classTime")));
+                            sObj.setClassroom(String.valueOf(rm.get("classroom")));
+                            Object cc = rm.get("chosenCount"); if (cc != null) sObj.setChosenCount(((Number)cc).intValue());
+                            list.add(sObj);
+                        }
+                    }
+                    return list;
+                }
+            } finally { s.close(); }
+        } catch (Exception ignored) {}
+        return java.util.Collections.emptyList();
     }
 
     @FXML 
