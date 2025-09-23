@@ -58,8 +58,37 @@ public class LoginController extends BaseController {
         }
 
         try {
-            IUserService userService = ServiceFactory.getUserService();
-            User genericUser = userService.login(username, password); // 获取通用 User 对象（支持多角色）
+            User genericUser = null;
+            if (com.vCampus.common.ConfigManager.isSocketEnabled()) {
+                // 通过 Socket 登录服务器
+                var req = new com.vCampus.net.dto.SocketRequest("USER_LOGIN")
+                        .put("username", username)
+                        .put("password", password);
+                java.net.Socket s = new java.net.Socket();
+                s.connect(new java.net.InetSocketAddress(com.vCampus.common.ConfigManager.getSocketServerHost(), com.vCampus.common.ConfigManager.getSocketServerPort()), com.vCampus.common.ConfigManager.getSocketConnectTimeoutMs());
+                s.setSoTimeout(com.vCampus.common.ConfigManager.getSocketSoTimeoutMs());
+                try (java.io.ObjectOutputStream out = new java.io.ObjectOutputStream(s.getOutputStream());
+                     java.io.ObjectInputStream in = new java.io.ObjectInputStream(s.getInputStream())) {
+                    out.writeObject(req); out.flush();
+                    Object obj = in.readObject();
+                    if (obj instanceof com.vCampus.net.dto.SocketResponse resp && resp.isSuccess() && resp.getData() instanceof java.util.Map<?,?> m) {
+                        genericUser = new User();
+                        Object uid = m.get("userId"); if (uid instanceof Number) genericUser.setUserId(((Number)uid).intValue());
+                        genericUser.setUsername(String.valueOf(m.get("username")));
+                        // 角色集合
+                        java.util.Set<String> roles = new java.util.HashSet<>();
+                        Object rs = m.get("roles");
+                        if (rs instanceof java.util.Collection<?> c) for (Object r : c) roles.add(String.valueOf(r));
+                        genericUser.setRoleSet(roles);
+                        // 主角色（若有）
+                        String active = String.valueOf(m.get("activeRole"));
+                        if (active != null) genericUser.setRole(active);
+                    }
+                } finally { s.close(); }
+            } else {
+                IUserService userService = ServiceFactory.getUserService();
+                genericUser = userService.login(username, password);
+            }
 
             if (genericUser != null) {
                 // 将通用 User 放入会话，并设置激活角色为主角色（在 SessionContext 内部完成）
