@@ -67,6 +67,9 @@ public class LibraryService {
             if (bk.getAvailableCopies() == null || bk.getAvailableCopies() <= 0) return ServiceResult.fail("库存不足");
 
             Integer uid = Integer.parseInt(userId);
+            // 新增：校验用户是否存在，避免外键约束报错
+            User actor = getUserById(uid);
+            if (actor == null) return ServiceResult.fail("用户不存在或已被删除");
             
             // 暂时使用默认规则，避免复杂的用户检查
             int maxBorrowCount = 5; // 默认值
