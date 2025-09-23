@@ -183,10 +183,13 @@ extends AbstractBaseServiceImpl<User, Integer> implements IUserService {
             System.out.println("教师编号: " + teacher.getTeacherId());
             System.out.println("用户名: " + teacher.getUsername());
             System.out.println("姓名: " + teacher.getTeacherName());
+            System.out.println("性别: " + teacher.getSex());
+            System.out.println("职称: " + teacher.getTechnical());
+            System.out.println("部门ID: " + teacher.getDepartmentId());
 
             // 验证教师数据
             if (!ValidationService.validateTeacher(teacher)) {
-                System.out.println("教师数据验证失败");
+                System.out.println("教师数据验证失败 - 请检查所有必填字段是否填写完整");
                 return RegisterResult.VALIDATION_FAILED;
             }
 
@@ -211,6 +214,7 @@ extends AbstractBaseServiceImpl<User, Integer> implements IUserService {
             System.out.println("教师编号不存在，可以注册");
 
             // 首先创建用户账户
+            System.out.println("开始创建用户账户...");
             boolean userCreated = userDao.insert(teacher, conn);
             if (!userCreated) {
                 System.out.println("创建用户账户失败");
@@ -220,6 +224,7 @@ extends AbstractBaseServiceImpl<User, Integer> implements IUserService {
             System.out.println("用户账户创建成功，用户ID: " + teacher.getUserId());
 
             // 然后创建教师信息
+            System.out.println("开始创建教师信息...");
             boolean teacherCreated = teacherDao.insert(teacher, conn);
             if (teacherCreated) {
                 System.out.println("教师信息创建成功");
@@ -247,7 +252,7 @@ extends AbstractBaseServiceImpl<User, Integer> implements IUserService {
 
             // 验证管理员数据
             if (!ValidationService.validateAdmin(admin)) {
-                System.out.println("管理员数据验证失败");
+                System.out.println("管理员数据验证失败 - 请检查所有必填字段是否填写完整");
                 return RegisterResult.VALIDATION_FAILED;
             }
 
@@ -272,6 +277,7 @@ extends AbstractBaseServiceImpl<User, Integer> implements IUserService {
             System.out.println("管理员工号不存在，可以注册");
 
             // 首先创建用户账户
+            System.out.println("开始创建用户账户...");
             boolean userCreated = userDao.insert(admin, conn);
             if (!userCreated) {
                 System.out.println("创建用户账户失败");
@@ -281,6 +287,7 @@ extends AbstractBaseServiceImpl<User, Integer> implements IUserService {
             System.out.println("用户账户创建成功，用户ID: " + admin.getUserId());
 
             // 然后创建管理员信息
+            System.out.println("开始创建管理员信息...");
             boolean adminCreated = adminDao.insert(admin, conn);
             if (adminCreated) {
                 System.out.println("管理员信息创建成功");

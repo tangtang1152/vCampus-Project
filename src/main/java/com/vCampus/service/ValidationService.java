@@ -46,12 +46,19 @@ public class ValidationService {
      */
     public static boolean validateTeacher(Teacher teacher) {
         if (teacher == null) return false;
+        // 验证教师编号
+        if (teacher.getTeacherId() == null || teacher.getTeacherId().trim().isEmpty()) return false;
+        if (teacher.getTeacherId().length() > DBConstants.TEACHER_ID_MAX_LENGTH) return false;
+        // 验证教师姓名
         if (teacher.getTeacherName() == null || teacher.getTeacherName().trim().isEmpty()) return false;
         if (teacher.getTeacherName().length() > DBConstants.TEACHER_NAME_MAX_LENGTH) return false;
+        // 验证职称
         if (teacher.getTechnical() == null || teacher.getTechnical().trim().isEmpty()) return false;
         if (teacher.getTechnical().length() > DBConstants.TECHNICAL_MAX_LENGTH) return false;
+        // 验证部门ID
         if (teacher.getDepartmentId() == null || teacher.getDepartmentId().trim().isEmpty()) return false;
         if (teacher.getDepartmentId().length() > DBConstants.DEPARTMENT_ID_MAX_LENGTH) return false;
+        // 验证性别
         if (teacher.getSex() == null || teacher.getSex().trim().isEmpty()) return false;
         if (!"男".equals(teacher.getSex()) && !"女".equals(teacher.getSex())) return false;
         if (teacher.getSex().length() > DBConstants.SEX_MAX_LENGTH) return false;
