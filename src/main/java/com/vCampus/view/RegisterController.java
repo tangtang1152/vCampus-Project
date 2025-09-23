@@ -162,6 +162,7 @@ public class RegisterController {
                     if (user instanceof Student s) {
                         if (s.getStudentId() != null) req.put("studentId", s.getStudentId());
                         if (s.getStudentName() != null) req.put("studentName", s.getStudentName());
+                        if (s.getClassName() != null) req.put("className", s.getClassName());
                     }
                     java.net.Socket sk = new java.net.Socket();
                     sk.connect(new java.net.InetSocketAddress(com.vCampus.common.ConfigManager.getSocketServerHost(), com.vCampus.common.ConfigManager.getSocketServerPort()), com.vCampus.common.ConfigManager.getSocketConnectTimeoutMs());

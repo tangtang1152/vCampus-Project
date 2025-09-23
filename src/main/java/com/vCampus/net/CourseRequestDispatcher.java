@@ -104,6 +104,7 @@ public class CourseRequestDispatcher {
         String role = req.getParam("role"); // STUDENT/TEACHER/ADMIN
         String studentId = req.getParam("studentId");
         String studentName = req.getParam("studentName");
+        String className = req.getParam("className");
         if (isBlank(username) || isBlank(password) || isBlank(role)) return new SocketResponse(false, "参数不足");
         var svc = ServiceFactory.getUserService();
         if (svc.isUsernameExists(username)) return new SocketResponse(false, "用户名已存在");
@@ -111,17 +112,23 @@ public class CourseRequestDispatcher {
         user.setUsername(username); user.setPassword(password); user.setRole(role);
         var res = svc.register(user);
         if (res != com.vCampus.service.IUserService.RegisterResult.SUCCESS) return new SocketResponse(false, res.getMessage());
-        // 可选：若是学生并携带学号/姓名，创建学生档案
+        // 若是学生且携带学号，必须提供班级；否则不允许注册
         if ("STUDENT".equalsIgnoreCase(role) && studentId != null && !studentId.isBlank()) {
             try {
                 var stuSvc = ServiceFactory.getStudentService();
                 com.vCampus.entity.Student s = new com.vCampus.entity.Student();
-                s.setStudentId(studentId);
-                s.setStudentName(studentName == null ? username : studentName);
+                s.setStudentId(studentId.trim());
+                s.setStudentName((studentName == null || studentName.isBlank()) ? username : studentName.trim());
+                if (className == null || className.isBlank()) {
+                    return new SocketResponse(false, "班级不能为空");
+                }
+                s.setClassName(className.trim());
                 s.setUserId(svc.getByUsername(username).getUserId());
                 // IStudentService 继承了 IBaseService，新增学生使用 add()
                 stuSvc.add(s);
-            } catch (Exception ignored) {}
+            } catch (Exception e) {
+                return new SocketResponse(false, "注册成功但创建学生档案失败: " + e.getMessage());
+            }
         }
         return new SocketResponse(true, "注册成功");
     }
