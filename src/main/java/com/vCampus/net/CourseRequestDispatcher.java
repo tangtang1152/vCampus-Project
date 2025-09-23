@@ -71,6 +71,10 @@ public class CourseRequestDispatcher {
                 return handleLibDelete(req);
             case "LIB_SET_STATUS":
                 return handleLibSetStatus(req);
+            case "LIB_PAY_FINE":
+                return handleLibPayFine(req);
+            case "LIB_PAY_FINE_FOR_RECORD":
+                return handleLibPayFineForRecord(req);
             default:
                 return new SocketResponse(false, "未知指令: " + action);
         }
@@ -198,7 +202,7 @@ public class CourseRequestDispatcher {
             items.add(oi);
         }
         String orderId = svc.purchase(dto.studentId, items);
-        if (orderId == null) return new SocketResponse(false, "下单失败");
+        if (orderId == null) return new SocketResponse(false, "库存不足或商品不存在");
         ShopDtos.CreateOrderRespDTO resp = new ShopDtos.CreateOrderRespDTO();
         resp.orderId = orderId;
         resp.totalAmount = svc.calculateCartTotal(items);
@@ -212,7 +216,7 @@ public class CourseRequestDispatcher {
         String orderId = req.getParam("orderId");
         if (orderId == null || orderId.isBlank()) return new SocketResponse(false, "orderId 不能为空");
         boolean ok = ServiceFactory.getShopService().payOrder(orderId);
-        return new SocketResponse(ok, ok ? "支付成功" : "支付失败");
+        return new SocketResponse(ok, ok ? "支付成功" : "订单不存在或状态异常");
     }
 
     private SocketResponse handleShopAdd(SocketRequest req) {
@@ -347,9 +351,7 @@ public class CourseRequestDispatcher {
             m.put("recordId", r.getRecordId());
             m.put("bookId", r.getBookId());
             try {
-                com.vCampus.entity.Book b = ServiceFactory.getLibraryService().searchBooks("",1,1).stream()
-                        .filter(x -> x.getBookId()!=null && x.getBookId().equals(r.getBookId()))
-                        .findFirst().orElse(null);
+                com.vCampus.entity.Book b = ServiceFactory.getLibraryService().getBookById(r.getBookId());
                 if (b != null) m.put("title", b.getTitle());
             } catch (Exception ignored) {}
             m.put("borrowDate", r.getBorrowDate());
@@ -419,6 +421,21 @@ public class CourseRequestDispatcher {
         boolean ok = lib.setBookStatus(id, status);
         com.vCampus.util.AuditLogger.log("LIB_SET_STATUS", String.format("bookId=%s status=%s result=%s", String.valueOf(id), status, ok));
         return new SocketResponse(ok, ok ? "状态已更新" : "状态更新失败");
+    }
+
+    private SocketResponse handleLibPayFine(SocketRequest req) {
+        String userId = req.getParam("userId");
+        if (isBlank(userId)) return new SocketResponse(false, "参数不足");
+        var res = ServiceFactory.getLibraryService().payAllFines(userId);
+        return new SocketResponse(res.isSuccess(), res.getMessage());
+    }
+
+    private SocketResponse handleLibPayFineForRecord(SocketRequest req) {
+        String userId = req.getParam("userId");
+        Integer recordId = parseInt(req.getParam("recordId"));
+        if (isBlank(userId) || recordId == null) return new SocketResponse(false, "参数不足");
+        var res = ServiceFactory.getLibraryService().payFineForRecord(userId, recordId);
+        return new SocketResponse(res.isSuccess(), res.getMessage());
     }
 }
 

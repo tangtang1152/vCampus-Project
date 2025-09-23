@@ -53,6 +53,18 @@ public class LibrarySocketClient {
         return send(req);
     }
 
+    public CourseGrabResult payAllFines(String userId) {
+        SocketRequest req = new SocketRequest("LIB_PAY_FINE").put("userId", userId);
+        return send(req);
+    }
+
+    public CourseGrabResult payFineForRecord(String userId, Integer recordId) {
+        SocketRequest req = new SocketRequest("LIB_PAY_FINE_FOR_RECORD")
+                .put("userId", userId)
+                .put("recordId", String.valueOf(recordId));
+        return send(req);
+    }
+
     private CourseGrabResult send(SocketRequest req) {
         try (Socket s = new Socket()) {
             s.connect(new java.net.InetSocketAddress(host, port), ConfigManager.getSocketConnectTimeoutMs());

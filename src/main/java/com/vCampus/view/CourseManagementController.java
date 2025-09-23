@@ -94,7 +94,14 @@ public class CourseManagementController extends BaseController {
         colChosenCount.setCellValueFactory(c -> {
             String subjectId = c.getValue().getSubjectId();
             if (subjectId == null || subjectId.isEmpty()) return new SimpleIntegerProperty(0);
-            return new SimpleIntegerProperty(chooseService.getSubjectChooses(subjectId).size());
+            // 仅统计“学生仍存在”的有效选课记录，避免孤儿记录造成人数偏差
+            int count = (int) chooseService.getSubjectChooses(subjectId).stream()
+                    .filter(ch -> {
+                        try { return studentService.getBySelfId(ch.getStudentId()) != null; }
+                        catch (Exception ignored) { return false; }
+                    })
+                    .count();
+            return new SimpleIntegerProperty(count);
         });
     }
 

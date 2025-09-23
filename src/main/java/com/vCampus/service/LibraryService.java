@@ -40,6 +40,11 @@ public class LibraryService {
         });
     }
 
+    // 新增：按ID获取图书（只读事务）
+    public com.vCampus.entity.Book getBookById(Integer bookId) {
+        return TransactionManager.executeInReadTransaction(conn -> bookDao.findById(bookId, conn));
+    }
+
     // 统计用于分页的总数
     public int countBooksAdvanced(String keyword, String status) {
         return TransactionManager.executeInReadTransaction(conn -> {
@@ -70,14 +75,14 @@ public class LibraryService {
             int active = borrowRecordDao.countActiveBorrowsByUser(uid, conn);
             if (active >= maxBorrowCount)
                 return ServiceResult.fail("超过最大借阅数 " + maxBorrowCount);
-            if (borrowRecordDao.existsOverdueByUser(uid, conn))
-                return ServiceResult.fail("存在逾期记录，无法借书");
+            if (borrowRecordDao.existsUnpaidFineByUser(uid, conn))
+                return ServiceResult.fail("存在未清罚金，无法借书");
 
             // 防重复借阅：同一用户对同一本书只能存在一条借出记录
             if (borrowRecordDao.existsActiveByUserAndBook(uid, bookId, conn))
                 return ServiceResult.fail("您已借出该书，无法重复借阅");
 
-            if (!bookDao.decreaseAvailable(bookId, conn)) return ServiceResult.fail("扣减库存失败");
+            if (!bookDao.decreaseAvailable(bookId, conn)) return ServiceResult.fail("库存不足");
             // 库存负数保护：再次断言
             com.vCampus.entity.Book chk = bookDao.findById(bookId, conn);
             if (chk == null || chk.getAvailableCopies() == null || chk.getAvailableCopies() < 0) {
@@ -152,6 +157,7 @@ public class LibraryService {
             BorrowRecord r = borrowRecordDao.findById(recordId, conn);
             if (r == null) return ServiceResult.fail("借阅记录不存在");
             if (!"借出".equals(r.getStatus())) return ServiceResult.fail("仅在借出状态可续借");
+            if (borrowRecordDao.existsUnpaidFineByUser(Integer.parseInt(userId), conn)) return ServiceResult.fail("存在未清罚金，无法续借");
             // 禁止逾期续借
             if (r.getDueDate() != null && r.getDueDate().toLocalDate().isBefore(LocalDate.now())) return ServiceResult.fail("已逾期，无法续借");
             
@@ -182,6 +188,37 @@ public class LibraryService {
             r.setRenewTimes((r.getRenewTimes() == null ? 0 : r.getRenewTimes()) + 1);
             boolean ok = borrowRecordDao.update(r, conn);
             return ok ? ServiceResult.ok("续借成功（"+ d +" 天），新的到期日：" + newDue + "，剩余续借次数：" + (userMaxRenewTimes - r.getRenewTimes())) : ServiceResult.fail("续借失败");
+        });
+    }
+
+    /**
+     * 按记录缴纳罚金（清欠）。不自动改变借阅状态，仅将罚金清零。
+     */
+    public ServiceResult payFineForRecord(String userId, Integer recordId) {
+        return TransactionManager.executeInTransaction(conn -> {
+            BorrowRecord r = borrowRecordDao.findById(recordId, conn);
+            if (r == null) return ServiceResult.fail("借阅记录不存在");
+            if (r.getUserId() == null || !r.getUserId().equals(Integer.parseInt(userId))) return ServiceResult.fail("非本人记录，需管理员处理");
+            if (r.getFine() == null || r.getFine() <= 0) return ServiceResult.fail("无需缴纳罚金");
+            boolean ok = borrowRecordDao.markFinePaid(recordId, conn);
+            return ok ? ServiceResult.ok("已缴纳罚金") : ServiceResult.fail("缴纳失败");
+        });
+    }
+
+    /**
+     * 按用户缴清所有未清罚金。
+     */
+    public ServiceResult payAllFines(String userId) {
+        return TransactionManager.executeInTransaction(conn -> {
+            List<BorrowRecord> list = borrowRecordDao.listByUser(userId, conn);
+            double total = 0.0; int cnt = 0;
+            for (BorrowRecord r : list) {
+                if (r.getFine() != null && r.getFine() > 0) {
+                    if (borrowRecordDao.markFinePaid(r.getRecordId(), conn)) { total += r.getFine(); cnt++; }
+                }
+            }
+            if (cnt == 0) return ServiceResult.fail("无未清罚金");
+            return ServiceResult.ok("已缴清 " + cnt + " 条记录罚金");
         });
     }
 

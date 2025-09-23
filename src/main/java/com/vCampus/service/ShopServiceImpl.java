@@ -76,6 +76,19 @@ public class ShopServiceImpl implements IShopService {
             System.err.println("购买失败：购物车项验证失败");
             return null;
         }
+
+        // 先行检查每项库存，给出明确原因（不替代事务内的条件更新）
+        for (OrderItem it : items) {
+            Product p = productService.getProductById(it.getProductId());
+            if (p == null) {
+                System.err.println("购买失败：商品不存在: " + it.getProductId());
+                return null;
+            }
+            if (p.getStock() < it.getQuantity()) {
+                System.err.println("购买失败：库存不足: " + it.getProductId());
+                return null;
+            }
+        }
         
         // 2. 计算总金额
         double totalAmount = calculateCartTotal(items);
@@ -112,7 +125,7 @@ public class ShopServiceImpl implements IShopService {
                     // 条件更新库存：防超卖
                     boolean stockUpdated = ((ProductDaoImpl)productDao).updateProductStock(item.getProductId(), -item.getQuantity(), conn);
                     if (!stockUpdated) {
-                        System.err.println("购买失败：商品库存不足或更新失败，productId=" + item.getProductId());
+                        System.err.println("购买失败：库存不足，productId=" + item.getProductId());
                         return null; // 事务回滚
                     }
                     

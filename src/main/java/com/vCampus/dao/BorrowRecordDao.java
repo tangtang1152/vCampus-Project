@@ -234,6 +234,26 @@ public class BorrowRecordDao implements IBorrowRecordDao {
         }
     }
 
+    @Override
+    public boolean existsUnpaidFineByUser(Integer userId, Connection conn) throws SQLException {
+        // 约定：逾期记录且 fine>0 的视为未清罚金（Access 无布尔字段时简化处理）
+        String sql = "SELECT 1 FROM tbl_borrow_record WHERE userId=? AND borrowStatus='逾期' AND fine IS NOT NULL AND fine>0 FETCH FIRST 1 ROWS ONLY";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, userId);
+            try (ResultSet rs = ps.executeQuery()) { return rs.next(); }
+        }
+    }
+
+    @Override
+    public boolean markFinePaid(Integer recordId, Connection conn) throws SQLException {
+        // 简化：将罚金置 0，并把状态从“逾期”转为“已还”（若尚未归还则仍保持“逾期”，交罚金不等于自动归还）
+        String sql = "UPDATE tbl_borrow_record SET fine=0 WHERE recordId=?";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, recordId);
+            return ps.executeUpdate() > 0;
+        }
+    }
+
     private BorrowRecord mapRow(ResultSet rs) throws SQLException {
         BorrowRecord r = new BorrowRecord();
         r.setRecordId((Integer) rs.getObject("recordId"));

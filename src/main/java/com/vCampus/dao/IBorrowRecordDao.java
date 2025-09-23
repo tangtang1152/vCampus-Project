@@ -13,6 +13,10 @@ public interface IBorrowRecordDao extends IBaseDao<BorrowRecord, Integer> {
     List<BorrowRecord> findOverdueByUser(String userId, Connection conn) throws SQLException;
     int countActiveBorrowsByUser(Integer userId, Connection conn) throws SQLException;
     boolean existsOverdueByUser(Integer userId, Connection conn) throws SQLException;
+    // 新增：是否存在未清罚金（逾期且未支付）
+    boolean existsUnpaidFineByUser(Integer userId, Connection conn) throws SQLException;
+    // 新增：按记录标记罚金已支付（清欠）
+    boolean markFinePaid(Integer recordId, Connection conn) throws SQLException;
     
     // 新增：是否已借出同一本书（防止重复借阅）
     boolean existsActiveByUserAndBook(Integer userId, Integer bookId, Connection conn) throws SQLException;
