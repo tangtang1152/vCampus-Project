@@ -38,6 +38,7 @@ public class ConfigManager {
         properties.setProperty("socket.serverPort", "9090");
         properties.setProperty("socket.connectTimeoutMs", "5000");
         properties.setProperty("socket.soTimeoutMs", "8000");
+        properties.setProperty("db.verboseLogging", "false");
     }
     
     public static String getDatabasePath() {
@@ -91,5 +92,9 @@ public class ConfigManager {
         } catch (NumberFormatException e) {
             return 8000;
         }
+    }
+
+    public static boolean isDbVerboseLogging() {
+        return Boolean.parseBoolean(properties.getProperty("db.verboseLogging", "false"));
     }
 }

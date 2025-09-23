@@ -37,7 +37,9 @@ public class DBUtil {
             }
             
             // 3. 打印最终路径，这是调试的关键！
-            System.out.println("尝试从以下路径连接数据库: " + dbAbsolutePath);
+            if (ConfigManager.isDbVerboseLogging()) {
+                System.out.println("尝试从以下路径连接数据库: " + dbAbsolutePath);
+            }
             
             // 4. 检查数据库文件是否存在
             File dbFile = new File(dbAbsolutePath);
@@ -45,7 +47,9 @@ public class DBUtil {
                 System.err.println("错误: 数据库文件不存在！请检查路径。");
                 System.err.println("请在src\\main\\resources下创建 'database' 文件夹，并放入 'vCampus.accdb' 文件。");
             } else {
-                System.out.println("数据库文件存在，准备连接...");
+                if (ConfigManager.isDbVerboseLogging()) {
+                    System.out.println("数据库文件存在，准备连接...");
+                }
             }
             
             // 5. 构造UCanAccess的连接字符串
@@ -71,7 +75,9 @@ public class DBUtil {
 
             // 7. 显式加载驱动（确保驱动已就绪）
             Class.forName("net.ucanaccess.jdbc.UcanaccessDriver");
-            System.out.println("UCanAccess驱动加载成功。");
+            if (ConfigManager.isDbVerboseLogging()) {
+                System.out.println("UCanAccess驱动加载成功。");
+            }
             
         } catch (ClassNotFoundException e) {
             System.err.println("致命错误: UCanAccess驱动未找到！");
@@ -86,9 +92,13 @@ public class DBUtil {
      * @throws SQLException 如果连接失败则抛出异常
      */
     public static Connection getConnection() throws SQLException {
-        System.out.println("正在尝试建立数据库连接...");
+        if (ConfigManager.isDbVerboseLogging()) {
+            System.out.println("正在尝试建立数据库连接...");
+        }
         Connection conn = DriverManager.getConnection(connectionString, connectionProperties);
-        System.out.println("数据库连接成功！");
+        if (ConfigManager.isDbVerboseLogging()) {
+            System.out.println("数据库连接成功！");
+        }
         return conn;
     }
 
@@ -100,7 +110,9 @@ public class DBUtil {
         if (conn != null) {
             try {
                 conn.close();
-                System.out.println("数据库连接已关闭。");
+                if (ConfigManager.isDbVerboseLogging()) {
+                    System.out.println("数据库连接已关闭。");
+                }
             } catch (SQLException e) {
                 System.err.println("关闭数据库连接时发生错误:");
                 e.printStackTrace();

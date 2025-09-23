@@ -54,6 +54,7 @@ public class LibraryController extends BaseController {
 
     private final LibraryService libraryService = ServiceFactory.getLibraryService();
     private final ObservableList<Book> data = FXCollections.observableArrayList();
+    private javafx.animation.Timeline autoRefresh;
     private int page = 1;
     private final int pageSize = 10;
 
@@ -85,7 +86,9 @@ public class LibraryController extends BaseController {
             return row;
         });
         // 我的借阅表格
-        brTitleCol.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(resolveBookTitle(c.getValue().getBookId())));
+        brTitleCol.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(
+            c.getValue().getTitle() == null ? String.valueOf(c.getValue().getBookId()) : c.getValue().getTitle()
+        ));
         brBorrowDateCol.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(String.valueOf(c.getValue().getBorrowDate())));
         brDueCol.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(String.valueOf(c.getValue().getDueDate())));
         brStatusCol.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(String.valueOf(c.getValue().getStatus())));
@@ -129,6 +132,7 @@ public class LibraryController extends BaseController {
         asyncLoadMyBorrows();
         // 恢复行样式设置
         setupBorrowTableRowFactory();
+        startAutoRefresh();
     }
 
     @FXML
@@ -137,7 +141,9 @@ public class LibraryController extends BaseController {
         asyncLoadPage();
     }
 
+    private final java.util.concurrent.atomic.AtomicBoolean loadingPage = new java.util.concurrent.atomic.AtomicBoolean(false);
     private void asyncLoadPage() {
+        if (!loadingPage.compareAndSet(false, true)) return;
         String kw = keywordField == null ? "" : keywordField.getText();
         String st = bookStatusBox == null ? "全部" : String.valueOf(bookStatusBox.getValue());
         String sort = sortBox == null ? "默认(最新)" : String.valueOf(sortBox.getValue());
@@ -149,8 +155,9 @@ public class LibraryController extends BaseController {
         LibrarySession.setCurrentPage(curPage);
         LibrarySession.setPageSize(size);
 
-        new Thread(() -> {
+        startDaemon(() -> {
             List<Book> list;
+            Integer totalCount = null;
             if (ConfigManager.isSocketEnabled()) {
                 try {
                     var req = new com.vCampus.net.dto.SocketRequest("LIB_LIST")
@@ -168,6 +175,8 @@ public class LibraryController extends BaseController {
                         Object obj = in.readObject();
                         list = new java.util.ArrayList<>();
                         if (obj instanceof com.vCampus.net.dto.SocketResponse resp && resp.isSuccess() && resp.getData() instanceof java.util.Map<?,?> m && m.get("rows") instanceof java.util.List<?> rows) {
+                            Object tot = m.get("total");
+                            if (tot instanceof Number) totalCount = ((Number) tot).intValue();
                             for (Object r : rows) {
                                 if (r instanceof java.util.Map<?,?> rm) {
                                     Book b = new Book();
@@ -183,26 +192,41 @@ public class LibraryController extends BaseController {
                         }
                     } finally { s.close(); }
                 } catch (Exception e) {
-                    com.vCampus.util.TransactionManager.runLaterSafe(() -> showError("服务器不可用或连接中断，请检查网络/配置后重试"));
+                    com.vCampus.util.TransactionManager.runLaterSafe(() -> {
+                        if (infoLabel != null) infoLabel.setText("服务器不可用或连接中断");
+                    });
                     return; // 不回退到本地
-                }
+                } finally { loadingPage.set(false); }
             } else {
                 list = libraryService.searchBooksAdvanced(kw, st, sort, curPage, size);
+                loadingPage.set(false);
             }
             final List<Book> flist = list;
+            final Integer fTotal = totalCount;
             TransactionManager.runLaterSafe(() -> {
                 data.setAll(flist);
-                infoLabel.setText("共 " + data.size() + " 条（本页）");
+                if (fTotal != null) {
+                    int totalPages = Math.max(1, (fTotal + pageSize - 1) / pageSize);
+                    if (pagination != null) {
+                        pagination.setPageCount(totalPages);
+                        pagination.setCurrentPageIndex(curPage - 1);
+                    }
+                    infoLabel.setText("共 " + fTotal + " 条 / 第 " + curPage + " / 共 " + totalPages + " 页");
+                } else {
+                    infoLabel.setText("共 " + data.size() + " 条（本页）");
+                }
                 LibrarySession.setLastRefreshMillis(System.currentTimeMillis());
             });
-        }, "lib-loadPage").start();
+        }, "lib-loadPage");
     }
 
+    private final java.util.concurrent.atomic.AtomicBoolean loadingBorrows = new java.util.concurrent.atomic.AtomicBoolean(false);
     private void asyncLoadMyBorrows() {
+        if (!loadingBorrows.compareAndSet(false, true)) return;
         String status = statusFilter == null ? "借出" : statusFilter.getValue();
         LibrarySession.setBorrowStatus(status);
         String uid = getCurrentUserId();
-        new Thread(() -> {
+        startDaemon(() -> {
             java.util.List<BorrowRecord> list;
             if (ConfigManager.isSocketEnabled()) {
                 try {
@@ -236,9 +260,10 @@ public class LibraryController extends BaseController {
                     } finally { s.close(); }
                 } catch (Exception e) {
                     list = libraryService.listMyBorrowsByStatus(uid, status);
-                }
+                } finally { loadingBorrows.set(false); }
             } else {
                 list = libraryService.listMyBorrowsByStatus(uid, status);
+                loadingBorrows.set(false);
             }
             final java.util.List<BorrowRecord> flist = list;
             TransactionManager.runLaterSafe(() -> {
@@ -246,25 +271,33 @@ public class LibraryController extends BaseController {
                     borrowTable.getItems().setAll(flist);
                 }
             });
-        }, "lib-loadMyBorrows").start();
+        }, "lib-loadMyBorrows");
+    }
+
+    private void startAutoRefresh() {
+        autoRefresh = new javafx.animation.Timeline(
+                new javafx.animation.KeyFrame(javafx.util.Duration.seconds(8), e -> {
+                    asyncLoadPage();
+                    asyncLoadMyBorrows();
+                })
+        );
+        autoRefresh.setCycleCount(javafx.animation.Animation.INDEFINITE);
+        autoRefresh.play();
+        // 页面关闭时停止刷新，避免后台空转
+        bookTable.sceneProperty().addListener((obs, oldScene, newScene) -> {
+            if (newScene != null) {
+                newScene.windowProperty().addListener((o, ov, nv) -> {
+                    if (nv != null) nv.setOnHidden(evt -> { if (autoRefresh != null) autoRefresh.stop(); });
+                });
+            } else {
+                if (autoRefresh != null) autoRefresh.stop();
+            }
+        });
     }
 
     // 顶部筛选按钮已移除，这里不再需要 onFilter
 
-    private String resolveBookTitle(Integer bookId) {
-        try {
-            // 简单做法：在当前数据集中查找，找不到就默认显示ID
-            for (Book b : data) {
-                if (b.getBookId() != null && b.getBookId().equals(bookId)) return b.getTitle();
-            }
-            // 如需更稳妥，可通过 service 再查一次该书
-            var list = libraryService.searchBooks("", 1, 200);
-            for (Book b : list) {
-                if (b.getBookId() != null && b.getBookId().equals(bookId)) return b.getTitle();
-            }
-        } catch (Exception ignored) {}
-        return String.valueOf(bookId);
-    }
+    // 服务器在 LIB_MY_BORROWS 已返回 title 字段，避免 UI 线程二次查询
 
     @FXML
     private void onBorrow() {

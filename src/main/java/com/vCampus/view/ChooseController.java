@@ -82,15 +82,20 @@ public class ChooseController extends BaseController {
         loadAll();
     }
 
+    private final java.util.concurrent.atomic.AtomicBoolean loadingAll = new java.util.concurrent.atomic.AtomicBoolean(false);
     private void loadAll() {
+        if (!loadingAll.compareAndSet(false, true)) return;
         String kw = keywordField.getText() == null ? "" : keywordField.getText();
-        new Thread(() -> {
+        startDaemon(() -> {
             java.util.List<Subject> list;
             boolean socket = com.vCampus.common.ConfigManager.isSocketEnabled();
             if (socket) {
                 list = fetchSubjectsFromServer(kw);
                 if (list == null) {
-                    com.vCampus.util.TransactionManager.runLaterSafe(() -> showError("服务器不可用或连接中断，请检查网络/配置后重试"));
+                    com.vCampus.util.TransactionManager.runLaterSafe(() -> {
+                        if (infoLabel != null) infoLabel.setText("服务器不可用或连接中断");
+                    });
+                    loadingAll.set(false);
                     return; // 不再回退到本地，保持一致性
                 }
             } else {
@@ -101,7 +106,8 @@ public class ChooseController extends BaseController {
                 allSubjects.setAll(flist);
                 infoLabel.setText("共 " + flist.size() + " 条可选课程");
             });
-        }, "choose-loadAll").start();
+            loadingAll.set(false);
+        }, "choose-loadAll");
     }
 
     private java.util.List<Subject> fetchSubjectsFromServer(String kw) {
@@ -145,14 +151,19 @@ public class ChooseController extends BaseController {
         return kw == null || kw.isBlank() ? subjectService.getAllSubjects() : subjectService.getSubjectsByName(kw);
     }
 
+    private final java.util.concurrent.atomic.AtomicBoolean loadingMy = new java.util.concurrent.atomic.AtomicBoolean(false);
     private void loadMy() {
-        new Thread(() -> {
+        if (!loadingMy.compareAndSet(false, true)) return;
+        startDaemon(() -> {
             java.util.List<Subject> list;
             boolean socket = com.vCampus.common.ConfigManager.isSocketEnabled();
             if (socket) {
                 list = fetchMySubjectsFromServer(getCurrentStudentId());
                 if (list == null) {
-                    com.vCampus.util.TransactionManager.runLaterSafe(() -> showError("服务器不可用或连接中断，请检查网络/配置后重试"));
+                    com.vCampus.util.TransactionManager.runLaterSafe(() -> {
+                        if (infoLabel != null) infoLabel.setText("服务器不可用或连接中断");
+                    });
+                    loadingMy.set(false);
                     return; // 不回退
                 }
             } else {
@@ -160,7 +171,8 @@ public class ChooseController extends BaseController {
             }
             final java.util.List<Subject> flist = list;
             com.vCampus.util.TransactionManager.runLaterSafe(() -> mySubjects.setAll(flist));
-        }, "choose-loadMy").start();
+            loadingMy.set(false);
+        }, "choose-loadMy");
     }
 
     private java.util.List<Subject> fetchMySubjectsFromServer(String sid) {
@@ -202,7 +214,7 @@ public class ChooseController extends BaseController {
 
     private void startAutoRefresh() {
         autoRefresh = new javafx.animation.Timeline(
-                new javafx.animation.KeyFrame(javafx.util.Duration.seconds(3), e -> {
+                new javafx.animation.KeyFrame(javafx.util.Duration.seconds(8), e -> {
                     loadAll();
                     loadMy();
                 })
@@ -216,6 +228,11 @@ public class ChooseController extends BaseController {
                 });
             }
         });
+    }
+
+    @Override
+    public void onUnload() {
+        if (autoRefresh != null) autoRefresh.stop();
     }
 
     @FXML

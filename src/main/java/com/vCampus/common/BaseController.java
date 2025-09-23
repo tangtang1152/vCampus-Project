@@ -8,6 +8,7 @@ import javafx.stage.Stage;
 import java.net.URL;
 import java.util.Optional;
 import java.util.ResourceBundle;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * 所有控制器的基类
@@ -21,6 +22,23 @@ public abstract class BaseController implements Initializable {
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         // 空实现，子类可以覆盖
+    }
+
+    /**
+     * 视图卸载钩子：页面被切换/关闭时调用，子类可覆盖以停止定时任务等
+     */
+    public void onUnload() {
+        // 默认空实现
+    }
+
+    /**
+     * 启动守护线程，避免阻塞应用退出
+     */
+    protected Thread startDaemon(Runnable task, String name) {
+        Thread t = new Thread(task, name);
+        t.setDaemon(true);
+        t.start();
+        return t;
     }
     
     /**

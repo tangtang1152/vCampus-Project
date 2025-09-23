@@ -49,6 +49,12 @@ public class CourseRequestDispatcher {
                 return handleShopCreateOrder(req);
             case "SHOP_PAY":
                 return handleShopPay(req);
+            case "SHOP_ADD":
+                return handleShopAdd(req);
+            case "SHOP_UPDATE":
+                return handleShopUpdate(req);
+            case "SHOP_DELETE":
+                return handleShopDelete(req);
             case "SUBJECT_LIST":
                 return handleSubjectList(req);
             case "MY_SUBJECTS":
@@ -57,6 +63,14 @@ public class CourseRequestDispatcher {
                 return handleLibList(req);
             case "LIB_MY_BORROWS":
                 return handleLibMyBorrows(req);
+            case "LIB_ADD":
+                return handleLibAdd(req);
+            case "LIB_UPDATE":
+                return handleLibUpdate(req);
+            case "LIB_DELETE":
+                return handleLibDelete(req);
+            case "LIB_SET_STATUS":
+                return handleLibSetStatus(req);
             default:
                 return new SocketResponse(false, "未知指令: " + action);
         }
@@ -93,6 +107,7 @@ public class CourseRequestDispatcher {
         }
         LibraryService lib = ServiceFactory.getLibraryService();
         ServiceResult res = lib.borrowBookWithReason(userId, bookId, days);
+        com.vCampus.util.AuditLogger.log("BORROW", String.format("user=%s bookId=%s result=%s msg=%s", userId, String.valueOf(bookId), String.valueOf(res==null?false:res.isSuccess()), String.valueOf(res==null?"":res.getMessage())));
         return new SocketResponse(res != null && res.isSuccess(), res == null ? "操作失败" : res.getMessage());
     }
 
@@ -105,6 +120,7 @@ public class CourseRequestDispatcher {
         }
         LibraryService lib = ServiceFactory.getLibraryService();
         ServiceResult res = lib.renewBorrowWithReason(userId, recordId, days, 1);
+        com.vCampus.util.AuditLogger.log("RENEW", String.format("user=%s recordId=%s days=%d result=%s msg=%s", userId, String.valueOf(recordId), days, String.valueOf(res==null?false:res.isSuccess()), String.valueOf(res==null?"":res.getMessage())));
         return new SocketResponse(res != null && res.isSuccess(), res == null ? "操作失败" : res.getMessage());
     }
 
@@ -117,6 +133,7 @@ public class CourseRequestDispatcher {
         }
         LibraryService lib = ServiceFactory.getLibraryService();
         ServiceResult res = lib.returnBookWithReason(userId, recordId, bookId);
+        com.vCampus.util.AuditLogger.log("RETURN", String.format("user=%s recordId=%s bookId=%s result=%s msg=%s", userId, String.valueOf(recordId), String.valueOf(bookId), String.valueOf(res==null?false:res.isSuccess()), String.valueOf(res==null?"":res.getMessage())));
         return new SocketResponse(res != null && res.isSuccess(), res == null ? "操作失败" : res.getMessage());
     }
 
@@ -128,6 +145,7 @@ public class CourseRequestDispatcher {
         }
         LibraryService lib = ServiceFactory.getLibraryService();
         ServiceResult res = lib.reserveBookWithReason(userId, bookId);
+        com.vCampus.util.AuditLogger.log("RESERVE", String.format("user=%s bookId=%s result=%s msg=%s", userId, String.valueOf(bookId), String.valueOf(res==null?false:res.isSuccess()), String.valueOf(res==null?"":res.getMessage())));
         return new SocketResponse(res != null && res.isSuccess(), res == null ? "操作失败" : res.getMessage());
     }
 
@@ -197,6 +215,42 @@ public class CourseRequestDispatcher {
         return new SocketResponse(ok, ok ? "支付成功" : "支付失败");
     }
 
+    private SocketResponse handleShopAdd(SocketRequest req) {
+        var svc = ServiceFactory.getProductService();
+        com.vCampus.entity.Product p = new com.vCampus.entity.Product();
+        p.setProductId(req.getParam("productId"));
+        p.setProductName(req.getParam("productName"));
+        try { p.setPrice(Double.parseDouble(req.getParam("price"))); } catch (Exception ignored) {}
+        try { p.setStock(Integer.parseInt(req.getParam("stock"))); } catch (Exception ignored) {}
+        p.setCategory(req.getParam("category"));
+        p.setDescription(req.getParam("description"));
+        boolean ok = svc.addProduct(p);
+        com.vCampus.util.AuditLogger.log("SHOP_ADD", String.format("productId=%s result=%s", p.getProductId(), ok));
+        return new SocketResponse(ok, ok ? "新增成功" : "新增失败");
+    }
+
+    private SocketResponse handleShopUpdate(SocketRequest req) {
+        var svc = ServiceFactory.getProductService();
+        com.vCampus.entity.Product p = new com.vCampus.entity.Product();
+        p.setProductId(req.getParam("productId"));
+        p.setProductName(req.getParam("productName"));
+        try { p.setPrice(Double.parseDouble(req.getParam("price"))); } catch (Exception ignored) {}
+        try { p.setStock(Integer.parseInt(req.getParam("stock"))); } catch (Exception ignored) {}
+        p.setCategory(req.getParam("category"));
+        p.setDescription(req.getParam("description"));
+        boolean ok = svc.updateProduct(p);
+        com.vCampus.util.AuditLogger.log("SHOP_UPDATE", String.format("productId=%s result=%s", p.getProductId(), ok));
+        return new SocketResponse(ok, ok ? "更新成功" : "更新失败");
+    }
+
+    private SocketResponse handleShopDelete(SocketRequest req) {
+        var svc = ServiceFactory.getProductService();
+        String pid = req.getParam("productId");
+        boolean ok = svc.deleteProduct(pid);
+        com.vCampus.util.AuditLogger.log("SHOP_DELETE", String.format("productId=%s result=%s", pid, ok));
+        return new SocketResponse(ok, ok ? "删除成功" : "删除失败");
+    }
+
     // ================= Subject list over socket =================
     private SocketResponse handleSubjectList(SocketRequest req) {
         String keyword = req.getParam("keyword");
@@ -263,6 +317,7 @@ public class CourseRequestDispatcher {
                 sort == null ? "默认(最新)" : sort,
                 page,
                 size);
+        int total = lib.countBooksAdvanced(keyword == null ? "" : keyword, status == null ? "全部" : status);
         java.util.List<java.util.Map<String,Object>> rows = new java.util.ArrayList<>();
         for (var b : list) {
             java.util.Map<String,Object> m = new java.util.HashMap<>();
@@ -276,6 +331,7 @@ public class CourseRequestDispatcher {
         }
         java.util.Map<String,Object> map = new java.util.HashMap<>();
         map.put("rows", rows);
+        map.put("total", total);
         return new SocketResponse(true, "OK", (java.io.Serializable) map);
     }
 
@@ -290,6 +346,12 @@ public class CourseRequestDispatcher {
             java.util.Map<String,Object> m = new java.util.HashMap<>();
             m.put("recordId", r.getRecordId());
             m.put("bookId", r.getBookId());
+            try {
+                com.vCampus.entity.Book b = ServiceFactory.getLibraryService().searchBooks("",1,1).stream()
+                        .filter(x -> x.getBookId()!=null && x.getBookId().equals(r.getBookId()))
+                        .findFirst().orElse(null);
+                if (b != null) m.put("title", b.getTitle());
+            } catch (Exception ignored) {}
             m.put("borrowDate", r.getBorrowDate());
             m.put("dueDate", r.getDueDate());
             m.put("returnDate", r.getReturnDate());
@@ -301,6 +363,62 @@ public class CourseRequestDispatcher {
         java.util.Map<String,Object> map = new java.util.HashMap<>();
         map.put("rows", rows);
         return new SocketResponse(true, "OK", (java.io.Serializable) map);
+    }
+
+    private SocketResponse handleLibAdd(SocketRequest req) {
+        var lib = ServiceFactory.getLibraryService();
+        com.vCampus.entity.Book b = new com.vCampus.entity.Book();
+        b.setIsbn(req.getParam("isbn"));
+        b.setTitle(req.getParam("title"));
+        b.setAuthor(req.getParam("author"));
+        b.setCategory(req.getParam("category"));
+        b.setPublisher(req.getParam("publisher"));
+        try { b.setPubDate(java.sql.Date.valueOf(req.getParam("pubDate"))); } catch (Exception ignored) {}
+        try { b.setTotalCopies(Integer.valueOf(req.getParam("totalCopies"))); } catch (Exception ignored) {}
+        try { b.setAvailableCopies(Integer.valueOf(req.getParam("availableCopies"))); } catch (Exception ignored) {}
+        b.setLocation(req.getParam("location"));
+        b.setStatus(req.getParam("status"));
+        boolean ok = lib.addBook(b);
+        com.vCampus.util.AuditLogger.log("LIB_ADD", String.format("isbn=%s title=%s result=%s", b.getIsbn(), b.getTitle(), ok));
+        return new SocketResponse(ok, ok ? "新增成功" : "新增失败");
+    }
+
+    private SocketResponse handleLibUpdate(SocketRequest req) {
+        var lib = ServiceFactory.getLibraryService();
+        com.vCampus.entity.Book b = new com.vCampus.entity.Book();
+        try { b.setBookId(Integer.valueOf(req.getParam("bookId"))); } catch (Exception ignored) {}
+        b.setIsbn(req.getParam("isbn"));
+        b.setTitle(req.getParam("title"));
+        b.setAuthor(req.getParam("author"));
+        b.setCategory(req.getParam("category"));
+        b.setPublisher(req.getParam("publisher"));
+        try { b.setPubDate(java.sql.Date.valueOf(req.getParam("pubDate"))); } catch (Exception ignored) {}
+        try { b.setTotalCopies(Integer.valueOf(req.getParam("totalCopies"))); } catch (Exception ignored) {}
+        try { b.setAvailableCopies(Integer.valueOf(req.getParam("availableCopies"))); } catch (Exception ignored) {}
+        b.setLocation(req.getParam("location"));
+        b.setStatus(req.getParam("status"));
+        boolean ok = lib.updateBook(b);
+        com.vCampus.util.AuditLogger.log("LIB_UPDATE", String.format("bookId=%s title=%s result=%s", String.valueOf(b.getBookId()), b.getTitle(), ok));
+        return new SocketResponse(ok, ok ? "更新成功" : "更新失败");
+    }
+
+    private SocketResponse handleLibDelete(SocketRequest req) {
+        var lib = ServiceFactory.getLibraryService();
+        Integer id = parseInt(req.getParam("bookId"));
+        if (id == null) return new SocketResponse(false, "bookId 不能为空");
+        boolean ok = lib.deleteBook(id);
+        com.vCampus.util.AuditLogger.log("LIB_DELETE", String.format("bookId=%s result=%s", String.valueOf(id), ok));
+        return new SocketResponse(ok, ok ? "删除成功" : "删除失败");
+    }
+
+    private SocketResponse handleLibSetStatus(SocketRequest req) {
+        var lib = ServiceFactory.getLibraryService();
+        Integer id = parseInt(req.getParam("bookId"));
+        String status = req.getParam("status");
+        if (id == null || status == null) return new SocketResponse(false, "参数不足");
+        boolean ok = lib.setBookStatus(id, status);
+        com.vCampus.util.AuditLogger.log("LIB_SET_STATUS", String.format("bookId=%s status=%s result=%s", String.valueOf(id), status, ok));
+        return new SocketResponse(ok, ok ? "状态已更新" : "状态更新失败");
     }
 }
 

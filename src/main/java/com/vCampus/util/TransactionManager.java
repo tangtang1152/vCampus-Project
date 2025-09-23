@@ -94,6 +94,37 @@ public class TransactionManager {
         }
     }
 
+    /**
+     * 只读事务：不加全局写锁，降低并发查询的阻塞；用于列表/统计等读取操作。
+     */
+    public static <T> T executeInReadTransaction(TransactionCallback<T> callback) {
+        Connection conn = null;
+        try {
+            conn = DBUtil.getConnection();
+            conn.setAutoCommit(false);
+            conn.setReadOnly(true);
+            conn.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
+            T result = callback.doInTransaction(conn);
+            conn.commit();
+            return result;
+        } catch (Exception e) {
+            if (conn != null) {
+                try { conn.rollback(); } catch (SQLException ignored) {}
+            }
+            throw new RuntimeException("读取操作失败", e);
+        } finally {
+            if (conn != null) {
+                try {
+                    conn.setReadOnly(false);
+                    if (!conn.isClosed()) {
+                        conn.setAutoCommit(true);
+                        conn.close();
+                    }
+                } catch (SQLException ignored) {}
+            }
+        }
+    }
+
     private static boolean isSerializationConflict(SQLException e) {
         if (e == null) return false;
         if ("40001".equals(e.getSQLState())) return true; // SQLState: serialization failure

@@ -141,6 +141,25 @@ public class BookDao implements IBookDao {
         return list;
     }
 
+    // 统计总数（与 searchAdvanced 使用相同的过滤条件）
+    public int countAdvanced(String keyword, String status, Connection conn) throws SQLException {
+        String like = "%" + (keyword == null ? "" : keyword) + "%";
+        boolean filterStatus = status != null && !status.isBlank() && !"全部".equals(status);
+        StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM tbl_book WHERE (title LIKE ? OR author LIKE ? OR isbn LIKE ?)");
+        if (filterStatus) sql.append(" AND status = ?");
+        try (PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+            int idx = 1;
+            ps.setString(idx++, like);
+            ps.setString(idx++, like);
+            ps.setString(idx++, like);
+            if (filterStatus) ps.setString(idx++, status);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return rs.getInt(1);
+            }
+        }
+        return 0;
+    }
+
     @Override
     public boolean decreaseAvailable(Integer bookId, Connection conn) throws SQLException {
         String sql = "UPDATE tbl_book SET availableCopies = availableCopies - 1 WHERE bookId = ? AND availableCopies > 0";

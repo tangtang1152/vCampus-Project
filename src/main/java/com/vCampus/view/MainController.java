@@ -193,9 +193,24 @@ public class MainController extends BaseController {
      */
     private void loadContent(String fxmlPath) {
         try {
+            // 调用旧控制器的 onUnload()
+            javafx.scene.Node old = mainContainer.getCenter();
+            if (old != null) {
+                Object userData = old.getUserData();
+                if (userData instanceof BaseController bc) {
+                    try { bc.onUnload(); } catch (Exception ignored) {}
+                }
+            }
+
             var loader = new javafx.fxml.FXMLLoader(
                 getClass().getResource("/fxml/" + fxmlPath));
-            mainContainer.setCenter(loader.load());
+            javafx.scene.Parent root = loader.load();
+            Object ctrl = loader.getController();
+            if (ctrl instanceof BaseController bc) {
+                // 让视图节点能回找到控制器以便卸载时停止任务
+                root.setUserData(bc);
+            }
+            mainContainer.setCenter(root);
         } catch (Exception e) {
             showError("加载界面失败: " + e.getMessage());
             e.printStackTrace();

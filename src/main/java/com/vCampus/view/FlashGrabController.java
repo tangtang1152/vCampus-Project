@@ -139,9 +139,11 @@ public class FlashGrabController extends BaseController {
         }
     }
 
-	private void loadData() {
+    private final java.util.concurrent.atomic.AtomicBoolean loading = new java.util.concurrent.atomic.AtomicBoolean(false);
+    private void loadData() {
+        if (!loading.compareAndSet(false, true)) return;
 		String kw = keywordField == null ? "" : keywordField.getText();
-		new Thread(() -> {
+        startDaemon(() -> {
 			java.util.List<Subject> list = null;
 			if (ConfigManager.isSocketEnabled()) {
 				// 走服务器 SUBJECT_LIST，保持与其它客户端一致
@@ -184,22 +186,23 @@ public class FlashGrabController extends BaseController {
 				list = (kw == null || kw.isBlank()) ? subjectService.getAllSubjects() : subjectService.getSubjectsByName(kw);
 			}
 			final java.util.List<Subject> flist = list;
-			TransactionManager.runLaterSafe(() -> {
-				if (flist == null) {
-					showError("服务器不可用或连接中断，请检查网络/配置后重试");
-					return;
-				}
-				tableData.setAll(flist);
-				lbStatus.setText("共 " + tableData.size() + " 门课");
-				table.refresh();
-			});
-		}, "flash-load").start();
+            TransactionManager.runLaterSafe(() -> {
+                if (flist == null) {
+                    if (lbStatus != null) lbStatus.setText("服务器不可用或连接中断");
+                    return;
+                }
+                tableData.setAll(flist);
+                lbStatus.setText("共 " + tableData.size() + " 门课");
+                table.refresh();
+            });
+            loading.set(false);
+        }, "flash-load");
 	}
 
-	private void startAutoRefresh() {
-		autoRefresh = new javafx.animation.Timeline(
-				new javafx.animation.KeyFrame(javafx.util.Duration.seconds(3), e -> loadData())
-		);
+    private void startAutoRefresh() {
+        autoRefresh = new javafx.animation.Timeline(
+                new javafx.animation.KeyFrame(javafx.util.Duration.seconds(8), e -> loadData())
+        );
 		autoRefresh.setCycleCount(javafx.animation.Animation.INDEFINITE);
 		autoRefresh.play();
 		table.sceneProperty().addListener((obs, oldScene, newScene) -> {
@@ -210,6 +213,11 @@ public class FlashGrabController extends BaseController {
 			}
 		});
 	}
+
+    @Override
+    public void onUnload() {
+        if (autoRefresh != null) autoRefresh.stop();
+    }
 }
 
 

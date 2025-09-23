@@ -8,14 +8,15 @@
             fx:controller="com.vCampus.view.LibraryController"
             stylesheets="@../css/main.css">
     <top>
-        <HBox spacing="10" style="-fx-padding: 10;">
+        <HBox spacing="10" styleClass="toolbar">
             <TextField fx:id="keywordField" promptText="输入书名/作者/ISBN(支持模糊)" HBox.hgrow="ALWAYS"/>
             <Label text="状态"/>
             <ComboBox fx:id="bookStatusBox" prefWidth="120"/>
             <Label text="排序"/>
             <ComboBox fx:id="sortBox" prefWidth="140"/>
             <Button text="搜索" onAction="#onSearch"/>
-            <Label fx:id="infoLabel"/>
+            <Region HBox.hgrow="ALWAYS"/>
+            <Label fx:id="infoLabel" style="-fx-font-weight: bold;"/>
         </HBox>
     </top>
 

@@ -19,14 +19,14 @@ public class LibraryService {
     private final IUserDao userDao = new UserDaoImpl();
 
     public List<com.vCampus.entity.Book> searchBooks(String keyword, int page, int size) {
-        return TransactionManager.executeInTransaction(conn -> {
+        return TransactionManager.executeInReadTransaction(conn -> {
             int offset = Math.max(0, (page - 1) * size);
             return bookDao.search(keyword == null ? "" : keyword, offset, size, conn);
         });
     }
 
     public List<com.vCampus.entity.Book> searchBooksAdvanced(String keyword, String status, String sort, int page, int size) {
-        return TransactionManager.executeInTransaction(conn -> {
+        return TransactionManager.executeInReadTransaction(conn -> {
             int offset = Math.max(0, (page - 1) * size);
             String kw = keyword == null ? "" : keyword;
             String st = status == null ? "全部" : status;
@@ -37,6 +37,15 @@ public class LibraryService {
             else if ("可借↓".equals(sort)) order = "availableCopies DESC";
             else order = "bookId DESC";
             return ((com.vCampus.dao.BookDao)bookDao).searchAdvanced(kw, st, order, offset, size, conn);
+        });
+    }
+
+    // 统计用于分页的总数
+    public int countBooksAdvanced(String keyword, String status) {
+        return TransactionManager.executeInReadTransaction(conn -> {
+            String kw = keyword == null ? "" : keyword;
+            String st = status == null ? "全部" : status;
+            return ((com.vCampus.dao.BookDao)bookDao).countAdvanced(kw, st, conn);
         });
     }
 
@@ -69,6 +78,12 @@ public class LibraryService {
                 return ServiceResult.fail("您已借出该书，无法重复借阅");
 
             if (!bookDao.decreaseAvailable(bookId, conn)) return ServiceResult.fail("扣减库存失败");
+            // 库存负数保护：再次断言
+            com.vCampus.entity.Book chk = bookDao.findById(bookId, conn);
+            if (chk == null || chk.getAvailableCopies() == null || chk.getAvailableCopies() < 0) {
+                bookDao.increaseAvailable(bookId, conn);
+                return ServiceResult.fail("库存异常，操作已回滚");
+            }
             BorrowRecord r = new BorrowRecord();
             r.setBookId(bookId);
             r.setUserId(uid);
@@ -88,6 +103,8 @@ public class LibraryService {
             return ServiceResult.ok("借书成功（" + d + " 天）");
         });
     }
+
+    
 
     public ServiceResult returnBookWithReason(String userId, Integer recordId, Integer bookId) {
         return TransactionManager.executeInTransaction(conn -> {
@@ -117,6 +134,10 @@ public class LibraryService {
             boolean ok = borrowRecordDao.markReturn(recordId, Date.valueOf(today), conn);
             if (!ok) return ServiceResult.fail("更新归还状态失败");
             if (!bookDao.increaseAvailable(bookId, conn)) return ServiceResult.fail("库存回滚失败");
+            com.vCampus.entity.Book chk = bookDao.findById(bookId, conn);
+            if (chk == null || chk.getAvailableCopies() == null || chk.getAvailableCopies() < 0) {
+                return ServiceResult.fail("库存异常，请联系管理员");
+            }
             String msg = overdueDays > 0 ? ("归还成功，罚金 " + (overdueDays * com.vCampus.util.DBConstants.DAILY_FINE) + " 元") : "归还成功";
             return ServiceResult.ok(msg);
         });
@@ -207,14 +228,14 @@ public class LibraryService {
     }
 
     public List<BorrowRecord> listMyBorrows(String userId) {
-        return TransactionManager.executeInTransaction(conn -> borrowRecordDao.findActiveByUser(userId, conn));
+        return TransactionManager.executeInReadTransaction(conn -> borrowRecordDao.findActiveByUser(userId, conn));
     }
 
     /**
      * 根据状态筛选我的借阅（全部/借出/已还/逾期）
      */
     public List<BorrowRecord> listMyBorrowsByStatus(String userId, String status) {
-        return TransactionManager.executeInTransaction(conn -> {
+        return TransactionManager.executeInReadTransaction(conn -> {
             if (status == null || status.isBlank() || "全部".equals(status)) {
                 return borrowRecordDao.listByUser(userId, conn);
             }
@@ -223,7 +244,7 @@ public class LibraryService {
     }
 
     public List<Reservation> listMyReservations(String userId) {
-        return TransactionManager.executeInTransaction(conn -> reservationDao.listActiveByUser(userId, conn));
+        return TransactionManager.executeInReadTransaction(conn -> reservationDao.listActiveByUser(userId, conn));
     }
 
     // ================= 管理员：图书维护 =================
@@ -267,11 +288,11 @@ public class LibraryService {
      * 新增：按书目列出借阅记录（全部/仅当前借出）
      */
     public java.util.List<com.vCampus.entity.BorrowRecord> listBorrowsByBook(Integer bookId) {
-        return TransactionManager.executeInTransaction(conn -> borrowRecordDao.listByBook(bookId, conn));
+        return TransactionManager.executeInReadTransaction(conn -> borrowRecordDao.listByBook(bookId, conn));
     }
 
     public java.util.List<com.vCampus.entity.BorrowRecord> listActiveBorrowsByBook(Integer bookId) {
-        return TransactionManager.executeInTransaction(conn -> borrowRecordDao.listActiveByBook(bookId, conn));
+        return TransactionManager.executeInReadTransaction(conn -> borrowRecordDao.listActiveByBook(bookId, conn));
     }
 
     public boolean increaseStock(Integer bookId, int delta) {

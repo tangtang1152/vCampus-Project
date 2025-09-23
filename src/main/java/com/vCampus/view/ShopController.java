@@ -31,6 +31,7 @@ public class ShopController extends BaseController {
     @FXML private TableColumn<Product, Void> colAction;
 
     private final IShopService shopService = ServiceFactory.getShopService();
+    private javafx.animation.Timeline autoRefresh;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
@@ -41,7 +42,12 @@ public class ShopController extends BaseController {
         colCategory.setCellValueFactory(new PropertyValueFactory<>("category"));
         addActionButtons();
         loadCategories();
-        tryLoadProductsFromHttp();
+        if (ConfigManager.isSocketEnabled()) {
+            loadProducts(null, null);
+            startAutoRefresh();
+        } else {
+            tryLoadProductsFromHttp();
+        }
     }
 
     private void addActionButtons() {
@@ -75,23 +81,42 @@ public class ShopController extends BaseController {
         cbCategory.setOnAction(e -> onSearch());
     }
 
+    private final java.util.concurrent.atomic.AtomicBoolean loading = new java.util.concurrent.atomic.AtomicBoolean(false);
     private void loadProducts(String category, String keyword) {
+        if (!loading.compareAndSet(false, true)) return;
         List<Product> products;
         if (com.vCampus.common.ConfigManager.isSocketEnabled()) {
-            var client = com.vCampus.net.ShopSocketClient.fromConfig();
-            var rows = client.listProducts(category, keyword);
-            List<Product> list = new java.util.ArrayList<>();
-            for (var m : rows) {
-                Product p = new Product();
-                p.setProductId(String.valueOf(m.get("productId")));
-                p.setProductName(String.valueOf(m.get("productName")));
-                p.setPrice(((Number)m.get("price")).doubleValue());
-                p.setStock(((Number)m.get("stock")).intValue());
-                p.setCategory(String.valueOf(m.get("category")));
-                p.setDescription(String.valueOf(m.get("description")));
-                list.add(p);
-            }
-            tableProducts.setItems(FXCollections.observableArrayList(list));
+            startDaemon(() -> {
+                var client = com.vCampus.net.ShopSocketClient.fromConfig();
+                var rows = client.listProducts(category, keyword);
+                List<Product> list = new java.util.ArrayList<>();
+                java.util.Set<String> cats = new java.util.HashSet<>();
+                for (var m : rows) {
+                    Product p = new Product();
+                    p.setProductId(String.valueOf(m.get("productId")));
+                    p.setProductName(String.valueOf(m.get("productName")));
+                    Object pr = m.get("price"); if (pr != null) p.setPrice(((Number)pr).doubleValue());
+                    Object st = m.get("stock"); if (st != null) p.setStock(((Number)st).intValue());
+                    String cat = String.valueOf(m.get("category"));
+                    p.setCategory(cat);
+                    p.setDescription(String.valueOf(m.get("description")));
+                    list.add(p);
+                    if (cat != null && !cat.isBlank()) cats.add(cat);
+                }
+                javafx.application.Platform.runLater(() -> {
+                    tableProducts.setItems(FXCollections.observableArrayList(list));
+                    if (cbCategory != null) {
+                        String cur = cbCategory.getValue();
+                        var newCats = FXCollections.observableArrayList(cats);
+                        newCats.sort(String::compareTo);
+                        newCats.add(0, "全部");
+                        cbCategory.setItems(newCats);
+                        if (cur == null || !newCats.contains(cur)) cbCategory.setValue("全部");
+                        if (rows.isEmpty()) cbCategory.setPromptText("服务器不可用");
+                    }
+                    loading.set(false);
+                });
+            }, "shop-load");
             return;
         }
         if (keyword != null && !keyword.trim().isEmpty()) {
@@ -102,6 +127,29 @@ public class ShopController extends BaseController {
             products = shopService.getAllProducts();
         }
         tableProducts.setItems(FXCollections.observableArrayList(products));
+        loading.set(false);
+    }
+
+    private void startAutoRefresh() {
+        autoRefresh = new javafx.animation.Timeline(
+                new javafx.animation.KeyFrame(javafx.util.Duration.seconds(8), e -> loadProducts(cbCategory.getValue(), tfKeyword.getText()))
+        );
+        autoRefresh.setCycleCount(javafx.animation.Animation.INDEFINITE);
+        autoRefresh.play();
+        tableProducts.sceneProperty().addListener((obs, oldScene, newScene) -> {
+            if (newScene != null) {
+                newScene.windowProperty().addListener((o, ov, nv) -> {
+                    if (nv != null) nv.setOnHidden(evt -> { if (autoRefresh != null) autoRefresh.stop(); });
+                });
+            } else {
+                if (autoRefresh != null) autoRefresh.stop();
+            }
+        });
+    }
+
+    @Override
+    public void onUnload() {
+        if (autoRefresh != null) autoRefresh.stop();
     }
 
     private void tryLoadProductsFromHttp() {
