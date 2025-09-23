@@ -83,6 +83,20 @@ public class LoginController extends BaseController {
                         // 主角色（若有）
                         String active = String.valueOf(m.get("activeRole"));
                         if (active != null) genericUser.setRole(active);
+                        // 若包含学生，并且返回了学生信息，则构建 Student 放入会话（便于前端直接取 studentId）
+                        if (roles.contains("STUDENT")) {
+                            Object sid = m.get("studentId");
+                            if (sid != null) {
+                                com.vCampus.entity.Student stu = new com.vCampus.entity.Student();
+                                stu.setUserId(genericUser.getUserId());
+                                stu.setUsername(genericUser.getUsername());
+                                stu.setRole(genericUser.getRole());
+                                stu.setStudentId(String.valueOf(sid));
+                                Object sn = m.get("studentName"); if (sn != null) stu.setStudentName(String.valueOf(sn));
+                                Object cls = m.get("className"); if (cls != null) stu.setClassName(String.valueOf(cls));
+                                genericUser = stu;
+                            }
+                        }
                     }
                 } finally { s.close(); }
             } else {

@@ -93,8 +93,19 @@ public class CourseRequestDispatcher {
         java.util.Map<String,Object> data = new java.util.HashMap<>();
         data.put("userId", u.getUserId());
         data.put("username", u.getUsername());
-        data.put("roles", u.getRoleSet());
+        java.util.Set<String> roles = u.getRoleSet();
+        data.put("roles", roles);
         data.put("activeRole", u.getPrimaryRole());
+        try {
+            if (roles != null && roles.contains("STUDENT")) {
+                var stu = ServiceFactory.getStudentService().getByUserId(u.getUserId());
+                if (stu != null) {
+                    data.put("studentId", stu.getStudentId());
+                    data.put("studentName", stu.getStudentName());
+                    data.put("className", stu.getClassName());
+                }
+            }
+        } catch (Exception ignored) {}
         return new SocketResponse(true, "OK", (java.io.Serializable) data);
     }
 
