@@ -6,23 +6,40 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Properties;
 
+import com.vCampus.common.ConfigManager;
+
 public class DBUtil {
     
-    // 数据库文件相对于项目根目录的路径
-    private static final String DB_RELATIVE_PATH = "src\\main\\resources\\database\\vCampus.accdb";
+    // 默认数据库文件相对于项目根目录的路径（可被 application.properties 覆盖）
+    private static final String DEFAULT_DB_RELATIVE_PATH = "src\\main\\resources\\database\\vCampus.accdb";
     private static String connectionString;
     private static Properties connectionProperties;
 
     // 静态初始化块，在类加载时执行一次
     static {
         try {
-            // 1. 动态获取项目在当前电脑上的绝对路径
+            // 0. 优先从配置读取数据库路径，可为绝对路径/UNC 网络共享路径/相对路径
+            String configuredPath = null;
+            try { configuredPath = ConfigManager.getDatabasePath(); } catch (Throwable ignored) {}
+
+            // 1. 解析最终数据库路径
             String projectRootPath = System.getProperty("user.dir");
-            // 2. 拼接出数据库文件的绝对路径
-            String dbAbsolutePath = projectRootPath + File.separator + DB_RELATIVE_PATH;
+            String dbAbsolutePath;
+            if (configuredPath != null && !configuredPath.trim().isEmpty()) {
+                String p = configuredPath.trim();
+                // 绝对或 UNC 路径：如 C:\... 或 \\192.168.1.2\share\vCampus.accdb
+                boolean isAbsolute = new File(p).isAbsolute() || p.startsWith("\\\\") || p.startsWith("/") || p.matches("^[A-Za-z]:.*");
+                dbAbsolutePath = isAbsolute ? p : (projectRootPath + File.separator + p);
+                System.out.println("使用配置的数据库路径: " + dbAbsolutePath);
+            } else {
+                dbAbsolutePath = projectRootPath + File.separator + DEFAULT_DB_RELATIVE_PATH;
+                System.out.println("使用默认数据库路径: " + dbAbsolutePath);
+            }
             
             // 3. 打印最终路径，这是调试的关键！
-            System.out.println("尝试从以下路径连接数据库: " + dbAbsolutePath);
+            if (ConfigManager.isDbVerboseLogging()) {
+                System.out.println("尝试从以下路径连接数据库: " + dbAbsolutePath);
+            }
             
             // 4. 检查数据库文件是否存在
             File dbFile = new File(dbAbsolutePath);
@@ -30,7 +47,9 @@ public class DBUtil {
                 System.err.println("错误: 数据库文件不存在！请检查路径。");
                 System.err.println("请在src\\main\\resources下创建 'database' 文件夹，并放入 'vCampus.accdb' 文件。");
             } else {
-                System.out.println("数据库文件存在，准备连接...");
+                if (ConfigManager.isDbVerboseLogging()) {
+                    System.out.println("数据库文件存在，准备连接...");
+                }
             }
             
             // 5. 构造UCanAccess的连接字符串
@@ -56,7 +75,9 @@ public class DBUtil {
 
             // 7. 显式加载驱动（确保驱动已就绪）
             Class.forName("net.ucanaccess.jdbc.UcanaccessDriver");
-            System.out.println("UCanAccess驱动加载成功。");
+            if (ConfigManager.isDbVerboseLogging()) {
+                System.out.println("UCanAccess驱动加载成功。");
+            }
             
         } catch (ClassNotFoundException e) {
             System.err.println("致命错误: UCanAccess驱动未找到！");
@@ -71,9 +92,13 @@ public class DBUtil {
      * @throws SQLException 如果连接失败则抛出异常
      */
     public static Connection getConnection() throws SQLException {
-        System.out.println("正在尝试建立数据库连接...");
+        if (ConfigManager.isDbVerboseLogging()) {
+            System.out.println("正在尝试建立数据库连接...");
+        }
         Connection conn = DriverManager.getConnection(connectionString, connectionProperties);
-        System.out.println("数据库连接成功！");
+        if (ConfigManager.isDbVerboseLogging()) {
+            System.out.println("数据库连接成功！");
+        }
         return conn;
     }
 
@@ -85,7 +110,9 @@ public class DBUtil {
         if (conn != null) {
             try {
                 conn.close();
-                System.out.println("数据库连接已关闭。");
+                if (ConfigManager.isDbVerboseLogging()) {
+                    System.out.println("数据库连接已关闭。");
+                }
             } catch (SQLException e) {
                 System.err.println("关闭数据库连接时发生错误:");
                 e.printStackTrace();

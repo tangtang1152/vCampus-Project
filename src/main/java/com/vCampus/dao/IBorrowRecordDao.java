@@ -13,6 +13,13 @@ public interface IBorrowRecordDao extends IBaseDao<BorrowRecord, Integer> {
     List<BorrowRecord> findOverdueByUser(String userId, Connection conn) throws SQLException;
     int countActiveBorrowsByUser(Integer userId, Connection conn) throws SQLException;
     boolean existsOverdueByUser(Integer userId, Connection conn) throws SQLException;
+    // 新增：是否存在未清罚金（逾期且未支付）
+    boolean existsUnpaidFineByUser(Integer userId, Connection conn) throws SQLException;
+    // 新增：按记录标记罚金已支付（清欠）
+    boolean markFinePaid(Integer recordId, Connection conn) throws SQLException;
+    
+    // 新增：是否已借出同一本书（防止重复借阅）
+    boolean existsActiveByUserAndBook(Integer userId, Integer bookId, Connection conn) throws SQLException;
     
     // 新增：按用户列出全部借阅
     List<BorrowRecord> listByUser(String userId, Connection conn) throws SQLException;
@@ -26,6 +33,10 @@ public interface IBorrowRecordDao extends IBaseDao<BorrowRecord, Integer> {
     int countMonthlyByBook(Integer bookId, java.sql.Date monthStart, java.sql.Date nextMonthStart, Connection conn) throws SQLException;
     // 统计：某书当前借出数量
     int countCurrentBorrowedByBook(Integer bookId, Connection conn) throws SQLException;
+
+    // 新增：按书目列出借阅记录（全部 / 仅当前借出）
+    List<BorrowRecord> listByBook(Integer bookId, Connection conn) throws SQLException;
+    List<BorrowRecord> listActiveByBook(Integer bookId, Connection conn) throws SQLException;
 }
 
 

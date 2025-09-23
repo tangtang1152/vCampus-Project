@@ -8,74 +8,133 @@ import java.sql.SQLException;
  * 统一管理数据库事务
  */
 public class TransactionManager {
+    // Access 对并发写入支持较弱：用全局可重入锁串行化事务，避免文件通道被并发写破坏
+    private static final java.util.concurrent.locks.ReentrantLock DB_WRITE_LOCK = new java.util.concurrent.locks.ReentrantLock(true);
     
     /**
      * 在事务中执行操作
      */
     public static <T> T executeInTransaction(TransactionCallback<T> callback) {
-        Connection conn = null;
-        try {
-            conn = DBUtil.getConnection();
-            System.out.println("获取数据库连接成功");
-            conn.setAutoCommit(false);
-            System.out.println("开始事务");
-            
-            //registerStudent方法中，虽然检查了学号和用户名是否存在，
-            //但在高并发环境下，这两个检查和后续的插入操作之间可能存在竞态条件。
-            //进一步减少竞态条件的发生，在事务开始时设置更高的隔离级别：
-            conn.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
-            
-            T result = callback.doInTransaction(conn);
-            
-            conn.commit();
-            System.out.println("事务提交成功");
-            return result;
-        } catch (SQLException e) {
-            System.err.println("=== 数据库操作异常 ===");
-            System.err.println("错误信息: " + e.getMessage());
-            System.err.println("SQL状态: " + e.getSQLState());
-            System.err.println("错误代码: " + e.getErrorCode());
-            
-            if (conn != null) {
-                try {
-                    System.out.println("开始回滚事务");
-                    conn.rollback();
-                    System.out.println("事务回滚成功");
-                } catch (SQLException ex) {
-                    System.err.println("回滚事务失败: " + ex.getMessage());
-                    ex.printStackTrace();
-                }
-            }
-            throw new RuntimeException("数据库操作失败", e);
-        } catch (Exception e) {
-            System.err.println("=== 业务操作异常 ===");
-            System.err.println("错误信息: " + e.getMessage());
-            
-            if (conn != null) {
-                try {
-                    System.out.println("开始回滚事务");
-                    conn.rollback();
-                    System.out.println("事务回滚成功");
-                } catch (SQLException ex) {
-                    System.err.println("回滚事务失败: " + ex.getMessage());
-                    ex.printStackTrace();
-                }
-            }
-            throw new RuntimeException("业务操作失败", e);
-        } finally {
-            if (conn != null) {
-                try {
-                    if (!conn.isClosed()) {
-                        conn.setAutoCommit(true);
-                        conn.close();
-                        System.out.println("数据库连接已关闭");
+        final int maxRetries = 3;
+        int attempt = 0;
+        while (true) {
+            Connection conn = null;
+            try {
+                // 串行化进入事务，避免 UCanAccess ClosedChannelException
+                DB_WRITE_LOCK.lock();
+                System.out.println("获得数据库全局事务锁");
+                conn = DBUtil.getConnection();
+                System.out.println("获取数据库连接成功");
+                conn.setAutoCommit(false);
+                System.out.println("开始事务");
+                // 降低隔离级别，减少并发下的锁等待与阻塞
+                conn.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
+
+                T result = callback.doInTransaction(conn);
+                conn.commit();
+                System.out.println("事务提交成功");
+                return result;
+            } catch (SQLException e) {
+                System.err.println("=== 数据库操作异常 ===");
+                System.err.println("错误信息: " + e.getMessage());
+                System.err.println("SQL状态: " + e.getSQLState());
+                System.err.println("错误代码: " + e.getErrorCode());
+                if (conn != null) {
+                    try {
+                        System.out.println("开始回滚事务");
+                        conn.rollback();
+                        System.out.println("事务回滚成功");
+                    } catch (SQLException ex) {
+                        System.err.println("回滚事务失败: " + ex.getMessage());
+                        ex.printStackTrace();
                     }
-                } catch (SQLException e) {
-                    System.err.println("关闭连接失败: " + e.getMessage());
-                    e.printStackTrace();
+                }
+                // 对序列化冲突进行有限重试
+                if (isSerializationConflict(e) && attempt < maxRetries) {
+                    attempt++;
+                    long backoff = (long) (50L * Math.pow(2, attempt));
+                    System.err.println("检测到并发冲突，准备重试 第 " + attempt + " 次，延迟 " + backoff + "ms");
+                    try { Thread.sleep(backoff); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); }
+                    // 进入下一轮重试
+                    continue;
+                }
+                throw new RuntimeException("数据库操作失败", e);
+            } catch (Exception e) {
+                System.err.println("=== 业务操作异常 ===");
+                System.err.println("错误信息: " + e.getMessage());
+                if (conn != null) {
+                    try {
+                        System.out.println("开始回滚事务");
+                        conn.rollback();
+                        System.out.println("事务回滚成功");
+                    } catch (SQLException ex) {
+                        System.err.println("回滚事务失败: " + ex.getMessage());
+                        ex.printStackTrace();
+                    }
+                }
+                throw new RuntimeException("业务操作失败", e);
+            } finally {
+                if (conn != null) {
+                    try {
+                        if (!conn.isClosed()) {
+                            conn.setAutoCommit(true);
+                            conn.close();
+                            System.out.println("数据库连接已关闭");
+                        }
+                    } catch (SQLException e) {
+                        System.err.println("关闭连接失败: " + e.getMessage());
+                        e.printStackTrace();
+                    }
+                }
+                if (DB_WRITE_LOCK.isHeldByCurrentThread()) {
+                    DB_WRITE_LOCK.unlock();
+                    System.out.println("释放数据库全局事务锁");
                 }
             }
         }
+    }
+
+    /**
+     * 只读事务：不加全局写锁，降低并发查询的阻塞；用于列表/统计等读取操作。
+     */
+    public static <T> T executeInReadTransaction(TransactionCallback<T> callback) {
+        Connection conn = null;
+        try {
+            conn = DBUtil.getConnection();
+            conn.setAutoCommit(false);
+            conn.setReadOnly(true);
+            conn.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
+            T result = callback.doInTransaction(conn);
+            conn.commit();
+            return result;
+        } catch (Exception e) {
+            if (conn != null) {
+                try { conn.rollback(); } catch (SQLException ignored) {}
+            }
+            throw new RuntimeException("读取操作失败", e);
+        } finally {
+            if (conn != null) {
+                try {
+                    conn.setReadOnly(false);
+                    if (!conn.isClosed()) {
+                        conn.setAutoCommit(true);
+                        conn.close();
+                    }
+                } catch (SQLException ignored) {}
+            }
+        }
+    }
+
+    private static boolean isSerializationConflict(SQLException e) {
+        if (e == null) return false;
+        if ("40001".equals(e.getSQLState())) return true; // SQLState: serialization failure
+        if (e.getErrorCode() == -4861) return true;        // UCanAccess 常见并发冲突码
+        SQLException next = e.getNextException();
+        while (next != null) {
+            if ("40001".equals(next.getSQLState()) || next.getErrorCode() == -4861) return true;
+            next = next.getNextException();
+        }
+        return false;
     }
     
     /**

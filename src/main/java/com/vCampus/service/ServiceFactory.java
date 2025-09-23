@@ -10,6 +10,11 @@ public class ServiceFactory {
     private static volatile IStudentService studentService;
     private static volatile ITeacherService teacherService;
     private static volatile IAdminService adminService;
+    private static volatile IChooseService chooseService;
+    private static volatile ISubjectService subjectService;
+    private static volatile IShopService shopService;
+    private static volatile IProductService productService;
+    private static volatile LibraryService libraryService;
     
     public static IUserService getUserService() {
         if (userService == null) {
@@ -53,5 +58,60 @@ public class ServiceFactory {
             }
         }
         return adminService;
+    }
+
+    public static IChooseService getChooseService() {
+        if (chooseService == null) {
+            synchronized (ServiceFactory.class) {
+                if (chooseService == null) {
+                    chooseService = new ChooseServiceImpl();
+                }
+            }
+        }
+        return chooseService;
+    }
+
+    public static ISubjectService getSubjectService() {
+        if (subjectService == null) {
+            synchronized (ServiceFactory.class) {
+                if (subjectService == null) {
+                    subjectService = new SubjectServiceImpl();
+                }
+            }
+        }
+        return subjectService;
+    }
+
+    public static IShopService getShopService() {
+        if (shopService == null) {
+            synchronized (ServiceFactory.class) {
+                if (shopService == null) {
+                    shopService = new ShopServiceImpl();
+                }
+            }
+        }
+        return shopService;
+    }
+
+    public static IProductService getProductService() {
+        if (productService == null) {
+            synchronized (ServiceFactory.class) {
+                if (productService == null) {
+                    productService = new ProductServiceImpl();
+                }
+            }
+        }
+        return productService;
+    }
+
+    public static LibraryService getLibraryService() {
+        if (libraryService == null) {
+            synchronized (ServiceFactory.class) {
+                if (libraryService == null) {
+                    libraryService = new LibraryService(); // 未来可替换为远程实现
+                }
+            }
+        }
+        return libraryService;
     }
 }

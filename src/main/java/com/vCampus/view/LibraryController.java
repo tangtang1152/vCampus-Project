@@ -4,6 +4,9 @@ import com.vCampus.common.BaseController;
 import com.vCampus.entity.Book;
 import com.vCampus.entity.BorrowRecord;
 import com.vCampus.service.LibraryService;
+import com.vCampus.service.ServiceFactory;
+import com.vCampus.common.LibrarySession;
+import com.vCampus.util.TransactionManager;
 import com.vCampus.util.LibraryUserRules;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -20,6 +23,10 @@ import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.ResourceBundle;
+
+import com.vCampus.common.ConfigManager;
+import com.vCampus.net.LibrarySocketClient;
+import com.vCampus.net.CourseGrabResult;
 
 public class LibraryController extends BaseController {
     @FXML private TextField keywordField;
@@ -44,9 +51,11 @@ public class LibraryController extends BaseController {
     @FXML private ComboBox<String> sortBox;
     @FXML private Button btnRenew;
     @FXML private Button btnReturn;
+    @FXML private Button btnPayFine;
 
-    private final LibraryService libraryService = new LibraryService();
+    private final LibraryService libraryService = ServiceFactory.getLibraryService();
     private final ObservableList<Book> data = FXCollections.observableArrayList();
+    private javafx.animation.Timeline autoRefresh;
     private int page = 1;
     private final int pageSize = 10;
 
@@ -78,9 +87,14 @@ public class LibraryController extends BaseController {
             return row;
         });
         // 我的借阅表格
-        brTitleCol.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(resolveBookTitle(c.getValue().getBookId())));
-        brBorrowDateCol.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(String.valueOf(c.getValue().getBorrowDate())));
-        brDueCol.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(String.valueOf(c.getValue().getDueDate())));
+        brTitleCol.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(
+            c.getValue().getTitle() == null ? "" : c.getValue().getTitle()
+        ));
+        java.text.SimpleDateFormat _fmt = new java.text.SimpleDateFormat("yyyy-MM-dd");
+        brBorrowDateCol.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(
+                c.getValue().getBorrowDate() == null ? "" : _fmt.format(c.getValue().getBorrowDate())));
+        brDueCol.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(
+                c.getValue().getDueDate() == null ? "" : _fmt.format(c.getValue().getDueDate())));
         brStatusCol.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(String.valueOf(c.getValue().getStatus())));
         brFineCol.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(String.valueOf(c.getValue().getFine()==null?0:c.getValue().getFine())));
         // 恢复增强列
@@ -90,22 +104,40 @@ public class LibraryController extends BaseController {
         if (brRenewTimesCol != null) {
             brRenewTimesCol.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(formatRenewTimes(c.getValue())));
         }
+        // 表格列宽与提示优化
+        if (borrowTable != null) {
+            // 允许横向滚动查看完整内容
+            borrowTable.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
+            if (brTitleCol != null) {
+                brTitleCol.setPrefWidth(260);
+                brTitleCol.setCellFactory(col -> new TableCell<com.vCampus.entity.BorrowRecord, String>() {
+                    @Override protected void updateItem(String item, boolean empty) {
+                        super.updateItem(item, empty);
+                        if (empty || item == null) { setText(null); setTooltip(null); }
+                        else { setText(item); setTooltip(new Tooltip(item)); }
+                    }
+                });
+            }
+            if (brBorrowDateCol != null) brBorrowDateCol.setPrefWidth(120);
+            if (brDueCol != null) brDueCol.setPrefWidth(120);
+        }
+
         // 借阅记录状态筛选初始化
         if (statusFilter != null) {
             statusFilter.getItems().setAll("全部", "借出", "已还", "逾期");
             statusFilter.setValue("借出");
-            statusFilter.valueProperty().addListener((obs, o, n) -> loadMyBorrows());
+            statusFilter.valueProperty().addListener((obs, o, n) -> asyncLoadMyBorrows());
         }
         // 图书列表额外筛选/排序
         if (bookStatusBox != null) {
             bookStatusBox.getItems().setAll("全部", "正常", "下架");
             bookStatusBox.setValue("全部");
-            bookStatusBox.valueProperty().addListener((o,ov,nv)-> { page=1; loadPage(); });
+            bookStatusBox.valueProperty().addListener((o,ov,nv)-> { page=1; asyncLoadPage(); });
         }
         if (sortBox != null) {
             sortBox.getItems().setAll("默认(最新)", "书名↑", "书名↓", "可借↑", "可借↓");
             sortBox.setValue("默认(最新)");
-            sortBox.valueProperty().addListener((o,ov,nv)-> { page=1; loadPage(); });
+            sortBox.valueProperty().addListener((o,ov,nv)-> { page=1; asyncLoadPage(); });
         }
 
         // 前端按钮权限（activeRole）
@@ -114,72 +146,243 @@ public class LibraryController extends BaseController {
         boolean canMaintain = com.vCampus.util.RBACUtil.canMaintainLibrary(user);
         if (btnRenew != null) btnRenew.setDisable(!canUse);
         if (btnReturn != null) btnReturn.setDisable(!canUse);
-        loadPage();
+        if (btnPayFine != null) btnPayFine.setDisable(!canUse);
+        asyncLoadPage();
         pagination.currentPageIndexProperty().addListener((obs, o, n) -> {
             page = n.intValue() + 1;
-            loadPage();
+            asyncLoadPage();
         });
-        loadMyBorrows();
+        asyncLoadMyBorrows();
         // 恢复行样式设置
         setupBorrowTableRowFactory();
+        startAutoRefresh();
     }
 
     @FXML
     private void onSearch() {
         page = 1;
-        loadPage();
+        asyncLoadPage();
     }
 
-    private void loadPage() {
+    private final java.util.concurrent.atomic.AtomicBoolean loadingPage = new java.util.concurrent.atomic.AtomicBoolean(false);
+    private void asyncLoadPage() {
+        if (!loadingPage.compareAndSet(false, true)) return;
         String kw = keywordField == null ? "" : keywordField.getText();
         String st = bookStatusBox == null ? "全部" : String.valueOf(bookStatusBox.getValue());
         String sort = sortBox == null ? "默认(最新)" : String.valueOf(sortBox.getValue());
-        List<Book> list = libraryService.searchBooksAdvanced(kw, st, sort, page, pageSize);
-        data.setAll(list);
-        infoLabel.setText("共 " + data.size() + " 条（本页）");
+        int curPage = page;
+        int size = pageSize;
+        LibrarySession.setKeyword(kw);
+        LibrarySession.setBookStatusFilter(st);
+        LibrarySession.setSortOption(sort);
+        LibrarySession.setCurrentPage(curPage);
+        LibrarySession.setPageSize(size);
+
+        startDaemon(() -> {
+            List<Book> list;
+            Integer totalCount = null;
+            if (ConfigManager.isSocketEnabled()) {
+                try {
+                    var req = new com.vCampus.net.dto.SocketRequest("LIB_LIST")
+                            .put("keyword", kw)
+                            .put("status", st)
+                            .put("sort", sort)
+                            .put("page", String.valueOf(curPage))
+                            .put("size", String.valueOf(size));
+                    java.net.Socket s = new java.net.Socket();
+                    s.connect(new java.net.InetSocketAddress(ConfigManager.getSocketServerHost(), ConfigManager.getSocketServerPort()), ConfigManager.getSocketConnectTimeoutMs());
+                    s.setSoTimeout(ConfigManager.getSocketSoTimeoutMs());
+                    try (java.io.ObjectOutputStream out = new java.io.ObjectOutputStream(s.getOutputStream());
+                         java.io.ObjectInputStream in = new java.io.ObjectInputStream(s.getInputStream())) {
+                        out.writeObject(req); out.flush();
+                        Object obj = in.readObject();
+                        list = new java.util.ArrayList<>();
+                        if (obj instanceof com.vCampus.net.dto.SocketResponse resp && resp.isSuccess() && resp.getData() instanceof java.util.Map<?,?> m && m.get("rows") instanceof java.util.List<?> rows) {
+                            Object tot = m.get("total");
+                            if (tot instanceof Number) totalCount = ((Number) tot).intValue();
+                            for (Object r : rows) {
+                                if (r instanceof java.util.Map<?,?> rm) {
+                                    Book b = new Book();
+                                    Object id = rm.get("bookId"); if (id != null) b.setBookId(((Number)id).intValue());
+                                    b.setTitle(String.valueOf(rm.get("title")));
+                                    b.setAuthor(String.valueOf(rm.get("author")));
+                                    b.setIsbn(String.valueOf(rm.get("isbn")));
+                                    Object av = rm.get("availableCopies"); if (av != null) b.setAvailableCopies(((Number)av).intValue());
+                                    b.setStatus((String)rm.get("status"));
+                                    list.add(b);
+                                }
+                            }
+                        }
+                    } finally { s.close(); }
+                } catch (Exception e) {
+                    com.vCampus.util.TransactionManager.runLaterSafe(() -> {
+                        if (infoLabel != null) infoLabel.setText("服务器不可用或连接中断");
+                    });
+                    return; // 不回退到本地
+                } finally { loadingPage.set(false); }
+            } else {
+                list = libraryService.searchBooksAdvanced(kw, st, sort, curPage, size);
+                loadingPage.set(false);
+            }
+            final List<Book> flist = list;
+            final Integer fTotal = totalCount;
+            TransactionManager.runLaterSafe(() -> {
+                data.setAll(flist);
+                if (fTotal != null) {
+                    int totalPages = Math.max(1, (fTotal + pageSize - 1) / pageSize);
+                    if (pagination != null) {
+                        pagination.setPageCount(totalPages);
+                        pagination.setCurrentPageIndex(curPage - 1);
+                    }
+                    infoLabel.setText("共 " + fTotal + " 条 / 第 " + curPage + " / 共 " + totalPages + " 页");
+                } else {
+                    infoLabel.setText("共 " + data.size() + " 条（本页）");
+                }
+                LibrarySession.setLastRefreshMillis(System.currentTimeMillis());
+            });
+        }, "lib-loadPage");
     }
 
-    private void loadMyBorrows() {
+    private final java.util.concurrent.atomic.AtomicBoolean loadingBorrows = new java.util.concurrent.atomic.AtomicBoolean(false);
+    private void asyncLoadMyBorrows() {
+        if (!loadingBorrows.compareAndSet(false, true)) return;
         String status = statusFilter == null ? "借出" : statusFilter.getValue();
-        var list = libraryService.listMyBorrowsByStatus(getCurrentUserId(), status);
-        // 这里只显示在借记录
-        if (borrowTable != null) {
-            borrowTable.getItems().setAll(list);
-        }
+        LibrarySession.setBorrowStatus(status);
+        String uid = getCurrentUserId();
+        startDaemon(() -> {
+            java.util.List<BorrowRecord> list;
+            if (ConfigManager.isSocketEnabled()) {
+                try {
+                    var req = new com.vCampus.net.dto.SocketRequest("LIB_MY_BORROWS")
+                            .put("userId", uid)
+                            .put("status", status);
+                    java.net.Socket s = new java.net.Socket();
+                    s.connect(new java.net.InetSocketAddress(ConfigManager.getSocketServerHost(), ConfigManager.getSocketServerPort()), ConfigManager.getSocketConnectTimeoutMs());
+                    s.setSoTimeout(ConfigManager.getSocketSoTimeoutMs());
+                    try (java.io.ObjectOutputStream out = new java.io.ObjectOutputStream(s.getOutputStream());
+                         java.io.ObjectInputStream in = new java.io.ObjectInputStream(s.getInputStream())) {
+                        out.writeObject(req); out.flush();
+                        Object obj = in.readObject();
+                        list = new java.util.ArrayList<>();
+                        if (obj instanceof com.vCampus.net.dto.SocketResponse resp && resp.isSuccess() && resp.getData() instanceof java.util.Map<?,?> m && m.get("rows") instanceof java.util.List<?> rows) {
+                            for (Object r : rows) {
+                                if (r instanceof java.util.Map<?,?> rm) {
+                                    BorrowRecord br = new BorrowRecord();
+                                    Object rid = rm.get("recordId"); if (rid != null) br.setRecordId(((Number)rid).intValue());
+                                    Object bid = rm.get("bookId"); if (bid != null) br.setBookId(((Number)bid).intValue());
+                                    Object tt = rm.get("title"); if (tt != null) br.setTitle(String.valueOf(tt));
+                                    Object bd = rm.get("borrowDate"); if (bd instanceof java.util.Date d1) br.setBorrowDate(new java.sql.Date(d1.getTime()));
+                                    Object dd = rm.get("dueDate"); if (dd instanceof java.util.Date d2) br.setDueDate(new java.sql.Date(d2.getTime()));
+                                    Object rd = rm.get("returnDate"); if (rd instanceof java.util.Date d3) br.setReturnDate(new java.sql.Date(d3.getTime()));
+                                    Object rt = rm.get("renewTimes"); if (rt != null) br.setRenewTimes(((Number)rt).intValue());
+                                    Object f = rm.get("fine"); if (f != null) br.setFine(((Number)f).doubleValue());
+                                    br.setStatus((String)rm.get("status"));
+                                    list.add(br);
+                                }
+                            }
+                        }
+                    } finally { s.close(); }
+                } catch (Exception e) {
+                    list = libraryService.listMyBorrowsByStatus(uid, status);
+                } finally { loadingBorrows.set(false); }
+            } else {
+                list = libraryService.listMyBorrowsByStatus(uid, status);
+                loadingBorrows.set(false);
+            }
+            // 补全缺失的 title（服务端旧版本未返回时，本地查询补齐）
+            try {
+                if (list != null) {
+                    for (BorrowRecord br : list) {
+                        if ((br.getTitle() == null || br.getTitle().isBlank()) && br.getBookId() != null) {
+                            com.vCampus.entity.Book b = libraryService.getBookById(br.getBookId());
+                            if (b != null) br.setTitle(b.getTitle());
+                        }
+                    }
+                }
+            } catch (Exception ignored) {}
+            final java.util.List<BorrowRecord> flist = list;
+            TransactionManager.runLaterSafe(() -> {
+                if (borrowTable != null) {
+                    borrowTable.getItems().setAll(flist);
+                }
+            });
+        }, "lib-loadMyBorrows");
+    }
+
+    private void startAutoRefresh() {
+        autoRefresh = new javafx.animation.Timeline(
+                new javafx.animation.KeyFrame(javafx.util.Duration.seconds(8), e -> {
+                    asyncLoadPage();
+                    asyncLoadMyBorrows();
+                })
+        );
+        autoRefresh.setCycleCount(javafx.animation.Animation.INDEFINITE);
+        autoRefresh.play();
+        // 页面关闭时停止刷新，避免后台空转
+        bookTable.sceneProperty().addListener((obs, oldScene, newScene) -> {
+            if (newScene != null) {
+                newScene.windowProperty().addListener((o, ov, nv) -> {
+                    if (nv != null) nv.setOnHidden(evt -> { if (autoRefresh != null) autoRefresh.stop(); });
+                });
+            } else {
+                if (autoRefresh != null) autoRefresh.stop();
+            }
+        });
     }
 
     // 顶部筛选按钮已移除，这里不再需要 onFilter
 
-    private String resolveBookTitle(Integer bookId) {
-        try {
-            // 简单做法：在当前数据集中查找，找不到就默认显示ID
-            for (Book b : data) {
-                if (b.getBookId() != null && b.getBookId().equals(bookId)) return b.getTitle();
-            }
-            // 如需更稳妥，可通过 service 再查一次该书
-            var list = libraryService.searchBooks("", 1, 200);
-            for (Book b : list) {
-                if (b.getBookId() != null && b.getBookId().equals(bookId)) return b.getTitle();
-            }
-        } catch (Exception ignored) {}
-        return String.valueOf(bookId);
-    }
+    // 服务器在 LIB_MY_BORROWS 已返回 title 字段，避免 UI 线程二次查询
 
     @FXML
     private void onBorrow() {
         Book sel = bookTable.getSelectionModel().getSelectedItem();
         if (sel == null) { showWarning("请先选择一本书"); return; }
         int days = askDays("借书时长（天）", 30);
-        var res = libraryService.borrowBookWithReason(getCurrentUserId(), sel.getBookId(), days);
-        if (res.isSuccess()) { showInformation("提示", res.getMessage()); loadPage(); } else { showError(res.getMessage()); }
+        new Thread(() -> {
+            String uid = getCurrentUserId();
+            String msg;
+            boolean ok;
+            if (ConfigManager.isSocketEnabled()) {
+                CourseGrabResult r = LibrarySocketClient.fromConfig().borrow(uid, sel.getBookId(), days);
+                ok = r.isSuccess();
+                msg = r.getMessage();
+            } else {
+                var res = libraryService.borrowBookWithReason(uid, sel.getBookId(), days);
+                ok = res.isSuccess();
+                msg = res.getMessage();
+            }
+            final boolean fOk = ok; final String fMsg = msg;
+            TransactionManager.runLaterSafe(() -> {
+                if (fOk) { showInformation("提示", fMsg); asyncLoadPage(); asyncLoadMyBorrows(); }
+                else { showError(fMsg); }
+            });
+        }, "lib-borrow").start();
     }
 
     @FXML
     private void onReserve() {
         Book sel = bookTable.getSelectionModel().getSelectedItem();
         if (sel == null) { showWarning("请先选择一本书"); return; }
-        var res = libraryService.reserveBookWithReason(getCurrentUserId(), sel.getBookId());
-        if (res.isSuccess()) { showInformation("提示", res.getMessage()); } else { showError(res.getMessage()); }
+        new Thread(() -> {
+            String uid = getCurrentUserId();
+            String msg;
+            boolean ok;
+            if (ConfigManager.isSocketEnabled()) {
+                CourseGrabResult r = LibrarySocketClient.fromConfig().reserve(uid, sel.getBookId());
+                ok = r.isSuccess();
+                msg = r.getMessage();
+            } else {
+                var res = libraryService.reserveBookWithReason(uid, sel.getBookId());
+                ok = res.isSuccess();
+                msg = res.getMessage();
+            }
+            final boolean fOk = ok; final String fMsg = msg;
+            TransactionManager.runLaterSafe(() -> {
+                if (fOk) { showInformation("提示", fMsg); }
+                else { showError(fMsg); }
+            });
+        }, "lib-reserve").start();
     }
 
     @FXML private void onRenew() {
@@ -188,20 +391,80 @@ public class LibraryController extends BaseController {
         
         int days = askDays("续借时长（天）", 30);
         // maxTimes 由服务层按角色判断，这里传1不再生效，但保持参数兼容
-        var res = libraryService.renewBorrowWithReason(getCurrentUserId(), sel.getRecordId(), days, 1);
-        if (res.isSuccess()) { showInformation("提示", res.getMessage()); loadMyBorrows(); }
-        else { showError(res.getMessage()); }
+        new Thread(() -> {
+            String uid = getCurrentUserId();
+            String msg;
+            boolean ok;
+            if (ConfigManager.isSocketEnabled()) {
+                CourseGrabResult r = LibrarySocketClient.fromConfig().renew(uid, sel.getRecordId(), days);
+                ok = r.isSuccess();
+                msg = r.getMessage();
+            } else {
+                var res = libraryService.renewBorrowWithReason(uid, sel.getRecordId(), days, 1);
+                ok = res.isSuccess();
+                msg = res.getMessage();
+            }
+            final boolean fOk = ok; final String fMsg = msg;
+            TransactionManager.runLaterSafe(() -> {
+                if (fOk) { showInformation("提示", fMsg); asyncLoadMyBorrows(); }
+                else { showError(fMsg); }
+            });
+        }, "lib-renew").start();
     }
 
     @FXML private void onReturn() {
         var sel = borrowTable.getSelectionModel().getSelectedItem();
         if (sel == null) { showWarning("请选择要归还的记录"); return; }
-        var res = libraryService.returnBookWithReason(getCurrentUserId(), sel.getRecordId(), sel.getBookId());
-        if (res.isSuccess()) { showInformation("提示", res.getMessage()); loadMyBorrows(); loadPage(); }
-        else { showError(res.getMessage()); }
+        new Thread(() -> {
+            String uid = getCurrentUserId();
+            String msg;
+            boolean ok;
+            if (ConfigManager.isSocketEnabled()) {
+                CourseGrabResult r = LibrarySocketClient.fromConfig().returnBook(uid, sel.getRecordId(), sel.getBookId());
+                ok = r.isSuccess();
+                msg = r.getMessage();
+            } else {
+                var res = libraryService.returnBookWithReason(uid, sel.getRecordId(), sel.getBookId());
+                ok = res.isSuccess();
+                msg = res.getMessage();
+            }
+            final boolean fOk = ok; final String fMsg = msg;
+            TransactionManager.runLaterSafe(() -> {
+                if (fOk) { showInformation("提示", fMsg); asyncLoadMyBorrows(); asyncLoadPage(); }
+                else { showError(fMsg); }
+            });
+        }, "lib-return").start();
     }
 
-    @FXML private void onRefreshBorrows() { loadMyBorrows(); }
+    @FXML private void onPayFine() {
+        // 支持两种方式：选中逾期记录缴纳该笔；若未选中则尝试一次性缴清
+        BorrowRecord sel = borrowTable == null ? null : borrowTable.getSelectionModel().getSelectedItem();
+        String uid = getCurrentUserId();
+        new Thread(() -> {
+            String msg; boolean ok;
+            if (ConfigManager.isSocketEnabled()) {
+                if (sel != null && sel.getFine()!=null && sel.getFine()>0) {
+                    var r = LibrarySocketClient.fromConfig().payFineForRecord(uid, sel.getRecordId());
+                    ok = r.isSuccess(); msg = r.getMessage();
+                } else {
+                    var r = LibrarySocketClient.fromConfig().payAllFines(uid);
+                    ok = r.isSuccess(); msg = r.getMessage();
+                }
+            } else {
+                var r = (sel!=null && sel.getFine()!=null && sel.getFine()>0)
+                        ? libraryService.payFineForRecord(uid, sel.getRecordId())
+                        : libraryService.payAllFines(uid);
+                ok = r.isSuccess(); msg = r.getMessage();
+            }
+            final boolean fOk = ok; final String fMsg = msg;
+            TransactionManager.runLaterSafe(() -> {
+                showInformation(fOk?"提示":"失败", fMsg);
+                asyncLoadMyBorrows();
+            });
+        }, "lib-payfine").start();
+    }
+
+    @FXML private void onRefreshBorrows() { asyncLoadMyBorrows(); }
 
     // 从 BaseController 或登录上下文获取当前用户ID，这里先占位实现
     private String getCurrentUserId() {

@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<BorderPane xmlns:fx="http://javafx.com/fxml"
+            fx:controller="com.vCampus.view.FlashGrabController"
+            stylesheets="@../css/main.css">
+  <top>
+    <HBox spacing="10" style="-fx-padding: 10;">
+      <TextField fx:id="keywordField" promptText="输入课程名搜索" HBox.hgrow="ALWAYS"/>
+      <Button text="搜索" onAction="#onSearch"/>
+      <Region HBox.hgrow="ALWAYS"/>
+      <Button text="刷新" onAction="#onRefresh"/>
+    </HBox>
+  </top>
+  <center>
+    <VBox spacing="8" style="-fx-padding: 8;">
+      <TableView fx:id="table" VBox.vgrow="ALWAYS">
+        <columns>
+          <TableColumn text="课程号" fx:id="colId"/>
+          <TableColumn text="名称" fx:id="colName"/>
+          <TableColumn text="开课日期" fx:id="colDate"/>
+          <TableColumn text="剩余" fx:id="colSlots"/>
+          <TableColumn text="学分" fx:id="colCredit"/>
+          <TableColumn text="教师" fx:id="colTeacher"/>
+          <TableColumn text="周次" fx:id="colWeekRange"/>
+          <TableColumn text="单双周" fx:id="colWeekType"/>
+          <TableColumn text="时间" fx:id="colTime"/>
+          <TableColumn text="教室" fx:id="colRoom"/>
+          <TableColumn text="操作" fx:id="colAction" prefWidth="120"/>
+        </columns>
+      </TableView>
+    </VBox>
+  </center>
+  <bottom>
+    <HBox spacing="10" style="-fx-padding: 8;">
+      <Label fx:id="lbStatus"/>
+    </HBox>
+  </bottom>
+</BorderPane>
+
+

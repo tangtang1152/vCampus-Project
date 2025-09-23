@@ -42,7 +42,6 @@
         <artifactId>ucanaccess</artifactId>
         <version>5.0.1</version>
     </dependency>
-    <!-- UCanAccess 的依赖项 -->
     <!-- 与 UCanAccess 5.0.1 兼容的 HSQLDB 版本，避免函数加载报错 -->
     <dependency>
         <groupId>org.hsqldb</groupId>
@@ -65,6 +64,18 @@
         <groupId>com.healthmarketscience.jackcess</groupId>
         <artifactId>jackcess</artifactId>
         <version>3.0.1</version>
+    </dependency>
+      <!-- Excel 处理：Apache POI -->
+      <dependency>
+        <groupId>org.apache.poi</groupId>
+        <artifactId>poi-ooxml</artifactId>
+        <version>5.2.5</version>
+      </dependency>
+    <!-- JSON 解析（客户端调用服务端接口） -->
+    <dependency>
+        <groupId>com.fasterxml.jackson.core</groupId>
+        <artifactId>jackson-databind</artifactId>
+        <version>2.17.0</version>
     </dependency>
     
   </dependencies>

@@ -150,10 +150,43 @@ public class RegisterController {
      */
     private void registerUser(User user, String userType) {
         new Thread(() -> {
-        	IUserService userService = ServiceFactory.getUserService();
-            IUserService.RegisterResult result = userService.register(user);
+            boolean ok;
+            String msg;
+            if (com.vCampus.common.ConfigManager.isSocketEnabled()) {
+                try {
+                    var req = new com.vCampus.net.dto.SocketRequest("USER_REGISTER")
+                            .put("username", user.getUsername())
+                            .put("password", user.getPassword())
+                            .put("role", user.getRole() == null ? "STUDENT" : user.getRole());
+                    // 仅学生时附带学号/姓名（若存在）
+                    if (user instanceof Student s) {
+                        if (s.getStudentId() != null) req.put("studentId", s.getStudentId());
+                        if (s.getStudentName() != null) req.put("studentName", s.getStudentName());
+                        if (s.getClassName() != null) req.put("className", s.getClassName());
+                    }
+                    java.net.Socket sk = new java.net.Socket();
+                    sk.connect(new java.net.InetSocketAddress(com.vCampus.common.ConfigManager.getSocketServerHost(), com.vCampus.common.ConfigManager.getSocketServerPort()), com.vCampus.common.ConfigManager.getSocketConnectTimeoutMs());
+                    sk.setSoTimeout(com.vCampus.common.ConfigManager.getSocketSoTimeoutMs());
+                    try (java.io.ObjectOutputStream out = new java.io.ObjectOutputStream(sk.getOutputStream());
+                         java.io.ObjectInputStream in = new java.io.ObjectInputStream(sk.getInputStream())) {
+                        out.writeObject(req); out.flush();
+                        Object obj = in.readObject();
+                        if (obj instanceof com.vCampus.net.dto.SocketResponse resp) { ok = resp.isSuccess(); msg = resp.getMessage(); }
+                        else { ok = false; msg = "非法响应"; }
+                    } finally { sk.close(); }
+                } catch (Exception e) {
+                    ok = false; msg = "连接失败: " + e.getMessage();
+                }
+            } else {
+                IUserService userService = ServiceFactory.getUserService();
+                IUserService.RegisterResult result = userService.register(user);
+                ok = (result == IUserService.RegisterResult.SUCCESS);
+                msg = ok ? "注册成功" : result.getMessage();
+            }
+            final boolean fOk = ok; final String fMsg = msg;
             TransactionManager.runLaterSafe(() -> {
-                handleRegisterResult(result, userType);
+                if (fOk) { showSuccess(userType + "注册成功！"); }
+                else { showError("注册失败：" + fMsg); }
             });
         }).start();
     }

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+
+<VBox xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.vCampus.view.ChosenStudentsDialogController"
+      spacing="10" alignment="TOP_CENTER"
+      style="-fx-padding: 20; -fx-background-color: #ffffff;">
+
+    <Label fx:id="courseNameLabel" style="-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #333;"/>
+
+    <TableView fx:id="studentTable" VBox.vgrow="ALWAYS" prefHeight="300" prefWidth="400">
+        <placeholder>
+            <Label text="该课程暂无学生选择"/>
+        </placeholder>
+        <columns>
+            <TableColumn text="学号" fx:id="studentIdCol" prefWidth="150"/>
+            <TableColumn text="学生姓名" fx:id="studentNameCol" prefWidth="250"/>
+        </columns>
+    </TableView>
+
+    <!-- 修改这里，添加退课按钮 -->
+    <HBox spacing="10" alignment="CENTER">
+        <Button text="退课" onAction="#onDropStudentSubject" style="-fx-min-width: 80px; -fx-background-color: #dc3545; -fx-text-fill: white;"/>
+        <Button text="关闭" onAction="#onClose" style="-fx-min-width: 80px; -fx-background-color: #007bff; -fx-text-fill: white;"/>
+    </HBox>
+
+</VBox>

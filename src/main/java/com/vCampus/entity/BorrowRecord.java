@@ -13,6 +13,7 @@ public class BorrowRecord {
     private Integer renewTimes;        // 续借次数
     private Double fine;               // 罚金
     private String status;             // 借出/已还/逾期
+    private String title;              // 图书标题（通过 Socket 返回，避免二次查询）
 
     public BorrowRecord() {}
 
@@ -42,4 +43,7 @@ public class BorrowRecord {
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+
+    public String getTitle() { return title; }
+    public void setTitle(String title) { this.title = title; }
 }

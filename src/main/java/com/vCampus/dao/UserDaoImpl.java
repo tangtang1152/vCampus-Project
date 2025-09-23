@@ -37,9 +37,15 @@ public class UserDaoImpl extends AbstractBaseDaoImpl<User, Integer> implements I
 
     @Override
     protected void setUpdateParameters(PreparedStatement pstmt, User user) throws SQLException {
-        pstmt.setString(1, user.getUsername());
-        pstmt.setString(2, user.getPassword());
-        pstmt.setString(3, user.getRole());
+        String truncatedUsername = ValidationService.truncateString(user.getUsername(), 
+                DBConstants.USERNAME_MAX_LENGTH);
+        String truncatedPassword = ValidationService.truncateString(user.getPassword(), 
+                DBConstants.PASSWORD_MAX_LENGTH);
+        String truncatedRole = ValidationService.truncateString(user.getRole(), 
+                DBConstants.ROLE_MAX_LENGTH);
+        pstmt.setString(1, truncatedUsername);
+        pstmt.setString(2, truncatedPassword);
+        pstmt.setString(3, truncatedRole);
         pstmt.setInt(4, user.getUserId());
     }
 

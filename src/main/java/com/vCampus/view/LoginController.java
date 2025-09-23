@@ -2,6 +2,11 @@ package com.vCampus.view;
 
 import com.vCampus.common.BaseController;
 import com.vCampus.common.NavigationUtil;
+import com.vCampus.common.SessionContext;
+import com.vCampus.entity.Admin; // 导入 Admin 类
+import com.vCampus.entity.Student; // 导入 Student 类
+import com.vCampus.entity.Teacher; // 导入 Teacher 类
+import com.vCampus.entity.User; // 导入 User 类
 import com.vCampus.service.IUserService;
 import com.vCampus.service.ServiceFactory;
 import javafx.fxml.FXML;
@@ -18,67 +23,108 @@ import java.util.ResourceBundle;
  * 处理用户登录逻辑
  */
 public class LoginController extends BaseController {
-    
+
     @FXML private TextField usernameField;
     @FXML private PasswordField passwordField;
-    
-    /**
-     * 初始化方法
-     */
+
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        // 设置回车键登录
         usernameField.setOnKeyPressed(this::handleKeyPress);
         passwordField.setOnKeyPressed(this::handleKeyPress);
-        
-        // 设置初始焦点
         usernameField.requestFocus();
     }
-    
-    /**
-     * 处理键盘事件
-     */
+
     private void handleKeyPress(KeyEvent event) {
         if (event.getCode() == KeyCode.ENTER) {
             onLogin();
         }
     }
-    
-    /**
-     * 登录按钮点击事件
-     */
+
     @FXML
     private void onLogin() {
         String username = usernameField.getText().trim();
         String password = passwordField.getText().trim();
-        
-        // 输入验证
+
         if (!validateInput(username, password)) {
             showError("用户名和密码不能为空");
             usernameField.requestFocus();
             return;
         }
-        
+
         if (username.length() < 1 || username.length() > 50) {
             showError("用户名长度必须在1-50个字符之间");
             usernameField.requestFocus();
             return;
         }
-        
-        // 执行登录
+
         try {
-        	IUserService userService = ServiceFactory.getUserService();
-            var user = userService.login(username, password);
-            if (user != null) {
-                showSuccess("登录成功！欢迎 " + user.getUsername());
-                // 保存到会话上下文
-                com.vCampus.common.SessionContext.setCurrentUser(user);
-                
-                // 跳转到主界面
+            User genericUser = null;
+            if (com.vCampus.common.ConfigManager.isSocketEnabled()) {
+                // 通过 Socket 登录服务器
+                var req = new com.vCampus.net.dto.SocketRequest("USER_LOGIN")
+                        .put("username", username)
+                        .put("password", password);
+                java.net.Socket s = new java.net.Socket();
+                s.connect(new java.net.InetSocketAddress(com.vCampus.common.ConfigManager.getSocketServerHost(), com.vCampus.common.ConfigManager.getSocketServerPort()), com.vCampus.common.ConfigManager.getSocketConnectTimeoutMs());
+                s.setSoTimeout(com.vCampus.common.ConfigManager.getSocketSoTimeoutMs());
+                try (java.io.ObjectOutputStream out = new java.io.ObjectOutputStream(s.getOutputStream());
+                     java.io.ObjectInputStream in = new java.io.ObjectInputStream(s.getInputStream())) {
+                    out.writeObject(req); out.flush();
+                    Object obj = in.readObject();
+                    if (obj instanceof com.vCampus.net.dto.SocketResponse resp && resp.isSuccess() && resp.getData() instanceof java.util.Map<?,?> m) {
+                        genericUser = new User();
+                        Object uid = m.get("userId"); if (uid instanceof Number) genericUser.setUserId(((Number)uid).intValue());
+                        genericUser.setUsername(String.valueOf(m.get("username")));
+                        // 角色集合
+                        java.util.Set<String> roles = new java.util.HashSet<>();
+                        Object rs = m.get("roles");
+                        if (rs instanceof java.util.Collection<?> c) for (Object r : c) roles.add(String.valueOf(r));
+                        genericUser.setRoleSet(roles);
+                        // 主角色（若有）
+                        String active = String.valueOf(m.get("activeRole"));
+                        if (active != null) genericUser.setRole(active);
+                        // 若包含学生，并且返回了学生信息，则构建 Student 放入会话（便于前端直接取 studentId）
+                        if (roles.contains("STUDENT")) {
+                            Object sid = m.get("studentId");
+                            if (sid != null) {
+                                com.vCampus.entity.Student stu = new com.vCampus.entity.Student();
+                                stu.setUserId(genericUser.getUserId());
+                                stu.setUsername(genericUser.getUsername());
+                                stu.setRole(genericUser.getRole());
+                                stu.setStudentId(String.valueOf(sid));
+                                Object sn = m.get("studentName"); if (sn != null) stu.setStudentName(String.valueOf(sn));
+                                Object cls = m.get("className"); if (cls != null) stu.setClassName(String.valueOf(cls));
+                                genericUser = stu;
+                            }
+                        }
+                    }
+                } finally { s.close(); }
+            } else {
+                IUserService userService = ServiceFactory.getUserService();
+                genericUser = userService.login(username, password);
+            }
+
+            if (genericUser != null) {
+                // 将通用 User 放入会话，并设置激活角色为主角色（在 SessionContext 内部完成）
+                SessionContext.setCurrentUser(genericUser);
+                // 可选：预加载主角色对应的详情（不改变会话对象类型）
+                try {
+                    String primary = genericUser.getPrimaryRole();
+                    if ("STUDENT".equalsIgnoreCase(primary)) {
+                        ServiceFactory.getStudentService().getByUserId(genericUser.getUserId());
+                    } else if ("TEACHER".equalsIgnoreCase(primary)) {
+                        ServiceFactory.getTeacherService().getByUserId(genericUser.getUserId());
+                    } else if ("ADMIN".equalsIgnoreCase(primary)) {
+                        ServiceFactory.getAdminService().getByUserId(genericUser.getUserId());
+                    }
+                } catch (Exception ignored) {}
+
+                showSuccess("登录成功！欢迎 " + genericUser.getUsername());
+
                 NavigationUtil.navigateTo(
                     getCurrentStage(),
-                    "main-view.fxml", 
-                    "vCampus主界面 - " + user.getUsername()
+                    "main-view.fxml",
+                    "vCampus主界面 - " + genericUser.getUsername()
                 );
             } else {
                 showError("用户名或密码错误");
@@ -90,14 +136,10 @@ public class LoginController extends BaseController {
             e.printStackTrace();
         }
     }
-    
-    /**
-     * 注册按钮点击事件
-     */
+
     @FXML
     private void onRegister() {
         System.out.println("🎯 注册按钮被点击");
-        
         try {
             System.out.println("🔍 尝试显示注册对话框...");
             NavigationUtil.showDialog("register-view.fxml", "用户注册");
@@ -108,18 +150,18 @@ public class LoginController extends BaseController {
             showError("无法打开注册界面: " + e.getMessage());
         }
     }
-    /**
-     * 忘记密码点击事件
-     */
+
     @FXML
     private void onForgotPassword() {
         showInformation("忘记密码", "请联系系统管理员重置密码");
     }
-    
-    /**
-     * 获取当前舞台
-     */
+
     private javafx.stage.Stage getCurrentStage() {
         return (javafx.stage.Stage) usernameField.getScene().getWindow();
+    }
+
+    private boolean validateInput(String username, String password) {
+        return username != null && !username.isEmpty() &&
+               password != null && !password.isEmpty();
     }
 }

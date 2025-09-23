@@ -13,7 +13,7 @@ public class DBConstants {
     // tbl_student 表字段长度限制
     public static final int STUDENT_NAME_MAX_LENGTH = 10;
     public static final int CLASS_NAME_MAX_LENGTH = 20;
-
+    public static final int STUDENT_ID_MAX_LENGTH = 20;
     // tbl_teacher 表字段长度限制
     public static final int TEACHER_ID_MAX_LENGTH = 8;
     public static final int TEACHER_NAME_MAX_LENGTH = 10;
@@ -28,4 +28,14 @@ public class DBConstants {
     // 图书馆规则
     public static final int MAX_BORROW_CONCURRENT = 5; // 同时借出上限
     public static final double DAILY_FINE = 1.0;       // 逾期每日罚金（元）
+
+    // 课程/院系/学科等（来自合并分支，保留以兼容）
+    public static final int DEPARTMENT_NAME_MAX_LENGTH = 50;
+    public static final int DEPARTMENT_LOCATION_MAX_LENGTH = 100;
+    public static final int COURSE_ID_MAX_LENGTH = 20;
+    public static final int COURSE_NAME_MAX_LENGTH = 100;
+    public static final int COURSE_CREDIT_MAX_LENGTH = 10;
+    public static final int COURSE_TEACHER_ID_MAX_LENGTH = 20;
+    public static final int SUBJECT_NAME_MAX_LENGTH = 50;
+    public static final int SUBJECT_ID_MAX_LENGTH = 20;
 }

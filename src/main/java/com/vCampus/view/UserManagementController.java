@@ -78,32 +78,67 @@ public class UserManagementController extends BaseController {
     @FXML private void onClose() { ((javafx.stage.Stage) table.getScene().getWindow()).close(); }
 
     private void refresh() {
-        List<User> all = userService.getAll();
-
-        // 一次性加载三类详情，构建缓存，避免单元格重复触发数据库
-        realNameByUserId.clear();
-        typeInfoByUserId.clear();
-        try {
-            List<Student> studs = studentService.getAll();
-            for (Student s : studs) {
-                realNameByUserId.put(s.getUserId(), s.getStudentName() == null ? "" : s.getStudentName());
-                typeInfoByUserId.put(s.getUserId(), "班级:" + (s.getClassName() == null ? "" : s.getClassName()));
+        List<User> all;
+        if (com.vCampus.common.ConfigManager.isSocketEnabled()) {
+            try {
+                var req = new com.vCampus.net.dto.SocketRequest("USER_LIST");
+                java.net.Socket s = new java.net.Socket();
+                s.connect(new java.net.InetSocketAddress(com.vCampus.common.ConfigManager.getSocketServerHost(), com.vCampus.common.ConfigManager.getSocketServerPort()), com.vCampus.common.ConfigManager.getSocketConnectTimeoutMs());
+                s.setSoTimeout(com.vCampus.common.ConfigManager.getSocketSoTimeoutMs());
+                try (java.io.ObjectOutputStream out = new java.io.ObjectOutputStream(s.getOutputStream());
+                     java.io.ObjectInputStream in = new java.io.ObjectInputStream(s.getInputStream())) {
+                    out.writeObject(req); out.flush();
+                    Object obj = in.readObject();
+                    all = new java.util.ArrayList<>();
+                    if (obj instanceof com.vCampus.net.dto.SocketResponse resp && resp.isSuccess() && resp.getData() instanceof java.util.Map<?,?> m && m.get("rows") instanceof java.util.List<?> rows) {
+                        realNameByUserId.clear(); typeInfoByUserId.clear();
+                        for (Object r : rows) if (r instanceof java.util.Map<?,?> rm) {
+                            User u = new User();
+                            Object id = rm.get("userId"); if (id instanceof Number) u.setUserId(((Number)id).intValue());
+                            u.setUsername(String.valueOf(rm.get("username")));
+                            java.util.LinkedHashSet<String> roles = new java.util.LinkedHashSet<>();
+                            Object ro = rm.get("roles"); if (ro instanceof java.util.Collection<?> c) for (Object x : c) roles.add(String.valueOf(x));
+                            u.setRoleSet(roles);
+                            all.add(u);
+                            if (u.getUserId() != 0) {
+                                Object rn = rm.containsKey("realName") ? rm.get("realName") : "";
+                                Object ti = rm.containsKey("typeInfo") ? rm.get("typeInfo") : "";
+                                realNameByUserId.put(u.getUserId(), String.valueOf(rn));
+                                typeInfoByUserId.put(u.getUserId(), String.valueOf(ti));
+                            }
+                        }
+                    }
+                } finally { s.close(); }
+            } catch (Exception e) {
+                showError("服务器不可用或连接中断，请检查网络/配置后重试");
+                return;
             }
-        } catch (Exception ignored) {}
-        try {
-            List<Teacher> tchs = teacherService.getAll();
-            for (Teacher t : tchs) {
-                realNameByUserId.put(t.getUserId(), t.getTeacherName() == null ? "" : t.getTeacherName());
-                typeInfoByUserId.put(t.getUserId(), "部门:" + (t.getDepartmentId() == null ? "" : t.getDepartmentId()));
-            }
-        } catch (Exception ignored) {}
-        try {
-            List<Admin> adms = adminService.getAll();
-            for (Admin a : adms) {
-                realNameByUserId.put(a.getUserId(), a.getAdminName() == null ? "" : a.getAdminName());
-                typeInfoByUserId.put(a.getUserId(), "工号:" + (a.getAdminId() == null ? "" : a.getAdminId()));
-            }
-        } catch (Exception ignored) {}
+        } else {
+            all = userService.getAll();
+            // 本地模式：继续使用下方缓存构建
+            realNameByUserId.clear(); typeInfoByUserId.clear();
+            try {
+                List<Student> studs = studentService.getAll();
+                for (Student s : studs) {
+                    realNameByUserId.put(s.getUserId(), s.getStudentName() == null ? "" : s.getStudentName());
+                    typeInfoByUserId.put(s.getUserId(), "班级:" + (s.getClassName() == null ? "" : s.getClassName()));
+                }
+            } catch (Exception ignored) {}
+            try {
+                List<Teacher> tchs = teacherService.getAll();
+                for (Teacher t : tchs) {
+                    realNameByUserId.put(t.getUserId(), t.getTeacherName() == null ? "" : t.getTeacherName());
+                    typeInfoByUserId.put(t.getUserId(), "部门:" + (t.getDepartmentId() == null ? "" : t.getDepartmentId()));
+                }
+            } catch (Exception ignored) {}
+            try {
+                List<Admin> adms = adminService.getAll();
+                for (Admin a : adms) {
+                    realNameByUserId.put(a.getUserId(), a.getAdminName() == null ? "" : a.getAdminName());
+                    typeInfoByUserId.put(a.getUserId(), "工号:" + (a.getAdminId() == null ? "" : a.getAdminId()));
+                }
+            } catch (Exception ignored) {}
+        }
         String kw = keywordField == null ? "" : keywordField.getText().trim().toLowerCase();
         boolean fStu = cbStudent == null || cbStudent.isSelected();
         boolean fTch = cbTeacher == null || cbTeacher.isSelected();
@@ -134,27 +169,36 @@ public class UserManagementController extends BaseController {
         User sel = table.getSelectionModel().getSelectedItem();
         if (sel == null) { showWarning("请选择要删除的用户"); return; }
         if (!showConfirmation("删除用户", "确定删除用户 " + sel.getUsername() + " ? 此操作不可恢复")) return;
-        // 按角色删除对应记录并级联删除 tbl_user
-        boolean ok = false;
-        Set<String> rs = sel.getRoleSet().stream().map(String::toUpperCase).collect(java.util.stream.Collectors.toSet());
-        try {
-            if (rs.contains("STUDENT")) {
-                Student s = studentService.getByUserId(sel.getUserId());
-                // 先清理可能的外键引用（订单、借阅等）——这里演示：如有订单，给出阻断提示
-                // 实际可在 Service 层增加“级联清理”接口
-                ok = (s != null) && studentService.delete(s.getStudentId());
-            } else if (rs.contains("TEACHER")) {
-                Teacher t = teacherService.getByUserId(sel.getUserId());
-                ok = (t != null) && teacherService.delete(t.getTeacherId());
-            } else if (rs.contains("ADMIN")) {
-                Admin a = adminService.getByUserId(sel.getUserId());
-                ok = (a != null) && adminService.delete(a.getAdminId());
+        boolean ok;
+        if (com.vCampus.common.ConfigManager.isSocketEnabled()) {
+            try {
+                var req = new com.vCampus.net.dto.SocketRequest("USER_DELETE").put("userId", String.valueOf(sel.getUserId()));
+                java.net.Socket s = new java.net.Socket();
+                s.connect(new java.net.InetSocketAddress(com.vCampus.common.ConfigManager.getSocketServerHost(), com.vCampus.common.ConfigManager.getSocketServerPort()), com.vCampus.common.ConfigManager.getSocketConnectTimeoutMs());
+                s.setSoTimeout(com.vCampus.common.ConfigManager.getSocketSoTimeoutMs());
+                try (java.io.ObjectOutputStream out = new java.io.ObjectOutputStream(s.getOutputStream());
+                     java.io.ObjectInputStream in = new java.io.ObjectInputStream(s.getInputStream())) {
+                    out.writeObject(req); out.flush();
+                    Object obj = in.readObject();
+                    ok = obj instanceof com.vCampus.net.dto.SocketResponse resp && resp.isSuccess();
+                } finally { s.close(); }
+            } catch (Exception e) {
+                showError("服务器不可用或连接中断，请检查网络/配置后重试");
+                return;
             }
-        } catch (Exception e) {
-            showError("删除失败：可能存在外键引用，请先清理相关数据\n" + e.getMessage());
-            ok = false;
+        } else {
+            // 旧本地逻辑
+            boolean okLocal = true; String errorMsg = null;
+            Set<String> rs = sel.getRoleSet().stream().map(String::toUpperCase).collect(java.util.stream.Collectors.toSet());
+            try {
+                if (rs.contains("STUDENT")) { Student s = studentService.getByUserId(sel.getUserId()); if (s != null) okLocal &= studentService.deleteStudentOnly(s.getStudentId()); }
+                if (rs.contains("TEACHER")) { Teacher t = teacherService.getByUserId(sel.getUserId()); if (t != null) okLocal &= teacherService.deleteTeacherOnly(t.getTeacherId()); }
+                if (rs.contains("ADMIN")) { Admin a = adminService.getByUserId(sel.getUserId()); if (a != null) okLocal &= adminService.deleteAdminOnly(a.getAdminId()); }
+                if (okLocal) okLocal &= userService.delete(sel.getUserId());
+            } catch (Exception e) { okLocal = false; errorMsg = e.getMessage(); }
+            ok = okLocal; if (!okLocal) { showError("删除失败：" + errorMsg); return; }
         }
-        if (ok) { showInformation("提示", "删除成功"); refresh(); } else { showError("删除失败，可能关联信息不存在"); }
+        if (ok) { showInformation("提示", "删除成功"); refresh(); }
     }
 
     private void openUserForm(User originUser) {
@@ -183,19 +227,23 @@ public class UserManagementController extends BaseController {
         PasswordField pfPassword = new PasswordField();
         if (isEdit) pfPassword.setPromptText("留空则不修改");
 
-        // 角色单选
-        ToggleGroup roleGroup = new ToggleGroup();
-        RadioButton rbStu = new RadioButton("学生"); rbStu.setToggleGroup(roleGroup);
-        RadioButton rbTch = new RadioButton("教师"); rbTch.setToggleGroup(roleGroup);
-        RadioButton rbAdm = new RadioButton("管理员"); rbAdm.setToggleGroup(roleGroup);
-        var roleRow = new javafx.scene.layout.HBox(12, rbStu, rbTch, rbAdm);
+        // 角色多选
+        CheckBox cbRoleStu = new CheckBox("学生");
+        CheckBox cbRoleTch = new CheckBox("教师");
+        CheckBox cbRoleAdm = new CheckBox("管理员");
+        var roleRow = new javafx.scene.layout.HBox(12, cbRoleStu, cbRoleTch, cbRoleAdm);
         roleRow.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
 
-        String existingRole = isEdit ? originUser.getRoleSet().stream().findFirst().orElse("") : "";
-        if (existingRole.equalsIgnoreCase("STUDENT")) rbStu.setSelected(true);
-        else if (existingRole.equalsIgnoreCase("TEACHER")) rbTch.setSelected(true);
-        else if (existingRole.equalsIgnoreCase("ADMIN")) rbAdm.setSelected(true);
-        else rbStu.setSelected(!isEdit); // 新增默认学生
+        java.util.Set<String> existingRoles = isEdit
+            ? originUser.getRoleSet().stream().map(String::toUpperCase).collect(java.util.stream.Collectors.toSet())
+            : java.util.Collections.emptySet();
+        if (isEdit) {
+            cbRoleStu.setSelected(existingRoles.contains("STUDENT"));
+            cbRoleTch.setSelected(existingRoles.contains("TEACHER"));
+            cbRoleAdm.setSelected(existingRoles.contains("ADMIN"));
+        } else {
+            cbRoleStu.setSelected(true); // 新增默认勾选学生
+        }
 
         // 学生字段
         TextField tfStuId = new TextField(); tfStuId.setPromptText("学号");
@@ -234,29 +282,28 @@ public class UserManagementController extends BaseController {
 
         // 若编辑，回填明细
         if (isEdit) {
-            Set<String> rs = originUser.getRoleSet();
+            Set<String> rs = originUser.getRoleSet().stream().map(String::toUpperCase).collect(java.util.stream.Collectors.toSet());
             if (rs.contains("STUDENT")) {
                 Student s = studentService.getByUserId(originUser.getUserId());
                 if (s != null) {
                     tfStuId.setText(s.getStudentId()); tfStuId.setEditable(false);
                     tfStuName.setText(s.getStudentName()); tfClass.setText(s.getClassName());
                 }
-                rbStu.setSelected(true);
-            } else if (rs.contains("TEACHER")) {
+            }
+            if (rs.contains("TEACHER")) {
                 Teacher t = teacherService.getByUserId(originUser.getUserId());
                 if (t != null) {
                     tfTchId.setText(t.getTeacherId()); tfTchId.setEditable(false);
                     tfTchName.setText(t.getTeacherName()); cbSex.setValue(t.getSex());
                     tfTech.setText(t.getTechnical()); tfDept.setText(t.getDepartmentId());
                 }
-                rbTch.setSelected(true);
-            } else if (rs.contains("ADMIN")) {
+            }
+            if (rs.contains("ADMIN")) {
                 Admin a = adminService.getByUserId(originUser.getUserId());
                 if (a != null) {
                     tfAdmId.setText(a.getAdminId()); tfAdmId.setEditable(false);
                     tfAdmName.setText(a.getAdminName());
                 }
-                rbAdm.setSelected(true);
             }
         }
 
@@ -270,21 +317,20 @@ public class UserManagementController extends BaseController {
             groupAdm
         );
 
-        // 角色切换联动（可见性 + 调试输出）
-        java.util.function.Consumer<String> applyRoleVisibility = role -> {
-            boolean s = "STUDENT".equalsIgnoreCase(role);
-            boolean t = "TEACHER".equalsIgnoreCase(role);
-            boolean a = "ADMIN".equalsIgnoreCase(role);
+        // 角色切换联动（多选可见性 + 调试输出）
+        Runnable updateRoleVisibility = () -> {
+            boolean s = cbRoleStu.isSelected();
+            boolean t = cbRoleTch.isSelected();
+            boolean a = cbRoleAdm.isSelected();
             groupStu.setManaged(s); groupStu.setVisible(s);
             groupTch.setManaged(t); groupTch.setVisible(t);
             groupAdm.setManaged(a); groupAdm.setVisible(a);
-            System.out.println("[UserMgmt] 角色区域切换 => " + role);
+            System.out.println("[UserMgmt] 角色区域切换 => S=" + s + ", T=" + t + ", A=" + a);
         };
-        String initRole = rbStu.isSelected()?"STUDENT":rbTch.isSelected()?"TEACHER":"ADMIN";
-        applyRoleVisibility.accept(initRole);
-        rbStu.setOnAction(e -> applyRoleVisibility.accept("STUDENT"));
-        rbTch.setOnAction(e -> applyRoleVisibility.accept("TEACHER"));
-        rbAdm.setOnAction(e -> applyRoleVisibility.accept("ADMIN"));
+        updateRoleVisibility.run();
+        cbRoleStu.setOnAction(e -> updateRoleVisibility.run());
+        cbRoleTch.setOnAction(e -> updateRoleVisibility.run());
+        cbRoleAdm.setOnAction(e -> updateRoleVisibility.run());
 
         // 放入可滚动容器并允许调整大小
         var sp = new javafx.scene.control.ScrollPane(form);
@@ -302,25 +348,31 @@ public class UserManagementController extends BaseController {
             if (bt != ButtonType.OK) return;
             String username = tfUsername.getText().trim();
             String password = pfPassword.getText();
-            boolean chooseStu = rbStu.isSelected();
-            boolean chooseTch = rbTch.isSelected();
-            boolean chooseAdm = rbAdm.isSelected();
             if (username.isEmpty()) { showError("用户名不能为空"); return; }
 
             if (!isEdit) {
-                // 新增
+                // 新增（支持多角色）：至少选择一个角色
+                boolean chooseStu = cbRoleStu.isSelected();
+                boolean chooseTch = cbRoleTch.isSelected();
+                boolean chooseAdm = cbRoleAdm.isSelected();
+                if (!chooseStu && !chooseTch && !chooseAdm) { showError("请至少选择一个角色"); return; }
+
+                // 针对选择的角色进行字段校验
+                if (chooseStu && (tfStuId.getText().trim().isEmpty() || tfStuName.getText().trim().isEmpty())) { showError("请填写学号与姓名"); return; }
+                if (chooseTch && (tfTchId.getText().trim().isEmpty() || tfTchName.getText().trim().isEmpty())) { showError("请填写教师编号与姓名"); return; }
+                if (chooseAdm && (tfAdmId.getText().trim().isEmpty() || tfAdmName.getText().trim().isEmpty())) { showError("请填写管理员工号与姓名"); return; }
+
+                // 先用一个“主角色”完成用户主表插入
+                IUserService.RegisterResult res;
                 if (chooseStu) {
-                    if (tfStuId.getText().trim().isEmpty() || tfStuName.getText().trim().isEmpty()) { showError("请填写学号与姓名"); return; }
                     Student s = new Student();
                     s.setUsername(username); s.setPassword(password.isEmpty()?"123456":password);
                     s.setRole("student");
                     s.setStudentId(tfStuId.getText().trim());
                     s.setStudentName(tfStuName.getText().trim());
                     s.setClassName(tfClass.getText().trim());
-                    var res = userService.register(s);
-                    if (res != IUserService.RegisterResult.SUCCESS) { showError("新增学生失败: " + res); return; }
+                    res = userService.register(s);
                 } else if (chooseTch) {
-                    if (tfTchId.getText().trim().isEmpty() || tfTchName.getText().trim().isEmpty()) { showError("请填写教师编号与姓名"); return; }
                     Teacher t = new Teacher();
                     t.setUsername(username); t.setPassword(password.isEmpty()?"123456":password);
                     t.setRole("teacher");
@@ -329,72 +381,148 @@ public class UserManagementController extends BaseController {
                     t.setSex(cbSex.getValue());
                     t.setTechnical(tfTech.getText().trim());
                     t.setDepartmentId(tfDept.getText().trim());
-                    var res = userService.register(t);
-                    if (res != IUserService.RegisterResult.SUCCESS) { showError("新增教师失败: " + res); return; }
-                } else if (chooseAdm) {
-                    if (tfAdmId.getText().trim().isEmpty() || tfAdmName.getText().trim().isEmpty()) { showError("请填写管理员工号与姓名"); return; }
+                    res = userService.register(t);
+                } else {
                     Admin a = new Admin();
                     a.setUsername(username); a.setPassword(password.isEmpty()?"123456":password);
                     a.setRole("admin");
                     a.setAdminId(tfAdmId.getText().trim());
                     a.setAdminName(tfAdmName.getText().trim());
-                    var res = userService.register(a);
-                    if (res != IUserService.RegisterResult.SUCCESS) { showError("新增管理员失败: " + res); return; }
+                    res = userService.register(a);
                 }
+                if (res != IUserService.RegisterResult.SUCCESS) { showError("新增失败: " + res); return; }
+
+                // 获取刚创建的用户，并写入多角色集合
+                User created = userService.getByUsername(username);
+                if (created == null) { showError("新增失败：未找到新建用户"); return; }
+                java.util.LinkedHashSet<String> rolesUpper = new java.util.LinkedHashSet<>();
+                if (chooseStu) rolesUpper.add("STUDENT");
+                if (chooseTch) rolesUpper.add("TEACHER");
+                if (chooseAdm) rolesUpper.add("ADMIN");
+                created.setRoleSet(rolesUpper);
+                boolean okUpdateUser = userService.update(created);
+                if (!okUpdateUser) { showError("新增失败：更新用户角色集失败"); return; }
+
+                // 为额外角色补充明细记录
+                boolean okDetails = true;
+                int uid = created.getUserId();
+                // 唯一性预检查：避免主键或唯一索引冲突
+                if (chooseStu) {
+                    Student existByStuId = studentService.getBySelfId(tfStuId.getText().trim());
+                    if (existByStuId != null && !uidEquals(existByStuId.getUserId(), uid)) { showError("学号已被其他用户占用"); return; }
+                }
+                if (chooseTch) {
+                    Teacher existByTchId = teacherService.getBySelfId(tfTchId.getText().trim());
+                    if (existByTchId != null && !uidEquals(existByTchId.getUserId(), uid)) { showError("教师编号已被其他用户占用"); return; }
+                }
+                if (chooseAdm) {
+                    Admin existByAdmId = adminService.getBySelfId(tfAdmId.getText().trim());
+                    if (existByAdmId != null && !uidEquals(existByAdmId.getUserId(), uid)) { showError("管理员工号已被其他用户占用"); return; }
+                }
+                if (chooseStu) {
+                    Student s = studentService.getByUserId(uid);
+                    if (s == null) { s = new Student(); s.setUserId(uid); s.setStudentId(tfStuId.getText().trim()); s.setStudentName(tfStuName.getText().trim()); s.setClassName(tfClass.getText().trim()); okDetails &= studentService.add(s); }
+                }
+                if (chooseTch) {
+                    Teacher t = teacherService.getByUserId(uid);
+                    if (t == null) { t = new Teacher(); t.setUserId(uid); t.setTeacherId(tfTchId.getText().trim()); t.setTeacherName(tfTchName.getText().trim()); t.setSex(cbSex.getValue()); t.setTechnical(tfTech.getText().trim()); t.setDepartmentId(tfDept.getText().trim()); okDetails &= teacherService.add(t); }
+                }
+                if (chooseAdm) {
+                    Admin a = adminService.getByUserId(uid);
+                    if (a == null) { a = new Admin(); a.setUserId(uid); a.setAdminId(tfAdmId.getText().trim()); a.setAdminName(tfAdmName.getText().trim()); okDetails &= adminService.add(a); }
+                }
+
+                if (!okDetails) { showError("新增失败：角色明细保存出错"); return; }
                 showInformation("提示", "新增成功"); refresh();
                 return;
             }
 
-            // 编辑：允许切换角色并迁移明细
-            // 更新用户核心信息（若密码留空则不改）
+            // 编辑：允许切换为多角色，并按选择增删改对应明细
             originUser.setUsername(username);
             if (!password.isEmpty()) originUser.setPassword(password);
 
-            String targetRole = (rbStu.isSelected()?"student":rbTch.isSelected()?"teacher":"admin");
-            String oldRole = (existingRole == null?"":existingRole).toLowerCase();
-            originUser.setRole(targetRole);
+            java.util.LinkedHashSet<String> selectedRoles = new java.util.LinkedHashSet<>();
+            if (cbRoleStu.isSelected()) selectedRoles.add("STUDENT");
+            if (cbRoleTch.isSelected()) selectedRoles.add("TEACHER");
+            if (cbRoleAdm.isSelected()) selectedRoles.add("ADMIN");
+            if (selectedRoles.isEmpty()) { showError("至少选择一个角色"); return; }
+
+            // 计算角色变化集
+            java.util.Set<String> oldRoles = existingRoles;
+            java.util.Set<String> toAdd = new java.util.LinkedHashSet<>(selectedRoles); toAdd.removeAll(oldRoles);
+            java.util.Set<String> toRemove = new java.util.LinkedHashSet<>(oldRoles); toRemove.removeAll(selectedRoles);
+
+            // 唯一性预检查：对于新增的角色，验证自增ID/工号未被其他用户占用
+            if (toAdd.contains("STUDENT")) {
+                if (tfStuId.getText().trim().isEmpty() || tfStuName.getText().trim().isEmpty()) { showError("请填写学号与姓名"); return; }
+                Student existByStuId = studentService.getBySelfId(tfStuId.getText().trim());
+                if (existByStuId != null && !uidEquals(existByStuId.getUserId(), originUser.getUserId())) { showError("学号已被其他用户占用"); return; }
+            }
+            if (toAdd.contains("TEACHER")) {
+                if (tfTchId.getText().trim().isEmpty() || tfTchName.getText().trim().isEmpty()) { showError("请填写教师编号与姓名"); return; }
+                Teacher existByTchId = teacherService.getBySelfId(tfTchId.getText().trim());
+                if (existByTchId != null && !uidEquals(existByTchId.getUserId(), originUser.getUserId())) { showError("教师编号已被其他用户占用"); return; }
+            }
+            if (toAdd.contains("ADMIN")) {
+                if (tfAdmId.getText().trim().isEmpty() || tfAdmName.getText().trim().isEmpty()) { showError("请填写管理员工号与姓名"); return; }
+                Admin existByAdmId = adminService.getBySelfId(tfAdmId.getText().trim());
+                if (existByAdmId != null && !uidEquals(existByAdmId.getUserId(), originUser.getUserId())) { showError("管理员工号已被其他用户占用"); return; }
+            }
+
+            // 预检通过后再更新用户角色集
+            originUser.setRoleSet(selectedRoles);
             boolean okUser = userService.update(originUser);
 
             boolean okRole = true;
             try {
-                if (!targetRole.equalsIgnoreCase(oldRole)) {
-                    // 删除旧角色明细
-                    if ("student".equals(oldRole)) {
+                // 已有 toAdd/toRemove
+
+                // 删除未选中的旧角色明细
+                if (toRemove.contains("STUDENT")) {
                         Student sOld = studentService.getByUserId(originUser.getUserId());
-                        if (sOld != null) studentService.deleteStudentOnly(sOld.getStudentId());
-                    } else if ("teacher".equals(oldRole)) {
+                    if (sOld != null) okRole &= studentService.deleteStudentOnly(sOld.getStudentId());
+                }
+                if (toRemove.contains("TEACHER")) {
                         Teacher tOld = teacherService.getByUserId(originUser.getUserId());
-                        if (tOld != null) teacherService.deleteTeacherOnly(tOld.getTeacherId());
-                    } else if ("admin".equals(oldRole)) {
+                    if (tOld != null) okRole &= teacherService.deleteTeacherOnly(tOld.getTeacherId());
+                }
+                if (toRemove.contains("ADMIN")) {
                         Admin aOld = adminService.getByUserId(originUser.getUserId());
-                        if (aOld != null) adminService.deleteAdminOnly(aOld.getAdminId());
-                    }
-                    // 新建目标角色明细
-                    if (rbStu.isSelected()) {
+                    if (aOld != null) okRole &= adminService.deleteAdminOnly(aOld.getAdminId());
+                }
+
+                // 新增选中的新角色明细
+                if (toAdd.contains("STUDENT")) {
+                    if (tfStuId.getText().trim().isEmpty() || tfStuName.getText().trim().isEmpty()) { showError("请填写学号与姓名"); return; }
                         Student s = new Student(); s.setUserId(originUser.getUserId());
                         s.setStudentId(tfStuId.getText().trim()); s.setStudentName(tfStuName.getText().trim()); s.setClassName(tfClass.getText().trim());
-                        okRole = studentService.add(s);
-                    } else if (rbTch.isSelected()) {
+                    okRole &= studentService.add(s);
+                }
+                if (toAdd.contains("TEACHER")) {
+                    if (tfTchId.getText().trim().isEmpty() || tfTchName.getText().trim().isEmpty()) { showError("请填写教师编号与姓名"); return; }
                         Teacher t = new Teacher(); t.setUserId(originUser.getUserId());
                         t.setTeacherId(tfTchId.getText().trim()); t.setTeacherName(tfTchName.getText().trim()); t.setSex(cbSex.getValue()); t.setTechnical(tfTech.getText().trim()); t.setDepartmentId(tfDept.getText().trim());
-                        okRole = teacherService.add(t);
-                    } else {
+                    okRole &= teacherService.add(t);
+                }
+                if (toAdd.contains("ADMIN")) {
+                    if (tfAdmId.getText().trim().isEmpty() || tfAdmName.getText().trim().isEmpty()) { showError("请填写管理员工号与姓名"); return; }
                         Admin a = new Admin(); a.setUserId(originUser.getUserId());
                         a.setAdminId(tfAdmId.getText().trim()); a.setAdminName(tfAdmName.getText().trim());
-                        okRole = adminService.add(a);
-                    }
-                } else {
-                    // 角色未变，更新现有明细
-                    if (rbStu.isSelected()) {
+                    okRole &= adminService.add(a);
+                }
+
+                // 更新现有角色明细
+                if (selectedRoles.contains("STUDENT") && oldRoles.contains("STUDENT")) {
                         Student s = studentService.getByUserId(originUser.getUserId());
-                        if (s != null) { s.setStudentName(tfStuName.getText().trim()); s.setClassName(tfClass.getText().trim()); okRole = studentService.updateStudentOnly(s); }
-                    } else if (rbTch.isSelected()) {
+                    if (s != null) { s.setStudentName(tfStuName.getText().trim()); s.setClassName(tfClass.getText().trim()); okRole &= studentService.updateStudentOnly(s); }
+                }
+                if (selectedRoles.contains("TEACHER") && oldRoles.contains("TEACHER")) {
                         Teacher t = teacherService.getByUserId(originUser.getUserId());
-                        if (t != null) { t.setTeacherName(tfTchName.getText().trim()); t.setSex(cbSex.getValue()); t.setTechnical(tfTech.getText().trim()); t.setDepartmentId(tfDept.getText().trim()); okRole = teacherService.updateTeacherOnly(t); }
-                    } else {
+                    if (t != null) { t.setTeacherName(tfTchName.getText().trim()); t.setSex(cbSex.getValue()); t.setTechnical(tfTech.getText().trim()); t.setDepartmentId(tfDept.getText().trim()); okRole &= teacherService.updateTeacherOnly(t); }
+                }
+                if (selectedRoles.contains("ADMIN") && oldRoles.contains("ADMIN")) {
                         Admin a = adminService.getByUserId(originUser.getUserId());
-                        if (a != null) { a.setAdminName(tfAdmName.getText().trim()); okRole = adminService.updateAdminOnly(a); }
-                    }
+                    if (a != null) { a.setAdminName(tfAdmName.getText().trim()); okRole &= adminService.updateAdminOnly(a); }
                 }
             } catch (Exception ex) {
                 System.err.println("[UserMgmt] 编辑保存失败: " + ex.getMessage());
@@ -403,8 +531,105 @@ public class UserManagementController extends BaseController {
             if (okUser && okRole) { showInformation("提示", "保存成功"); refresh(); } else { showError("保存失败"); }
         });
     }
-    @FXML private void onImport() { showInformation("导入", "占位：实现Excel/CSV导入"); }
-    @FXML private void onExport() { showInformation("导出", "占位：实现Excel/CSV导出"); }
+    @FXML private void onImport() {
+        if (!showConfirmation("批量导入", "将从Excel导入用户并按角色创建明细，是否继续？")) return;
+        javafx.stage.FileChooser fc = new javafx.stage.FileChooser();
+        fc.setTitle("选择Excel文件(.xlsx)");
+        fc.getExtensionFilters().add(new javafx.stage.FileChooser.ExtensionFilter("Excel", "*.xlsx"));
+        java.io.File f = fc.showOpenDialog(table.getScene().getWindow());
+        if (f == null) return;
+        new Thread(() -> doImportExcel(f)).start();
+    }
+
+    private void doImportExcel(java.io.File file) {
+        try {
+            var rows = com.vCampus.util.ExcelUserIO.importUsers(file.getAbsolutePath());
+            int ok = 0, fail = 0;
+            StringBuilder sb = new StringBuilder();
+            for (var pr : rows) {
+                try {
+                    if (pr.error != null) { fail++; sb.append("行解析失败: ").append(pr.error).append("\n"); continue; }
+                    // 注册主用户（选择一个主角色优先级：STUDENT>TEACHER>ADMIN）
+                    User created;
+                    if (pr.student != null) created = registerUser(pr.student);
+                    else if (pr.teacher != null) created = registerUser(pr.teacher);
+                    else if (pr.admin != null) created = registerUser(pr.admin);
+                    else { fail++; sb.append("缺少任何角色信息: ").append(pr.base.getUsername()).append("\n"); continue; }
+                    if (created == null) { fail++; continue; }
+                    int uid = created.getUserId();
+
+                    // 收集多角色并更新主表（压缩在 User.setRoleSet 完成）
+                    java.util.LinkedHashSet<String> roles = new java.util.LinkedHashSet<>();
+                    if (pr.student != null) roles.add("STUDENT");
+                    if (pr.teacher != null) roles.add("TEACHER");
+                    if (pr.admin != null) roles.add("ADMIN");
+                    created.setRoleSet(roles);
+                    userService.update(created);
+
+                    // 明细表：存在即跳过，不存在则新增
+                    if (pr.student != null) {
+                        var ex = studentService.getByUserId(uid);
+                        if (ex == null) {
+                            Student s = new Student(); s.setUserId(uid);
+                            s.setStudentId(pr.student.getStudentId()); s.setStudentName(pr.student.getStudentName()); s.setClassName(pr.student.getClassName());
+                            studentService.add(s);
+                        }
+                    }
+                    if (pr.teacher != null) {
+                        var ex = teacherService.getByUserId(uid);
+                        if (ex == null) {
+                            Teacher t = new Teacher(); t.setUserId(uid);
+                            t.setTeacherId(pr.teacher.getTeacherId()); t.setTeacherName(pr.teacher.getTeacherName()); t.setSex(pr.teacher.getSex()); t.setTechnical(pr.teacher.getTechnical()); t.setDepartmentId(pr.teacher.getDepartmentId());
+                            teacherService.add(t);
+                        }
+                    }
+                    if (pr.admin != null) {
+                        var ex = adminService.getByUserId(uid);
+                        if (ex == null) {
+                            Admin a = new Admin(); a.setUserId(uid);
+                            a.setAdminId(pr.admin.getAdminId()); a.setAdminName(pr.admin.getAdminName());
+                            adminService.add(a);
+                        }
+                    }
+                    ok++;
+                } catch (Exception rowEx) {
+                    fail++;
+                    sb.append("导入失败: ").append(rowEx.getMessage()).append("\n");
+                }
+            }
+            String summary = "导入完成：成功 " + ok + " 条，失败 " + fail + " 条\n" + sb;
+            com.vCampus.util.TransactionManager.runLaterSafe(() -> { showInformation("批量导入", summary); refresh(); });
+        } catch (Exception e) {
+            com.vCampus.util.TransactionManager.runLaterSafe(() -> showError("导入失败: " + e.getMessage()));
+        }
+    }
+
+    private User registerUser(User u) {
+        var res = userService.register(u);
+        if (res != IUserService.RegisterResult.SUCCESS) return null;
+        return userService.getByUsername(u.getUsername());
+    }
+
+    @FXML private void onExport() {
+        javafx.stage.FileChooser fc = new javafx.stage.FileChooser();
+        fc.setTitle("保存Excel模板(.xlsx)");
+        fc.getExtensionFilters().add(new javafx.stage.FileChooser.ExtensionFilter("Excel", "*.xlsx"));
+        fc.setInitialFileName("users-template.xlsx");
+        java.io.File f = fc.showSaveDialog(table.getScene().getWindow());
+        if (f == null) return;
+        try {
+            com.vCampus.util.ExcelUserIO.exportTemplate(f.getAbsolutePath());
+            showInformation("导出模板", "模板已保存到:\n" + f.getAbsolutePath());
+        } catch (Exception e) {
+            showError("导出失败: " + e.getMessage());
+        }
+    }
+
+    private boolean uidEquals(Integer a, Integer b) {
+        if (a == null && b == null) return true;
+        if (a == null || b == null) return false;
+        return a.intValue() == b.intValue();
+    }
 }
 
 

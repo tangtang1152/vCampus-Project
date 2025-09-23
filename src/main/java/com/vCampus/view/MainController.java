@@ -9,6 +9,8 @@ import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.Button;
+import javafx.scene.Node;
 import javafx.scene.layout.BorderPane;
 
 import java.net.URL;
@@ -29,7 +31,18 @@ public class MainController extends BaseController {
     @FXML private MenuItem miCourseMgmt;
     @FXML private MenuItem miLibrary;
     @FXML private MenuItem miLibraryAdmin;
+    @FXML private MenuItem miShop;
+    @FXML private MenuItem miShopAdmin;
+    @FXML private MenuItem miChoose;
     @FXML private ComboBox<String> roleSwitcher;
+    @FXML private Button btnUserMgmt;
+    @FXML private Button btnStudentMgmt;
+    @FXML private Button btnCourseMgmt;
+    @FXML private Button btnLibrary;
+    @FXML private Button btnShop;
+    @FXML private Button btnShopAdmin;
+    @FXML private Button btnLibraryAdmin;
+    @FXML private Button btnChoose;
     
     // 当前用户信息
     private String currentUsername;
@@ -39,11 +52,8 @@ public class MainController extends BaseController {
      */
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        // 可以在这里加载用户信息
         welcomeLabel.setText("欢迎使用 vCampus 系统");
         statusLabel.setText("就绪");
-
-        // 初始化角色切换器
         initRoleSwitcherAndPermissions();
     }
     
@@ -76,7 +86,7 @@ public class MainController extends BaseController {
     @FXML
     private void onStudentManagement() {
         loadContent("student-management-view.fxml");
-        statusLabel.setText("学生管理模块");
+        statusLabel.setText("学籍管理模块");
     }
     
     /**
@@ -84,6 +94,11 @@ public class MainController extends BaseController {
      */
     @FXML
     private void onCourseManagement() {
+        var user = SessionContext.getCurrentUser();
+        if (!RBACUtil.canManageCourses(user)) {
+            showWarning("需要教师或管理员权限");
+            return;
+        }
         loadContent("course-management-view.fxml");
         statusLabel.setText("课程管理模块");
     }
@@ -93,7 +108,7 @@ public class MainController extends BaseController {
      */
     @FXML
     private void onLibraryAdmin() {
-        var user = com.vCampus.common.SessionContext.getCurrentUser();
+        var user = SessionContext.getCurrentUser();
         if (!RBACUtil.canMaintainLibrary(user)) {
             showWarning("需要管理员权限");
             return;
@@ -110,6 +125,32 @@ public class MainController extends BaseController {
         loadContent("library-view.fxml");
         statusLabel.setText("图书馆模块");
     }
+
+    @FXML
+    private void onShop() {
+        loadContent("shop-view.fxml");
+        statusLabel.setText("商店");
+    }
+
+    @FXML
+    private void onShopAdmin() {
+        var user = SessionContext.getCurrentUser();
+        if (!com.vCampus.util.RBACUtil.isAdmin(user)) { showWarning("需要管理员权限"); return; }
+        loadContent("shop-admin-view.fxml");
+        statusLabel.setText("商店管理");
+    }
+
+    /**
+     * 选课系统菜单点击（合并分支：使用RBAC判定学生或管理员可访问）
+     */
+    @FXML
+    private void onChoose() {
+        var user = SessionContext.getCurrentUser();
+        boolean allowed = RBACUtil.isStudent(user) || RBACUtil.isAdmin(user);
+        if (!allowed) { showWarning("需要学生或管理员权限"); return; }
+        loadContent("flash-grab-view.fxml");
+        statusLabel.setText("抢课系统");
+    }
     
     /**
      * 退出系统
@@ -124,7 +165,7 @@ public class MainController extends BaseController {
         
         alert.showAndWait().ifPresent(response -> {
             if (response == javafx.scene.control.ButtonType.OK) {
-                com.vCampus.common.SessionContext.clear();
+                SessionContext.clear();
                 NavigationUtil.navigateTo(
                     getCurrentStage(),
                     "login-view.fxml",
@@ -152,9 +193,24 @@ public class MainController extends BaseController {
      */
     private void loadContent(String fxmlPath) {
         try {
+            // 调用旧控制器的 onUnload()
+            javafx.scene.Node old = mainContainer.getCenter();
+            if (old != null) {
+                Object userData = old.getUserData();
+                if (userData instanceof BaseController bc) {
+                    try { bc.onUnload(); } catch (Exception ignored) {}
+                }
+            }
+
             var loader = new javafx.fxml.FXMLLoader(
                 getClass().getResource("/fxml/" + fxmlPath));
-            mainContainer.setCenter(loader.load());
+            javafx.scene.Parent root = loader.load();
+            Object ctrl = loader.getController();
+            if (ctrl instanceof BaseController bc) {
+                // 让视图节点能回找到控制器以便卸载时停止任务
+                root.setUserData(bc);
+            }
+            mainContainer.setCenter(root);
         } catch (Exception e) {
             showError("加载界面失败: " + e.getMessage());
             e.printStackTrace();
@@ -191,15 +247,41 @@ public class MainController extends BaseController {
 
     private void applyPermissions() {
         var user = SessionContext.getCurrentUser();
-        boolean canUserMgmt = RBACUtil.canManageUsers(user);
-        boolean canCourse = RBACUtil.canManageCourses(user);
-        boolean canLibrary = RBACUtil.canUseLibrary(user);
-        boolean canLibraryAdmin = RBACUtil.canMaintainLibrary(user);
+        String active = SessionContext.getActiveRole();
+        boolean isAdmin = active != null && active.equalsIgnoreCase("ADMIN");
+        boolean isTeacher = active != null && active.equalsIgnoreCase("TEACHER");
+        boolean isStudent = active != null && active.equalsIgnoreCase("STUDENT");
+
+        boolean canUserMgmt = isAdmin;
+        boolean canCourse = isTeacher || isAdmin;
+        boolean canLibrary = isStudent || isTeacher || isAdmin;
+        boolean canLibraryAdmin = isAdmin;
+        boolean canChoose = isStudent || isAdmin;
 
         if (miUserMgmt != null) miUserMgmt.setDisable(!canUserMgmt);
         if (miStudentMgmt != null) miStudentMgmt.setDisable(!(canCourse || canUserMgmt));
         if (miCourseMgmt != null) miCourseMgmt.setDisable(!canCourse);
         if (miLibrary != null) miLibrary.setDisable(!canLibrary);
         if (miLibraryAdmin != null) miLibraryAdmin.setDisable(!canLibraryAdmin);
+        if (miShop != null) miShop.setDisable(false);
+        if (miShopAdmin != null) miShopAdmin.setDisable(!isAdmin);
+        if (miChoose != null) miChoose.setDisable(!canChoose);
+
+        // 左侧功能导航：根据角色显示/隐藏并释放布局空间
+        setNodeVisible(btnUserMgmt, canUserMgmt);
+        setNodeVisible(btnStudentMgmt, (canCourse || canUserMgmt));
+        setNodeVisible(btnCourseMgmt, canCourse);
+        setNodeVisible(btnLibrary, canLibrary);
+        setNodeVisible(btnLibraryAdmin, canLibraryAdmin);
+        setNodeVisible(btnShop, true);
+        setNodeVisible(btnShopAdmin, isAdmin);
+        setNodeVisible(btnChoose, canChoose);
+    }
+
+    private void setNodeVisible(Node node, boolean visible) {
+        if (node != null) {
+            node.setVisible(visible);
+            node.setManaged(visible);
+        }
     }
 }
