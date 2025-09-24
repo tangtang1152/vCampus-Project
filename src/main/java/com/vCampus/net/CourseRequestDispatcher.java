@@ -118,6 +118,10 @@ public class CourseRequestDispatcher {
                 return handleLibList(req);
             case "LIB_MY_BORROWS":
                 return handleLibMyBorrows(req);
+            case "LIB_BORROWS_BY_BOOK":
+                return handleLibBorrowsByBook(req);
+            case "LIB_ACTIVE_BORROWS_BY_BOOK":
+                return handleLibActiveBorrowsByBook(req);
             case "LIB_ADD":
                 return handleLibAdd(req);
             case "LIB_UPDATE":
@@ -946,6 +950,50 @@ public class CourseRequestDispatcher {
             m.put("status", r.getStatus());
             m.put("fine", r.getFine());
             m.put("renewTimes", r.getRenewTimes());
+            rows.add(m);
+        }
+        java.util.Map<String,Object> map = new java.util.HashMap<>();
+        map.put("rows", rows);
+        return new SocketResponse(true, "OK", (java.io.Serializable) map);
+    }
+
+    private SocketResponse handleLibBorrowsByBook(SocketRequest req) {
+        Integer bookId = parseInt(req.getParam("bookId"));
+        if (bookId == null) return new SocketResponse(false, "参数不足");
+        var lib = ServiceFactory.getLibraryService();
+        java.util.List<com.vCampus.entity.BorrowRecord> list = lib.listBorrowsByBook(bookId);
+        java.util.List<java.util.Map<String,Object>> rows = new java.util.ArrayList<>();
+        for (var r : list) {
+            java.util.Map<String,Object> m = new java.util.HashMap<>();
+            m.put("recordId", r.getRecordId());
+            m.put("userId", r.getUserId());
+            m.put("bookId", r.getBookId());
+            m.put("borrowDate", r.getBorrowDate());
+            m.put("dueDate", r.getDueDate());
+            m.put("returnDate", r.getReturnDate());
+            m.put("status", r.getStatus());
+            rows.add(m);
+        }
+        java.util.Map<String,Object> map = new java.util.HashMap<>();
+        map.put("rows", rows);
+        return new SocketResponse(true, "OK", (java.io.Serializable) map);
+    }
+
+    private SocketResponse handleLibActiveBorrowsByBook(SocketRequest req) {
+        Integer bookId = parseInt(req.getParam("bookId"));
+        if (bookId == null) return new SocketResponse(false, "参数不足");
+        var lib = ServiceFactory.getLibraryService();
+        java.util.List<com.vCampus.entity.BorrowRecord> list = lib.listActiveBorrowsByBook(bookId);
+        java.util.List<java.util.Map<String,Object>> rows = new java.util.ArrayList<>();
+        for (var r : list) {
+            java.util.Map<String,Object> m = new java.util.HashMap<>();
+            m.put("recordId", r.getRecordId());
+            m.put("userId", r.getUserId());
+            m.put("bookId", r.getBookId());
+            m.put("borrowDate", r.getBorrowDate());
+            m.put("dueDate", r.getDueDate());
+            m.put("returnDate", r.getReturnDate());
+            m.put("status", r.getStatus());
             rows.add(m);
         }
         java.util.Map<String,Object> map = new java.util.HashMap<>();

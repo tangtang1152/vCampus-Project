@@ -339,9 +339,96 @@ public class LibraryAdminController extends BaseController {
 
         dlg.getDialogPane().setContent(tabs);
 
-        // 加载数据
-        java.util.List<com.vCampus.entity.BorrowRecord> actives = service.listActiveBorrowsByBook(book.getBookId());
-        java.util.List<com.vCampus.entity.BorrowRecord> all = service.listBorrowsByBook(book.getBookId());
+        // 加载数据（优先服务器）
+        java.util.List<com.vCampus.entity.BorrowRecord> actives;
+        java.util.List<com.vCampus.entity.BorrowRecord> all;
+        // 兜底：若 bookId 为空，尝试通过标题再查一次获取 bookId
+        Integer targetBookId = book.getBookId();
+        if (com.vCampus.common.ConfigManager.isSocketEnabled() && (targetBookId == null || targetBookId <= 0)) {
+            try {
+                var reqFind = new com.vCampus.net.dto.SocketRequest("LIB_LIST")
+                        .put("keyword", book.getTitle()==null?"":book.getTitle())
+                        .put("status", "全部").put("sort", "默认(最新)")
+                        .put("page", "1").put("size", "1");
+                java.net.Socket s = new java.net.Socket();
+                s.connect(new java.net.InetSocketAddress(com.vCampus.common.ConfigManager.getSocketServerHost(), com.vCampus.common.ConfigManager.getSocketServerPort()), com.vCampus.common.ConfigManager.getSocketConnectTimeoutMs());
+                s.setSoTimeout(com.vCampus.common.ConfigManager.getSocketSoTimeoutMs());
+                try (java.io.ObjectOutputStream out = new java.io.ObjectOutputStream(s.getOutputStream());
+                     java.io.ObjectInputStream in = new java.io.ObjectInputStream(s.getInputStream())) {
+                    out.writeObject(reqFind); out.flush();
+                    Object obj = in.readObject();
+                    if (obj instanceof com.vCampus.net.dto.SocketResponse resp && resp.isSuccess() && resp.getData() instanceof java.util.Map<?,?> m && m.get("rows") instanceof java.util.List<?> rows) {
+                        if (!rows.isEmpty() && rows.get(0) instanceof java.util.Map<?,?> rm) {
+                            Object id = ((java.util.Map<?,?>) rows.get(0)).get("bookId");
+                            if (id instanceof Number) targetBookId = ((Number) id).intValue();
+                        }
+                    }
+                } finally { s.close(); }
+            } catch (Exception ignored) {}
+        }
+        if (com.vCampus.common.ConfigManager.isSocketEnabled()) {
+            actives = new java.util.ArrayList<>();
+            all = new java.util.ArrayList<>();
+            // 当前借出
+            try {
+                var req = new com.vCampus.net.dto.SocketRequest("LIB_ACTIVE_BORROWS_BY_BOOK")
+                        .put("bookId", String.valueOf(targetBookId==null?0:targetBookId));
+                java.net.Socket s = new java.net.Socket();
+                s.connect(new java.net.InetSocketAddress(com.vCampus.common.ConfigManager.getSocketServerHost(), com.vCampus.common.ConfigManager.getSocketServerPort()), com.vCampus.common.ConfigManager.getSocketConnectTimeoutMs());
+                s.setSoTimeout(com.vCampus.common.ConfigManager.getSocketSoTimeoutMs());
+                try (java.io.ObjectOutputStream out = new java.io.ObjectOutputStream(s.getOutputStream());
+                     java.io.ObjectInputStream in = new java.io.ObjectInputStream(s.getInputStream())) {
+                    out.writeObject(req); out.flush();
+                    Object obj = in.readObject();
+                    if (obj instanceof com.vCampus.net.dto.SocketResponse resp && resp.isSuccess() && resp.getData() instanceof java.util.Map<?,?> m && m.get("rows") instanceof java.util.List<?> rows) {
+                        for (Object r : rows) {
+                            if (r instanceof java.util.Map<?,?> rm) {
+                                com.vCampus.entity.BorrowRecord br = new com.vCampus.entity.BorrowRecord();
+                                Object rid = rm.get("recordId"); if (rid != null) br.setRecordId(((Number)rid).intValue());
+                                Object uid = rm.get("userId"); if (uid != null) br.setUserId(((Number)uid).intValue());
+                                Object bid = rm.get("bookId"); if (bid != null) br.setBookId(((Number)bid).intValue());
+                                Object bd = rm.get("borrowDate"); if (bd instanceof java.util.Date d) br.setBorrowDate(new java.sql.Date(d.getTime()));
+                                Object dd = rm.get("dueDate"); if (dd instanceof java.util.Date d) br.setDueDate(new java.sql.Date(d.getTime()));
+                                Object rd = rm.get("returnDate"); if (rd instanceof java.util.Date d) br.setReturnDate(new java.sql.Date(d.getTime()));
+                                Object st = rm.get("status"); if (st != null) br.setStatus(String.valueOf(st));
+                                actives.add(br);
+                            }
+                        }
+                    }
+                } finally { s.close(); }
+            } catch (Exception ignored) {}
+            // 全部记录
+            try {
+                var req = new com.vCampus.net.dto.SocketRequest("LIB_BORROWS_BY_BOOK")
+                        .put("bookId", String.valueOf(targetBookId==null?0:targetBookId));
+                java.net.Socket s = new java.net.Socket();
+                s.connect(new java.net.InetSocketAddress(com.vCampus.common.ConfigManager.getSocketServerHost(), com.vCampus.common.ConfigManager.getSocketServerPort()), com.vCampus.common.ConfigManager.getSocketConnectTimeoutMs());
+                s.setSoTimeout(com.vCampus.common.ConfigManager.getSocketSoTimeoutMs());
+                try (java.io.ObjectOutputStream out = new java.io.ObjectOutputStream(s.getOutputStream());
+                     java.io.ObjectInputStream in = new java.io.ObjectInputStream(s.getInputStream())) {
+                    out.writeObject(req); out.flush();
+                    Object obj = in.readObject();
+                    if (obj instanceof com.vCampus.net.dto.SocketResponse resp && resp.isSuccess() && resp.getData() instanceof java.util.Map<?,?> m && m.get("rows") instanceof java.util.List<?> rows) {
+                        for (Object r : rows) {
+                            if (r instanceof java.util.Map<?,?> rm) {
+                                com.vCampus.entity.BorrowRecord br = new com.vCampus.entity.BorrowRecord();
+                                Object rid = rm.get("recordId"); if (rid != null) br.setRecordId(((Number)rid).intValue());
+                                Object uid = rm.get("userId"); if (uid != null) br.setUserId(((Number)uid).intValue());
+                                Object bid = rm.get("bookId"); if (bid != null) br.setBookId(((Number)bid).intValue());
+                                Object bd = rm.get("borrowDate"); if (bd instanceof java.util.Date d) br.setBorrowDate(new java.sql.Date(d.getTime()));
+                                Object dd = rm.get("dueDate"); if (dd instanceof java.util.Date d) br.setDueDate(new java.sql.Date(d.getTime()));
+                                Object rd = rm.get("returnDate"); if (rd instanceof java.util.Date d) br.setReturnDate(new java.sql.Date(d.getTime()));
+                                Object st = rm.get("status"); if (st != null) br.setStatus(String.valueOf(st));
+                                all.add(br);
+                            }
+                        }
+                    }
+                } finally { s.close(); }
+            } catch (Exception ignored) {}
+        } else {
+            actives = service.listActiveBorrowsByBook(book.getBookId());
+            all = service.listBorrowsByBook(book.getBookId());
+        }
         tvActive.setItems(FXCollections.observableArrayList(actives));
         tvAll.setItems(FXCollections.observableArrayList(all));
 
