@@ -439,7 +439,17 @@ public class UserManagementController extends BaseController {
 
             // 编辑：允许切换为多角色，并按选择增删改对应明细
             originUser.setUsername(username);
-            if (!password.isEmpty()) originUser.setPassword(password);
+            if (!password.isEmpty()) {
+                originUser.setPassword(password);
+            } else {
+                try {
+                    // 保持原密码不变，避免将 password 更新为 NULL 触发 NOT NULL 约束
+                    User dbU = userService.getBySelfId(originUser.getUserId());
+                    if (dbU != null && dbU.getPassword() != null) {
+                        originUser.setPassword(dbU.getPassword());
+                    }
+                } catch (Exception ignored) {}
+            }
 
             java.util.LinkedHashSet<String> selectedRoles = new java.util.LinkedHashSet<>();
             if (cbRoleStu.isSelected()) selectedRoles.add("STUDENT");
