@@ -176,10 +176,17 @@ public class ChosenStudentsDialogController extends BaseController {
             return;
         }
 
-        // 查找对应的选课记录ID
-        Choose chooseRecord = chooseService.findByStudentAndSubject(selectedStudent.getStudentId(), currentSubject.getSubjectId());
-        
-        if (chooseRecord == null) {
+        // 查找对应的选课记录ID（优先从服务器获取，避免跨机本地库不一致）
+        String selectId = null;
+        try {
+            selectId = fetchSelectIdFromServer(currentSubject.getSubjectId(), selectedStudent.getStudentId());
+        } catch (Exception ignored) {}
+        if (selectId == null || selectId.isBlank()) {
+            // 回退本地
+            Choose chooseRecordLocal = chooseService.findByStudentAndSubject(selectedStudent.getStudentId(), currentSubject.getSubjectId());
+            if (chooseRecordLocal != null) selectId = chooseRecordLocal.getSelectid();
+        }
+        if (selectId == null || selectId.isBlank()) {
             showError("未找到该学生与该课程的选课记录。");
             return;
         }
@@ -188,7 +195,7 @@ public class ChosenStudentsDialogController extends BaseController {
         String msg = null;
         if (com.vCampus.common.ConfigManager.isSocketEnabled()) {
             try {
-                var req = new com.vCampus.net.dto.SocketRequest("DROP").put("selectid", chooseRecord.getSelectid());
+                var req = new com.vCampus.net.dto.SocketRequest("DROP").put("selectid", selectId);
                 java.net.Socket s = new java.net.Socket();
                 s.connect(new java.net.InetSocketAddress(
                         com.vCampus.common.ConfigManager.getSocketServerHost(),
@@ -208,7 +215,7 @@ public class ChosenStudentsDialogController extends BaseController {
                 dropSuccess = false; msg = "连接失败: " + e.getMessage();
             }
         } else {
-            dropSuccess = chooseService.dropSubject(chooseRecord.getSelectid());
+            dropSuccess = chooseService.dropSubject(selectId);
         }
 
         if (dropSuccess) {
