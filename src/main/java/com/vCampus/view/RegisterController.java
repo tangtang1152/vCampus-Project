@@ -158,11 +158,19 @@ public class RegisterController {
                             .put("username", user.getUsername())
                             .put("password", user.getPassword())
                             .put("role", user.getRole() == null ? "STUDENT" : user.getRole());
-                    // 仅学生时附带学号/姓名（若存在）
                     if (user instanceof Student s) {
                         if (s.getStudentId() != null) req.put("studentId", s.getStudentId());
                         if (s.getStudentName() != null) req.put("studentName", s.getStudentName());
                         if (s.getClassName() != null) req.put("className", s.getClassName());
+                    } else if (user instanceof Teacher t) {
+                        if (t.getTeacherId() != null) req.put("teacherId", t.getTeacherId());
+                        if (t.getTeacherName() != null) req.put("teacherName", t.getTeacherName());
+                        if (t.getSex() != null) req.put("teacherSex", t.getSex());
+                        if (t.getTechnical() != null) req.put("technical", t.getTechnical());
+                        if (t.getDepartmentId() != null) req.put("departmentId", t.getDepartmentId());
+                    } else if (user instanceof Admin a) {
+                        if (a.getAdminId() != null) req.put("adminId", a.getAdminId());
+                        if (a.getAdminName() != null) req.put("adminName", a.getAdminName());
                     }
                     java.net.Socket sk = new java.net.Socket();
                     sk.connect(new java.net.InetSocketAddress(com.vCampus.common.ConfigManager.getSocketServerHost(), com.vCampus.common.ConfigManager.getSocketServerPort()), com.vCampus.common.ConfigManager.getSocketConnectTimeoutMs());

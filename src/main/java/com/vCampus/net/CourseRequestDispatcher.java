@@ -155,6 +155,13 @@ public class CourseRequestDispatcher {
         String studentId = req.getParam("studentId");
         String studentName = req.getParam("studentName");
         String className = req.getParam("className");
+        String teacherId = req.getParam("teacherId");
+        String teacherName = req.getParam("teacherName");
+        String teacherSex = req.getParam("teacherSex");
+        String technical = req.getParam("technical");
+        String departmentId = req.getParam("departmentId");
+        String adminId = req.getParam("adminId");
+        String adminName = req.getParam("adminName");
         if (isBlank(username) || isBlank(password) || isBlank(role)) return new SocketResponse(false, "参数不足");
         var svc = ServiceFactory.getUserService();
         if (svc.isUsernameExists(username)) return new SocketResponse(false, "用户名已存在");
@@ -163,9 +170,9 @@ public class CourseRequestDispatcher {
         var res = svc.register(user);
         if (res != com.vCampus.service.IUserService.RegisterResult.SUCCESS) return new SocketResponse(false, res.getMessage());
         int newUserId = svc.getByUsername(username).getUserId();
-        // 若是学生且携带学号，必须提供班级；否则不允许注册
-        if ("STUDENT".equalsIgnoreCase(role) && studentId != null && !studentId.isBlank()) {
-            try {
+        try {
+            // 学生：附加档案
+            if ("STUDENT".equalsIgnoreCase(role) && studentId != null && !studentId.isBlank()) {
                 var stuSvc = ServiceFactory.getStudentService();
                 com.vCampus.entity.Student s = new com.vCampus.entity.Student();
                 s.setStudentId(studentId.trim());
@@ -174,12 +181,40 @@ public class CourseRequestDispatcher {
                     return new SocketResponse(false, "班级不能为空");
                 }
                 s.setClassName(className.trim());
-                s.setUserId(svc.getByUsername(username).getUserId());
-                // IStudentService 继承了 IBaseService，新增学生使用 add()
+                s.setUserId(newUserId);
                 stuSvc.add(s);
-            } catch (Exception e) {
-                return new SocketResponse(false, "注册成功但创建学生档案失败: " + e.getMessage());
             }
+            // 教师：附加档案
+            if ("TEACHER".equalsIgnoreCase(role)) {
+                if (teacherId == null || teacherId.isBlank() || teacherName == null || teacherName.isBlank()) {
+                    return new SocketResponse(false, "教师编号与姓名不能为空");
+                }
+                var tchSvc = ServiceFactory.getTeacherService();
+                com.vCampus.entity.Teacher t = new com.vCampus.entity.Teacher();
+                t.setUserId(newUserId);
+                t.setTeacherId(teacherId.trim());
+                t.setTeacherName(teacherName.trim());
+                if (teacherSex != null && !teacherSex.isBlank()) t.setSex(teacherSex.trim());
+                if (technical != null && !technical.isBlank()) t.setTechnical(technical.trim());
+                if (departmentId != null && !departmentId.isBlank()) t.setDepartmentId(departmentId.trim());
+                boolean ok = tchSvc.add(t);
+                if (!ok) return new SocketResponse(false, "注册成功但创建教师档案失败");
+            }
+            // 管理员：附加档案
+            if ("ADMIN".equalsIgnoreCase(role)) {
+                if (adminId == null || adminId.isBlank() || adminName == null || adminName.isBlank()) {
+                    return new SocketResponse(false, "管理员工号与姓名不能为空");
+                }
+                var admSvc = ServiceFactory.getAdminService();
+                com.vCampus.entity.Admin a = new com.vCampus.entity.Admin();
+                a.setUserId(newUserId);
+                a.setAdminId(adminId.trim());
+                a.setAdminName(adminName.trim());
+                boolean ok = admSvc.add(a);
+                if (!ok) return new SocketResponse(false, "注册成功但创建管理员档案失败");
+            }
+        } catch (Exception e) {
+            return new SocketResponse(false, "注册档案创建失败: " + e.getMessage());
         }
         java.util.Map<String,Object> data = new java.util.HashMap<>();
         data.put("userId", newUserId);
@@ -683,8 +718,14 @@ public class CourseRequestDispatcher {
             m.put("studentId", sid);
             m.put("selectid", ch.getSelectid());
             try {
-                var s = stuSvc.getBySelfId(sid);
-                if (s != null) m.put("studentName", s.getStudentName());
+                // 优先使用带 user 关联信息的 full 查询，取不到再降级
+                var s = stuSvc.getStudentFull(sid);
+                if (s == null) s = stuSvc.getBySelfId(sid);
+                if (s != null) {
+                    String name = s.getStudentName();
+                    if (name == null || name.isBlank()) name = s.getUsername();
+                    m.put("studentName", name);
+                }
             } catch (Exception ignored) {}
             rows.add(m);
         }
