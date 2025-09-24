@@ -21,6 +21,8 @@ import java.util.ResourceBundle;
  * 应用程序的主框架界面
  */
 public class MainController extends BaseController {
+    // 允许其他控制器在必要时请求刷新角色 UI
+    private static volatile MainController instance;
     
     @FXML private BorderPane mainContainer;
     @FXML private Label welcomeLabel;
@@ -52,6 +54,7 @@ public class MainController extends BaseController {
      */
     @Override
     public void initialize(URL location, ResourceBundle resources) {
+        instance = this;
         welcomeLabel.setText("欢迎使用 vCampus 系统");
         statusLabel.setText("就绪");
         initRoleSwitcherAndPermissions();
@@ -284,4 +287,8 @@ public class MainController extends BaseController {
             node.setManaged(visible);
         }
     }
+
+    // === 静态访问与外部刷新 ===
+    public static MainController getInstance() { return instance; }
+    public void refreshRoleUi() { initRoleSwitcherAndPermissions(); }
 }

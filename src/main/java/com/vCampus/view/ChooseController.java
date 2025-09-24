@@ -368,6 +368,27 @@ public class ChooseController extends BaseController {
         if (u instanceof com.vCampus.entity.Student s) {
             return s.getStudentId();
         }
+        // socket 优先：跨机器从服务器查询当前 userId 对应的学生档案
+        if (com.vCampus.common.ConfigManager.isSocketEnabled()) {
+            try {
+                var req = new com.vCampus.net.dto.SocketRequest("STUDENT_BY_USER").put("userId", String.valueOf(u.getUserId()));
+                java.net.Socket s = new java.net.Socket();
+                s.connect(new java.net.InetSocketAddress(
+                        com.vCampus.common.ConfigManager.getSocketServerHost(),
+                        com.vCampus.common.ConfigManager.getSocketServerPort()),
+                        com.vCampus.common.ConfigManager.getSocketConnectTimeoutMs());
+                s.setSoTimeout(com.vCampus.common.ConfigManager.getSocketSoTimeoutMs());
+                try (java.io.ObjectOutputStream out = new java.io.ObjectOutputStream(s.getOutputStream());
+                     java.io.ObjectInputStream in = new java.io.ObjectInputStream(s.getInputStream())) {
+                    out.writeObject(req); out.flush();
+                    Object obj = in.readObject();
+                    if (obj instanceof com.vCampus.net.dto.SocketResponse resp && resp.isSuccess() && resp.getData() instanceof java.util.Map<?,?> m) {
+                        Object sid = m.get("studentId");
+                        if (sid != null) return String.valueOf(sid);
+                    }
+                } finally { s.close(); }
+            } catch (Exception ignored) {}
+        }
         // 兼容：登录保存的是通用 User 时，根据 userId 反查学生学号
         try {
             IStudentService stuSvc = ServiceFactory.getStudentService();

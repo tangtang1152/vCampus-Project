@@ -146,9 +146,14 @@ public class ChosenStudentsDialogController extends BaseController {
      */
     @FXML
     private void onDropStudentSubject() {
-        // 权限检查：只有管理员和教师可以操作退课
+        // 权限检查：只有管理员和教师可以操作退课（以会话激活角色优先判断，兼容多角色）
         User currentUser = SessionContext.getCurrentUser();
-        if (currentUser == null || (!"ADMIN".equalsIgnoreCase(currentUser.getRole()) && !"TEACHER".equalsIgnoreCase(currentUser.getRole()))) {
+        String activeRole = com.vCampus.common.SessionContext.getActiveRole();
+        boolean isAdmin = (activeRole != null && activeRole.equalsIgnoreCase("ADMIN"))
+                || (currentUser != null && currentUser.getRoleSet().contains("ADMIN"));
+        boolean isTeacher = (activeRole != null && activeRole.equalsIgnoreCase("TEACHER"))
+                || (currentUser != null && currentUser.getRoleSet().contains("TEACHER"));
+        if (currentUser == null || !(isAdmin || isTeacher)) {
             showWarning("您没有权限执行此操作，只有管理员或教师可以退课。");
             return;
         }
@@ -163,9 +168,14 @@ public class ChosenStudentsDialogController extends BaseController {
             return;
         }
 
-        // 进一步权限检查：教师只能退自己教授的课程的学生
-        if ("TEACHER".equalsIgnoreCase(currentUser.getRole())) {
-            if (!currentSubject.getTeacherId().equals(((com.vCampus.entity.Teacher) currentUser).getTeacherId())) {
+        // 进一步权限检查：教师（非管理员身份）只能退自己教授的课程的学生
+        if (!isAdmin && isTeacher) {
+            String myTid = null;
+            try {
+                var t = ServiceFactory.getTeacherService().getByUserId(currentUser.getUserId());
+                if (t != null) myTid = t.getTeacherId();
+            } catch (Exception ignored) {}
+            if (myTid == null || !currentSubject.getTeacherId().equals(myTid)) {
                 showWarning("您只能退选您所教授课程的学生。");
                 return;
             }

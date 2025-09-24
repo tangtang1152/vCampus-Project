@@ -406,25 +406,48 @@ public class CourseManagementController extends BaseController {
   return;
                 }
                 
-                Subject s = origin == null ? new Subject() : origin;
-                s.setSubjectId(id);
-                s.setSubjectName(name);
-                s.setSubjectDate(Date.valueOf(dateValue));
-                s.setSubjectNum(numValue);
-                s.setCredit(creditValue);
-                s.setTeacherId(teacher);
-                s.setWeekRange(range);
-                s.setWeekType(type);
-                s.setClassTime(time);
-                s.setClassroom(room);
-                
-                boolean ok = origin == null ? subjectService.addSubject(s) : subjectService.updateSubject(s);
-                if (ok) { 
-  showInformation("提示", origin == null ? "新增成功" : "保存成功"); 
-  refresh(); 
-                } else { 
-  showError("保存失败"); 
+                boolean ok;
+                if (com.vCampus.common.ConfigManager.isSocketEnabled()) {
+                    try {
+                        java.util.Map<String,String> pm = new java.util.HashMap<>();
+                        pm.put("subjectId", id); pm.put("subjectName", name);
+                        if (dateValue != null) pm.put("subjectDate", Date.valueOf(dateValue).toString());
+                        pm.put("subjectNum", String.valueOf(numValue));
+                        pm.put("credit", String.valueOf(creditValue));
+                        pm.put("teacherId", teacher);
+                        pm.put("weekRange", range); pm.put("weekType", type);
+                        pm.put("classTime", time); pm.put("classroom", room);
+                        String action = (origin == null) ? "SUBJECT_ADD" : "SUBJECT_UPDATE";
+                        var req = new com.vCampus.net.dto.SocketRequest(action, pm);
+                        java.net.Socket sck = new java.net.Socket();
+                        sck.connect(new java.net.InetSocketAddress(
+                                com.vCampus.common.ConfigManager.getSocketServerHost(),
+                                com.vCampus.common.ConfigManager.getSocketServerPort()),
+                                com.vCampus.common.ConfigManager.getSocketConnectTimeoutMs());
+                        sck.setSoTimeout(com.vCampus.common.ConfigManager.getSocketSoTimeoutMs());
+                        try (java.io.ObjectOutputStream out = new java.io.ObjectOutputStream(sck.getOutputStream());
+                             java.io.ObjectInputStream in = new java.io.ObjectInputStream(sck.getInputStream())) {
+                            out.writeObject(req); out.flush();
+                            Object obj = in.readObject();
+                            ok = (obj instanceof com.vCampus.net.dto.SocketResponse resp) && resp.isSuccess();
+                        } finally { sck.close(); }
+                    } catch (Exception e) { ok = false; }
+                } else {
+                    Subject s = origin == null ? new Subject() : origin;
+                    s.setSubjectId(id);
+                    s.setSubjectName(name);
+                    s.setSubjectDate(Date.valueOf(dateValue));
+                    s.setSubjectNum(numValue);
+                    s.setCredit(creditValue);
+                    s.setTeacherId(teacher);
+                    s.setWeekRange(range);
+                    s.setWeekType(type);
+                    s.setClassTime(time);
+                    s.setClassroom(room);
+                    ok = (origin == null) ? subjectService.addSubject(s) : subjectService.updateSubject(s);
                 }
+                if (ok) { showInformation("提示", origin == null ? "新增成功" : "保存成功"); refresh(); }
+                else { showError("保存失败"); }
             }
         });
     }

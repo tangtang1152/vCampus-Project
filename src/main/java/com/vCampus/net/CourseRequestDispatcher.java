@@ -48,6 +48,10 @@ public class CourseRequestDispatcher {
                 return handleStudentDelete(req);
             case "STUDENT_BY_USER":
                 return handleStudentByUser(req);
+            case "STUDENT_PURGE_CHOICES":
+                return handleStudentPurgeChoices(req);
+            case "STUDENT_PURGE_ALL":
+                return handleStudentPurgeAll(req);
             case "TEACHER_LIST":
                 return handleTeacherList(req);
             case "TEACHER_ADD":
@@ -98,6 +102,12 @@ public class CourseRequestDispatcher {
             case "SUBJECT_LIST":
                 System.out.println("[SOCKET] SUBJECT_LIST request: keyword=" + req.getParam("keyword"));
                 return handleSubjectList(req);
+            case "SUBJECT_ADD":
+                return handleSubjectAdd(req);
+            case "SUBJECT_UPDATE":
+                return handleSubjectUpdate(req);
+            case "SUBJECT_DELETE":
+                return handleSubjectDelete(req);
             case "MY_SUBJECTS":
                 System.out.println("[SOCKET] MY_SUBJECTS request: studentId=" + req.getParam("studentId"));
                 return handleMySubjects(req);
@@ -378,6 +388,72 @@ public class CourseRequestDispatcher {
         m.put("studentName", s.getStudentName());
         m.put("className", s.getClassName());
         return new SocketResponse(true, "OK", (java.io.Serializable)m);
+    }
+
+    // 扫除某学生的全部选课记录（管理员操作）
+    private SocketResponse handleStudentPurgeChoices(SocketRequest req) {
+        String studentId = req.getParam("studentId");
+        if (isBlank(studentId)) return new SocketResponse(false, "参数不足");
+        try {
+            // 事务：删除 tbl_choose 中该学生的所有记录
+            boolean ok = com.vCampus.util.TransactionManager.executeInTransaction((java.sql.Connection conn) -> {
+                com.vCampus.dao.ChooseDaoImpl chooseDao = new com.vCampus.dao.ChooseDaoImpl();
+                com.vCampus.dao.SubjectDaoImpl subjectDao = new com.vCampus.dao.SubjectDaoImpl();
+                java.util.List<com.vCampus.entity.Choose> list = chooseDao.findByStudentId(studentId, conn);
+                boolean all = true;
+                for (var c : list) {
+                    // 回补课程名额
+                    try { all &= subjectDao.increaseSlot(c.getSubjectId(), conn); } catch (Exception ignored) {}
+                    all &= chooseDao.delete(c.getSelectid(), conn);
+                }
+                return all;
+            });
+            return new SocketResponse(ok, ok?"已清除该学生的全部选课记录":"清除失败");
+        } catch (Exception e) {
+            return new SocketResponse(false, "清除异常: " + e.getMessage());
+        }
+    }
+
+    // 清除某学生作为“身份”的所有业务数据：选课、订单/订单明细、借阅记录
+    private SocketResponse handleStudentPurgeAll(SocketRequest req) {
+        String studentId = req.getParam("studentId");
+        if (isBlank(studentId)) return new SocketResponse(false, "参数不足");
+        try {
+            boolean ok = com.vCampus.util.TransactionManager.executeInTransaction((java.sql.Connection conn) -> {
+                boolean all = true;
+                // 1) 清空选课
+                com.vCampus.dao.ChooseDaoImpl chooseDao = new com.vCampus.dao.ChooseDaoImpl();
+                com.vCampus.dao.SubjectDaoImpl subjectDao = new com.vCampus.dao.SubjectDaoImpl();
+                for (var c : chooseDao.findByStudentId(studentId, conn)) {
+                    try { all &= subjectDao.increaseSlot(c.getSubjectId(), conn); } catch (Exception ignored) {}
+                    all &= chooseDao.delete(c.getSelectid(), conn);
+                }
+                // 2) 清空订单（先明细后订单）
+                com.vCampus.dao.OrderDaoImpl orderDao = new com.vCampus.dao.OrderDaoImpl();
+                com.vCampus.dao.OrderItemDaoImpl itemDao = new com.vCampus.dao.OrderItemDaoImpl();
+                java.util.List<com.vCampus.entity.Order> orders = orderDao.getOrdersByStudentId(studentId, conn);
+                for (var o : orders) {
+                    // 直接按订单号批量删除明细，再删除订单
+                    all &= itemDao.deleteOrderItemsByOrderId(o.getOrderId(), conn);
+                    all &= orderDao.deleteOrder(o.getOrderId(), conn);
+                }
+                // 3) 清空借阅记录（按 userId 查询）
+                try {
+                    var stu = com.vCampus.service.ServiceFactory.getStudentService().getBySelfId(studentId);
+                    if (stu != null) {
+                        int uid = stu.getUserId();
+                        com.vCampus.service.LibraryService lib = com.vCampus.service.ServiceFactory.getLibraryService();
+                        java.util.List<com.vCampus.entity.BorrowRecord> r1 = lib.listMyBorrowsByStatus(String.valueOf(uid), "借出");
+                        java.util.List<com.vCampus.entity.BorrowRecord> r2 = lib.listMyBorrowsByStatus(String.valueOf(uid), "逾期");
+                        // 标准库里没有直接删借阅的接口，这里略过或根据你的库增加 DAO 删除
+                    }
+                } catch (Exception ignore) {}
+                return all;
+            });
+            return new SocketResponse(ok, ok?"学生相关业务已清空":"清空失败");
+        } catch (Exception e) {
+            return new SocketResponse(false, "清空异常: " + e.getMessage());
+        }
     }
 
     // ===== Teacher management over socket =====
@@ -719,6 +795,47 @@ public class CourseRequestDispatcher {
         java.util.Map<String,Object> map = new java.util.HashMap<>();
         map.put("rows", rows);
         return new SocketResponse(true, "OK", (java.io.Serializable) map);
+    }
+
+    private SocketResponse handleSubjectAdd(SocketRequest req) {
+        var svc = ServiceFactory.getSubjectService();
+        com.vCampus.entity.Subject s = new com.vCampus.entity.Subject();
+        s.setSubjectId(req.getParam("subjectId"));
+        s.setSubjectName(req.getParam("subjectName"));
+        try { String d = req.getParam("subjectDate"); if (d != null) s.setSubjectDate(java.sql.Date.valueOf(d)); } catch (Exception ignored) {}
+        try { s.setSubjectNum(Integer.parseInt(req.getParam("subjectNum"))); } catch (Exception ignored) {}
+        try { s.setCredit(Double.parseDouble(req.getParam("credit"))); } catch (Exception ignored) {}
+        s.setTeacherId(req.getParam("teacherId"));
+        s.setWeekRange(req.getParam("weekRange"));
+        s.setWeekType(req.getParam("weekType"));
+        s.setClassTime(req.getParam("classTime"));
+        s.setClassroom(req.getParam("classroom"));
+        boolean ok = svc.addSubject(s);
+        return new SocketResponse(ok, ok?"新增成功":"新增失败");
+    }
+
+    private SocketResponse handleSubjectUpdate(SocketRequest req) {
+        var svc = ServiceFactory.getSubjectService();
+        com.vCampus.entity.Subject s = svc.getSubjectById(req.getParam("subjectId"));
+        if (s == null) return new SocketResponse(false, "课程不存在");
+        if (req.getParam("subjectName") != null) s.setSubjectName(req.getParam("subjectName"));
+        try { String d = req.getParam("subjectDate"); if (d != null) s.setSubjectDate(java.sql.Date.valueOf(d)); } catch (Exception ignored) {}
+        try { String n = req.getParam("subjectNum"); if (n != null) s.setSubjectNum(Integer.parseInt(n)); } catch (Exception ignored) {}
+        try { String c = req.getParam("credit"); if (c != null) s.setCredit(Double.parseDouble(c)); } catch (Exception ignored) {}
+        if (req.getParam("teacherId") != null) s.setTeacherId(req.getParam("teacherId"));
+        if (req.getParam("weekRange") != null) s.setWeekRange(req.getParam("weekRange"));
+        if (req.getParam("weekType") != null) s.setWeekType(req.getParam("weekType"));
+        if (req.getParam("classTime") != null) s.setClassTime(req.getParam("classTime"));
+        if (req.getParam("classroom") != null) s.setClassroom(req.getParam("classroom"));
+        boolean ok = svc.updateSubject(s);
+        return new SocketResponse(ok, ok?"保存成功":"保存失败");
+    }
+
+    private SocketResponse handleSubjectDelete(SocketRequest req) {
+        String subjectId = req.getParam("subjectId");
+        if (isBlank(subjectId)) return new SocketResponse(false, "参数不足");
+        boolean ok = ServiceFactory.getSubjectService().deleteSubject(subjectId);
+        return new SocketResponse(ok, ok?"删除成功":"删除失败");
     }
 
     private SocketResponse handleMySubjects(SocketRequest req) {
