@@ -203,6 +203,16 @@ public class BorrowRecordDao implements IBorrowRecordDao {
     }
 
     @Override
+    public boolean deleteByBook(Integer bookId, Connection conn) throws SQLException {
+        String sql = "DELETE FROM tbl_borrow_record WHERE bookId=?";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, bookId);
+            ps.executeUpdate();
+            return true;
+        }
+    }
+
+    @Override
     public boolean existsActiveByUserAndBook(Integer userId, Integer bookId, Connection conn) throws SQLException {
         String sql = "SELECT 1 FROM tbl_borrow_record WHERE userId=? AND bookId=? AND borrowStatus='借出' FETCH FIRST 1 ROWS ONLY";
         try (PreparedStatement ps = conn.prepareStatement(sql)) {

@@ -297,7 +297,17 @@ public class LibraryService {
     }
 
     public boolean deleteBook(Integer bookId) {
-        return TransactionManager.executeInTransaction(conn -> bookDao.delete(bookId, conn));
+        return TransactionManager.executeInTransaction(conn -> {
+            // 若仍有“借出”记录，禁止删除
+            int active = borrowRecordDao.countCurrentBorrowedByBook(bookId, conn);
+            if (active > 0) {
+                return false;
+            }
+            // 先删除依赖记录（预约、借阅历史），再删书，避免外键约束失败
+            reservationDao.deleteByBook(bookId, conn);
+            borrowRecordDao.deleteByBook(bookId, conn);
+            return bookDao.delete(bookId, conn);
+        });
     }
 
     public boolean setBookStatus(Integer bookId, String status) {

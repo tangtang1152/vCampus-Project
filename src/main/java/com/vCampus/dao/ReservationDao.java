@@ -90,6 +90,16 @@ public class ReservationDao implements IReservationDao {
     }
 
     @Override
+    public boolean deleteByBook(Integer bookId, Connection conn) throws SQLException {
+        String sql = "DELETE FROM tbl_reservation WHERE bookId=?";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, bookId);
+            ps.executeUpdate();
+            return true;
+        }
+    }
+
+    @Override
     public List<Reservation> listActiveByBook(Integer bookId, Connection conn) throws SQLException {
         String sql = "SELECT * FROM tbl_reservation WHERE bookId=? AND resvStatus='排队中' ORDER BY queueOrder ASC";
         List<Reservation> list = new ArrayList<>();

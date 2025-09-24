@@ -37,6 +37,9 @@ public interface IBorrowRecordDao extends IBaseDao<BorrowRecord, Integer> {
     // 新增：按书目列出借阅记录（全部 / 仅当前借出）
     List<BorrowRecord> listByBook(Integer bookId, Connection conn) throws SQLException;
     List<BorrowRecord> listActiveByBook(Integer bookId, Connection conn) throws SQLException;
+
+    // 新增：按书目删除全部借阅记录（用于级联清理）
+    boolean deleteByBook(Integer bookId, Connection conn) throws SQLException;
 }
 
 
