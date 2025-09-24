@@ -469,7 +469,121 @@ public class UserManagementController extends BaseController {
                 if (existByAdmId != null && !uidEquals(existByAdmId.getUserId(), originUser.getUserId())) { showError("管理员工号已被其他用户占用"); return; }
             }
 
-            // 预检通过后再更新用户角色集
+            // Socket 模式：改为走服务器增删改，避免跨机本地库不一致
+            if (com.vCampus.common.ConfigManager.isSocketEnabled()) {
+                // 更新用户主表（用户名、密码、角色集合）
+                boolean okAll = true; String errMsg = null;
+                try {
+                    // 1) USER_UPDATE
+                    String rolesCsv = String.join(",", selectedRoles);
+                    var reqUser = new com.vCampus.net.dto.SocketRequest("USER_UPDATE")
+                            .put("userId", String.valueOf(originUser.getUserId()))
+                            .put("username", originUser.getUsername());
+                    if (!password.isEmpty()) reqUser.put("password", password);
+                    reqUser.put("roles", rolesCsv);
+                    java.net.Socket sk = new java.net.Socket();
+                    sk.connect(new java.net.InetSocketAddress(
+                            com.vCampus.common.ConfigManager.getSocketServerHost(),
+                            com.vCampus.common.ConfigManager.getSocketServerPort()),
+                            com.vCampus.common.ConfigManager.getSocketConnectTimeoutMs());
+                    sk.setSoTimeout(com.vCampus.common.ConfigManager.getSocketSoTimeoutMs());
+                    try (java.io.ObjectOutputStream out = new java.io.ObjectOutputStream(sk.getOutputStream());
+                         java.io.ObjectInputStream in = new java.io.ObjectInputStream(sk.getInputStream())) {
+                        out.writeObject(reqUser); out.flush();
+                        Object obj = in.readObject();
+                        if (!(obj instanceof com.vCampus.net.dto.SocketResponse resp) || !resp.isSuccess()) { okAll = false; errMsg = (obj instanceof com.vCampus.net.dto.SocketResponse r) ? r.getMessage() : "USER_UPDATE失败"; }
+                    } finally { sk.close(); }
+                    if (!okAll) { showError("保存失败：" + (errMsg==null?"用户更新失败":errMsg)); return; }
+
+                    // 2) 删除未选中的旧角色明细
+                    for (String r : toRemove) {
+                        if ("STUDENT".equals(r)) {
+                            String sid = tfStuId.getText().trim();
+                            if (!sid.isEmpty()) {
+                                var req = new com.vCampus.net.dto.SocketRequest("STUDENT_DELETE").put("studentId", sid);
+                                if (!sendSimple(req)) { showError("保存失败：删除学生档案失败"); return; }
+                            }
+                        } else if ("TEACHER".equals(r)) {
+                            String tid = tfTchId.getText().trim();
+                            if (!tid.isEmpty()) {
+                                var req = new com.vCampus.net.dto.SocketRequest("TEACHER_DELETE").put("teacherId", tid);
+                                if (!sendSimple(req)) { showError("保存失败：删除教师档案失败"); return; }
+                            }
+                        } else if ("ADMIN".equals(r)) {
+                            String aid = tfAdmId.getText().trim();
+                            if (!aid.isEmpty()) {
+                                var req = new com.vCampus.net.dto.SocketRequest("ADMIN_DELETE").put("adminId", aid);
+                                if (!sendSimple(req)) { showError("保存失败：删除管理员档案失败"); return; }
+                            }
+                        }
+                    }
+
+                    // 3) 新增选中的新角色明细
+                    for (String r : toAdd) {
+                        if ("STUDENT".equals(r)) {
+                            if (tfStuId.getText().trim().isEmpty() || tfStuName.getText().trim().isEmpty()) { showError("请填写学号与姓名"); return; }
+                            var req = new com.vCampus.net.dto.SocketRequest("STUDENT_ADD")
+                                    .put("studentId", tfStuId.getText().trim())
+                                    .put("studentName", tfStuName.getText().trim())
+                                    .put("className", tfClass.getText().trim())
+                                    .put("userId", String.valueOf(originUser.getUserId()));
+                            if (!sendSimple(req)) { showError("保存失败：新增学生档案失败"); return; }
+                        } else if ("TEACHER".equals(r)) {
+                            if (tfTchId.getText().trim().isEmpty() || tfTchName.getText().trim().isEmpty()) { showError("请填写教师编号与姓名"); return; }
+                            var req = new com.vCampus.net.dto.SocketRequest("TEACHER_ADD")
+                                    .put("teacherId", tfTchId.getText().trim())
+                                    .put("teacherName", tfTchName.getText().trim())
+                                    .put("sex", cbSex.getValue())
+                                    .put("technical", tfTech.getText().trim())
+                                    .put("departmentId", tfDept.getText().trim())
+                                    .put("userId", String.valueOf(originUser.getUserId()));
+                            if (!sendSimple(req)) { showError("保存失败：新增教师档案失败"); return; }
+                        } else if ("ADMIN".equals(r)) {
+                            if (tfAdmId.getText().trim().isEmpty() || tfAdmName.getText().trim().isEmpty()) { showError("请填写管理员工号与姓名"); return; }
+                            var req = new com.vCampus.net.dto.SocketRequest("ADMIN_ADD")
+                                    .put("adminId", tfAdmId.getText().trim())
+                                    .put("adminName", tfAdmName.getText().trim())
+                                    .put("userId", String.valueOf(originUser.getUserId()));
+                            if (!sendSimple(req)) { showError("保存失败：新增管理员档案失败"); return; }
+                        }
+                    }
+
+                    // 4) 更新现有角色明细
+                    if (selectedRoles.contains("STUDENT") && oldRoles.contains("STUDENT")) {
+                        if (!tfStuId.getText().trim().isEmpty()) {
+                            var req = new com.vCampus.net.dto.SocketRequest("STUDENT_UPDATE")
+                                    .put("studentId", tfStuId.getText().trim())
+                                    .put("studentName", tfStuName.getText().trim())
+                                    .put("className", tfClass.getText().trim());
+                            if (!sendSimple(req)) { showError("保存失败：更新学生档案失败"); return; }
+                        }
+                    }
+                    if (selectedRoles.contains("TEACHER") && oldRoles.contains("TEACHER")) {
+                        if (!tfTchId.getText().trim().isEmpty()) {
+                            var req = new com.vCampus.net.dto.SocketRequest("TEACHER_UPDATE")
+                                    .put("teacherId", tfTchId.getText().trim())
+                                    .put("teacherName", tfTchName.getText().trim())
+                                    .put("sex", cbSex.getValue())
+                                    .put("technical", tfTech.getText().trim())
+                                    .put("departmentId", tfDept.getText().trim());
+                            if (!sendSimple(req)) { showError("保存失败：更新教师档案失败"); return; }
+                        }
+                    }
+                    if (selectedRoles.contains("ADMIN") && oldRoles.contains("ADMIN")) {
+                        if (!tfAdmId.getText().trim().isEmpty()) {
+                            var req = new com.vCampus.net.dto.SocketRequest("ADMIN_UPDATE")
+                                    .put("adminId", tfAdmId.getText().trim())
+                                    .put("adminName", tfAdmName.getText().trim());
+                            if (!sendSimple(req)) { showError("保存失败：更新管理员档案失败"); return; }
+                        }
+                    }
+                } catch (Exception ex) { showError("保存失败：" + ex.getMessage()); return; }
+
+                showInformation("提示", "保存成功"); refresh();
+                return;
+            }
+
+            // 本地模式：按原逻辑在本机数据库操作
             originUser.setRoleSet(selectedRoles);
             boolean okUser = userService.update(originUser);
 
@@ -530,6 +644,26 @@ public class UserManagementController extends BaseController {
             }
             if (okUser && okRole) { showInformation("提示", "保存成功"); refresh(); } else { showError("保存失败"); }
         });
+
+        // 工具方法：发送简单的 SocketRequest 并返回是否成功
+        // 仅在 socket.enabled=true 的分支中使用
+    }
+
+    private boolean sendSimple(com.vCampus.net.dto.SocketRequest req) {
+        try {
+            java.net.Socket sk = new java.net.Socket();
+            sk.connect(new java.net.InetSocketAddress(
+                    com.vCampus.common.ConfigManager.getSocketServerHost(),
+                    com.vCampus.common.ConfigManager.getSocketServerPort()),
+                    com.vCampus.common.ConfigManager.getSocketConnectTimeoutMs());
+            sk.setSoTimeout(com.vCampus.common.ConfigManager.getSocketSoTimeoutMs());
+            try (java.io.ObjectOutputStream out = new java.io.ObjectOutputStream(sk.getOutputStream());
+                 java.io.ObjectInputStream in = new java.io.ObjectInputStream(sk.getInputStream())) {
+                out.writeObject(req); out.flush();
+                Object obj = in.readObject();
+                return obj instanceof com.vCampus.net.dto.SocketResponse resp && resp.isSuccess();
+            } finally { sk.close(); }
+        } catch (Exception e) { return false; }
     }
     @FXML private void onImport() {
         if (!showConfirmation("批量导入", "将从Excel导入用户并按角色创建明细，是否继续？")) return;
