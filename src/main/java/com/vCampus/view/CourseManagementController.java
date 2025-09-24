@@ -228,13 +228,29 @@ public class CourseManagementController extends BaseController {
             }
         }
 
-        boolean ok = subjectService.deleteSubject(sel.getSubjectId());
-        if (ok) { 
-            showInformation("提示", "删除成功"); 
-            refresh(); 
-        } else { 
-            showError("删除失败"); 
+        boolean ok;
+        if (com.vCampus.common.ConfigManager.isSocketEnabled()) {
+            try {
+                var req = new com.vCampus.net.dto.SocketRequest("SUBJECT_DELETE")
+                        .put("subjectId", sel.getSubjectId());
+                java.net.Socket sck = new java.net.Socket();
+                sck.connect(new java.net.InetSocketAddress(
+                        com.vCampus.common.ConfigManager.getSocketServerHost(),
+                        com.vCampus.common.ConfigManager.getSocketServerPort()),
+                        com.vCampus.common.ConfigManager.getSocketConnectTimeoutMs());
+                sck.setSoTimeout(com.vCampus.common.ConfigManager.getSocketSoTimeoutMs());
+                try (java.io.ObjectOutputStream out = new java.io.ObjectOutputStream(sck.getOutputStream());
+                     java.io.ObjectInputStream in = new java.io.ObjectInputStream(sck.getInputStream())) {
+                    out.writeObject(req); out.flush();
+                    Object obj = in.readObject();
+                    ok = (obj instanceof com.vCampus.net.dto.SocketResponse resp) && resp.isSuccess();
+                } finally { sck.close(); }
+            } catch (Exception e) { ok = false; }
+        } else {
+            ok = subjectService.deleteSubject(sel.getSubjectId());
         }
+        if (ok) { showInformation("提示", "删除成功"); refresh(); }
+        else { showError("删除失败"); }
     }
 
     @FXML 
