@@ -46,6 +46,8 @@ public class CourseRequestDispatcher {
                 return handleStudentUpdate(req);
             case "STUDENT_DELETE":
                 return handleStudentDelete(req);
+            case "STUDENT_BY_USER":
+                return handleStudentByUser(req);
             case "TEACHER_LIST":
                 return handleTeacherList(req);
             case "TEACHER_ADD":
@@ -54,6 +56,8 @@ public class CourseRequestDispatcher {
                 return handleTeacherUpdate(req);
             case "TEACHER_DELETE":
                 return handleTeacherDelete(req);
+            case "TEACHER_BY_USER":
+                return handleTeacherByUser(req);
             case "ADMIN_LIST":
                 return handleAdminList(req);
             case "ADMIN_ADD":
@@ -62,6 +66,8 @@ public class CourseRequestDispatcher {
                 return handleAdminUpdate(req);
             case "ADMIN_DELETE":
                 return handleAdminDelete(req);
+            case "ADMIN_BY_USER":
+                return handleAdminByUser(req);
             case "PING":
                 return new SocketResponse(true, "PONG");
             case "CHOOSE":
@@ -362,6 +368,18 @@ public class CourseRequestDispatcher {
         return new SocketResponse(ok, ok?"删除成功":"删除失败");
     }
 
+    private SocketResponse handleStudentByUser(SocketRequest req) {
+        Integer userId = parseInt(req.getParam("userId"));
+        if (userId == null) return new SocketResponse(false, "参数不足");
+        var s = ServiceFactory.getStudentService().getByUserId(userId);
+        if (s == null) return new SocketResponse(false, "不存在");
+        java.util.Map<String,Object> m = new java.util.HashMap<>();
+        m.put("studentId", s.getStudentId());
+        m.put("studentName", s.getStudentName());
+        m.put("className", s.getClassName());
+        return new SocketResponse(true, "OK", (java.io.Serializable)m);
+    }
+
     // ===== Teacher management over socket =====
     private SocketResponse handleTeacherList(SocketRequest req) {
         var svc = ServiceFactory.getTeacherService();
@@ -413,6 +431,20 @@ public class CourseRequestDispatcher {
         return new SocketResponse(ok, ok?"删除成功":"删除失败");
     }
 
+    private SocketResponse handleTeacherByUser(SocketRequest req) {
+        Integer userId = parseInt(req.getParam("userId"));
+        if (userId == null) return new SocketResponse(false, "参数不足");
+        var t = ServiceFactory.getTeacherService().getByUserId(userId);
+        if (t == null) return new SocketResponse(false, "不存在");
+        java.util.Map<String,Object> m = new java.util.HashMap<>();
+        m.put("teacherId", t.getTeacherId());
+        m.put("teacherName", t.getTeacherName());
+        m.put("sex", t.getSex());
+        m.put("technical", t.getTechnical());
+        m.put("departmentId", t.getDepartmentId());
+        return new SocketResponse(true, "OK", (java.io.Serializable)m);
+    }
+
     // ===== Admin management over socket =====
     private SocketResponse handleAdminList(SocketRequest req) {
         var svc = ServiceFactory.getAdminService();
@@ -453,6 +485,17 @@ public class CourseRequestDispatcher {
         if (aid == null || aid.isBlank()) return new SocketResponse(false, "参数不足");
         boolean ok = ServiceFactory.getAdminService().deleteAdminOnly(aid);
         return new SocketResponse(ok, ok?"删除成功":"删除失败");
+    }
+
+    private SocketResponse handleAdminByUser(SocketRequest req) {
+        Integer userId = parseInt(req.getParam("userId"));
+        if (userId == null) return new SocketResponse(false, "参数不足");
+        var a = ServiceFactory.getAdminService().getByUserId(userId);
+        if (a == null) return new SocketResponse(false, "不存在");
+        java.util.Map<String,Object> m = new java.util.HashMap<>();
+        m.put("adminId", a.getAdminId());
+        m.put("adminName", a.getAdminName());
+        return new SocketResponse(true, "OK", (java.io.Serializable)m);
     }
 
     public void onClientClosed(String clientKey) {
